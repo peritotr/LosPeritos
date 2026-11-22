@@ -1,0 +1,396 @@
+{
+  "name": "Pixel Office",
+  "license": "CC0",
+  "source": "https://2dpig.itch.io/pixel-office",
+  "scale": 3,
+  "characters": [
+    {
+      "src": "character-1.png",
+      "frameWidth": 20,
+      "frameHeight": 26,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "working": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.22
+        },
+        "asking": {
+          "row": 0,
+          "frames": [
+            0,
+            2
+          ],
+          "secondsPerFrame": 0.3
+        },
+        "awaiting_seal": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "error": {
+          "row": 0,
+          "frames": [
+            0
+          ],
+          "secondsPerFrame": 1
+        },
+        "off_duty": null
+      }
+    },
+    {
+      "src": "character-2.png",
+      "frameWidth": 20,
+      "frameHeight": 26,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "working": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.22
+        },
+        "asking": {
+          "row": 0,
+          "frames": [
+            0,
+            2
+          ],
+          "secondsPerFrame": 0.3
+        },
+        "awaiting_seal": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "error": {
+          "row": 0,
+          "frames": [
+            0
+          ],
+          "secondsPerFrame": 1
+        },
+        "off_duty": null
+      }
+    },
+    {
+      "src": "character-3.png",
+      "frameWidth": 20,
+      "frameHeight": 26,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "working": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.22
+        },
+        "asking": {
+          "row": 0,
+          "frames": [
+            0,
+            2
+          ],
+          "secondsPerFrame": 0.3
+        },
+        "awaiting_seal": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "error": {
+          "row": 0,
+          "frames": [
+            0
+          ],
+          "secondsPerFrame": 1
+        },
+        "off_duty": null
+      }
+    },
+    {
+      "src": "character-4.png",
+      "frameWidth": 20,
+      "frameHeight": 26,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "working": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.22
+        },
+        "asking": {
+          "row": 0,
+          "frames": [
+            0,
+            2
+          ],
+          "secondsPerFrame": 0.3
+        },
+        "awaiting_seal": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "error": {
+          "row": 0,
+          "frames": [
+            0
+          ],
+          "secondsPerFrame": 1
+        },
+        "off_duty": null
+      }
+    },
+    {
+      "src": "character-5.png",
+      "frameWidth": 20,
+      "frameHeight": 26,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "working": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.22
+        },
+        "asking": {
+          "row": 0,
+          "frames": [
+            0,
+            2
+          ],
+          "secondsPerFrame": 0.3
+        },
+        "awaiting_seal": {
+          "row": 0,
+          "frames": [
+            0,
+            1
+          ],
+          "secondsPerFrame": 0.9
+        },
+        "error": {
+          "row": 0,
+          "frames": [
+            0
+          ],
+          "secondsPerFrame": 1
+        },
+        "off_duty": null
+      }
+    }
+  ],
+  "pets": {
+    "frenchBulldog": {
+      "src": "pet-french-bulldog.png",
+      "frameWidth": 20,
+      "frameHeight": 15,
+      "walk": [
+        0,
+        1
+      ],
+      "rest": [
+        2
+      ],
+      "secondsPerFrame": 0.18
+    },
+    "englishSetter": {
+      "src": "pet-english-setter.png",
+      "frameWidth": 33,
+      "frameHeight": 18,
+      "walk": [
+        0,
+        1
+      ],
+      "rest": [
+        2
+      ],
+      "secondsPerFrame": 0.18
+    }
+  },
+  "props": {
+    "sheet": "source/PixelOfficeAssets.png",
+    "items": {
+      "plant": [
+        170,
+        65,
+        14,
+        19
+      ],
+      "sofaWarm": [
+        120,
+        121,
+        33,
+        16
+      ],
+      "sofaCool": [
+        120,
+        83,
+        33,
+        16
+      ],
+      "table": [
+        85,
+        47,
+        26,
+        16
+      ],
+      "partitionLeft": [
+        171,
+        44,
+        20,
+        17
+      ],
+      "partitionRight": [
+        230,
+        44,
+        20,
+        17
+      ],
+      "desk": [
+        115,
+        47,
+        40,
+        16
+      ],
+      "computer": [
+        233,
+        106,
+        15,
+        19
+      ],
+      "coffeeMachine": [
+        159,
+        91,
+        7,
+        11
+      ],
+      "mug": [
+        169,
+        95,
+        8,
+        7
+      ],
+      "vending": [
+        159,
+        123,
+        24,
+        34
+      ],
+      "snackShelf": [
+        184,
+        126,
+        24,
+        31
+      ],
+      "cooler": [
+        147,
+        140,
+        9,
+        17
+      ],
+      "window": [
+        59,
+        96,
+        26,
+        21
+      ],
+      "door": [
+        98,
+        120,
+        16,
+        31
+      ],
+      "clock": [
+        159,
+        108,
+        19,
+        6
+      ],
+      "calendar": [
+        234,
+        81,
+        17,
+        11
+      ],
+      "picture": [
+        239,
+        94,
+        11,
+        8
+      ],
+      "binGreen": [
+        116,
+        143,
+        9,
+        14
+      ],
+      "binBlue": [
+        136,
+        143,
+        9,
+        14
+      ]
+    }
+  }
+}

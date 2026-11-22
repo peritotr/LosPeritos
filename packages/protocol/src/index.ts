@@ -231,6 +231,8 @@ export const routes = {
   lessons: "GET /workspaces/:workspaceId/lessons",
   decideLesson: "POST /lessons/:lessonId/decision",
   budget: "GET /workspaces/:workspaceId/budget",
+  /** Today's finished agent turns, for per-agent spend. */
+  runs: "GET /workspaces/:workspaceId/runs",
   /** Everything waiting on the user, across all workspaces. */
   waiting: "GET /waiting",
   events: "WS /events",

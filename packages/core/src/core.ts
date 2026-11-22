@@ -151,7 +151,9 @@ export class Core {
     const binDir = join(this.options.dataDir, "bin");
     mkdirSync(binDir, { recursive: true });
     const script = join(binDir, "peritos");
-    writeFileSync(script, `#!/bin/sh\nexec "${process.execPath}" "${cliEntry}" "$@"\n`);
+    // Inside the desktop app the runtime is Electron, which must be told to act as plain Node.
+    const asNode = process.versions.electron ? "ELECTRON_RUN_AS_NODE=1 " : "";
+    writeFileSync(script, `#!/bin/sh\n${asNode}exec "${process.execPath}" "${cliEntry}" "$@"\n`);
     chmodSync(script, 0o755);
     this.bridge = { url, binDir };
   }
@@ -328,6 +330,14 @@ export class Core {
 
   listLessons(workspaceId: string): Lesson[] {
     return this.state(workspaceId).lessons.all();
+  }
+
+  /** Today's finished agent turns in this workspace. */
+  listRuns(workspaceId: string): Run[] {
+    const today = localDate(this.now());
+    return this.state(workspaceId)
+      .runs.all()
+      .filter((run) => localDate(new Date(run.startedAt)) === today);
   }
 
   budget(workspaceId: string): BudgetState {

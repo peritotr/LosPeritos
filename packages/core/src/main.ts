@@ -1,13 +1,9 @@
 #!/usr/bin/env node
-import { randomBytes } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { ClaudeCodeAdapter, FakeAdapter } from "@losperitos/adapters";
-import { AppStore } from "@losperitos/storage";
-import { Core } from "./core.js";
-import { createServer } from "./server.js";
+import { startCore } from "./start.js";
 
 const { values } = parseArgs({
   options: {
@@ -21,33 +17,29 @@ const { values } = parseArgs({
 const fake = values.fake;
 const dataDir = values["data-dir"] ?? join(homedir(), fake ? ".losperitos-demo" : ".losperitos");
 
-const app = new AppStore(dataDir);
-let token = app.token();
-if (!token) {
-  token = randomBytes(24).toString("hex");
-  app.setToken(token);
-}
-
-const core = new Core({
-  dataDir,
-  adapters: [new FakeAdapter(), new ClaudeCodeAdapter()],
-  leadAdapter: fake ? "fake" : "claude-code",
-});
-const server = createServer(core, token);
-core.setBridge(
-  `http://127.0.0.1:${values.port}`,
-  fileURLToPath(new URL("../../cli/dist/main.js", import.meta.url)),
-);
-
-server.listen(Number(values.port), "127.0.0.1", () => {
-  console.log(`LosPeritos core listening on http://127.0.0.1:${values.port}${fake ? " (fake agents)" : ""}`);
+try {
+  const running = await startCore({
+    dataDir,
+    fake,
+    port: Number(values.port),
+    cliEntry: fileURLToPath(new URL("../../cli/dist/main.js", import.meta.url)),
+  });
+  console.log(`LosPeritos core listening on ${running.url}${fake ? " (fake agents)" : ""}`);
   console.log(`Token file: ${join(dataDir, "token.json")}`);
-});
 
-const shutdown = async () => {
-  await core.close();
-  server.close();
-  process.exit(0);
-};
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+  const shutdown = async () => {
+    await running.close();
+    process.exit(0);
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+} catch (err) {
+  if ((err as NodeJS.ErrnoException).code === "EADDRINUSE") {
+    console.error(
+      `Port ${values.port} is already in use: LosPeritos is probably running already. ` +
+        "Open http://localhost:5173, or stop the other copy first.",
+    );
+    process.exit(1);
+  }
+  throw err;
+}
