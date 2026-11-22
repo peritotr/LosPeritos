@@ -111,8 +111,8 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 
 ## LosPeritos'un kendi işleri
 
-- **İmzalama ve noterlik (K):** Apple Developer hesabıyla uygulamayı imzalayıp
-  notere göndermek; başka Mac'lerde uyarısız açılır.
+- **İmzalama ve noterlik:** Yapıldı. `npm run package` Developer ID sertifikasıyla
+  imzalıyor ve notere gönderiyor; 23 Kasım 2026'da üretilen paket Gatekeeper'dan geçti.
 - **Windows paketi (O):** Bir Windows makinede derleme ve deneme.
 - **GitHub'a hazırlık (K):** Ekran görüntülü README, katkı rehberi, CI.
 - **Otomatik güncelleme (O).**

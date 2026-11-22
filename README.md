@@ -52,7 +52,15 @@ npm run package
 
 This writes `apps/desktop/release/LosPeritos-<platform>-<arch>/` with the app inside, and on macOS a `.dmg` next to it. The app carries everything it needs except the agent tools themselves: `git` and Claude Code must be installed on the machine.
 
-The build is for the platform you run it on, and it is not code-signed or notarised. It opens normally on the machine that built it; on another Mac, Gatekeeper will refuse it until the user allows it under System Settings → Privacy & Security, and Windows SmartScreen shows a similar warning. Publishing releases needs an Apple Developer ID and a Windows signing certificate.
+The build is for the platform you run it on.
+
+**Signing on macOS.** With a *Developer ID Application* certificate in your keychain the build is signed automatically. To have it notarised as well, store your notary credentials once (this asks for your Apple ID, team ID and an app-specific password, and keeps them in the keychain):
+
+```bash
+xcrun notarytool store-credentials LosPeritos
+```
+
+A signed and notarised build opens without a warning on any Mac. Without the certificate the build is left unsigned: it opens on the machine that built it, and Gatekeeper refuses it elsewhere until the user allows it under System Settings → Privacy & Security. `LP_SIGN_IDENTITY` and `LP_NOTARY_PROFILE` override the certificate and the stored profile. Windows builds are not signed yet.
 
 ## Languages
 
