@@ -35,6 +35,51 @@ export function readPng(file) {
 }
 const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
 const crc = (buf) => { let c = 0xffffffff; for (const v of buf) c = crcTable[(c ^ v) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+/**
+ * Write an animated PNG that loops forever. `frames` are RGBA buffers of the
+ * same size; each is shown for `delayMs`.
+ */
+export function writeApng(file, w, h, frames, delayMs) {
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const td = Buffer.concat([Buffer.from(type, "latin1"), data]);
+    const c = Buffer.alloc(4);
+    c.writeUInt32BE(crc(td));
+    return Buffer.concat([len, td, c]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  const control = Buffer.alloc(8);
+  control.writeUInt32BE(frames.length, 0); // frame count; play count 0 = forever
+  const parts = [Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("acTL", control)];
+  let sequence = 0;
+  frames.forEach((rgba, index) => {
+    const frame = Buffer.alloc(26);
+    frame.writeUInt32BE(sequence++, 0);
+    frame.writeUInt32BE(w, 4);
+    frame.writeUInt32BE(h, 8);
+    frame.writeUInt16BE(delayMs, 20); // delay as delayMs / 1000 seconds
+    frame.writeUInt16BE(1000, 22);
+    parts.push(chunk("fcTL", frame));
+    const raw = Buffer.alloc((w * 4 + 1) * h);
+    for (let y = 0; y < h; y++) rgba.copy(raw, y * (w * 4 + 1) + 1, y * w * 4, (y + 1) * w * 4);
+    const data = zlib.deflateSync(raw, { level: 9 });
+    if (index === 0) {
+      parts.push(chunk("IDAT", data));
+    } else {
+      const numbered = Buffer.alloc(4);
+      numbered.writeUInt32BE(sequence++, 0);
+      parts.push(chunk("fdAT", Buffer.concat([numbered, data])));
+    }
+  });
+  parts.push(chunk("IEND", Buffer.alloc(0)));
+  fs.writeFileSync(file, Buffer.concat(parts));
+}
+
 export function writePng(file, w, h, rgba) {
   const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type, "latin1"), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
   const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6;

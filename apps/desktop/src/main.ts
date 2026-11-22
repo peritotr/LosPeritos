@@ -121,13 +121,15 @@ async function openWindow(core: RunningCore): Promise<void> {
 /**
  * Take the screenshots the documentation uses. The steps file is a JSON list of
  * `{ run, waitMs, file }`: run some JavaScript in the page, wait, save the window.
+ * If the JavaScript returns `{ x, y, width, height }`, only that part is saved.
  */
 async function runShots(target: BrowserWindow): Promise<void> {
   const steps = JSON.parse(readFileSync(process.env.LP_SHOT_STEPS!, "utf8")) as Array<{ run: string; waitMs: number; file: string }>;
   for (const step of steps) {
-    await target.webContents.executeJavaScript(step.run);
+    const area = (await target.webContents.executeJavaScript(step.run)) as { x: number; y: number; width: number; height: number } | null;
     await new Promise((done) => setTimeout(done, step.waitMs));
-    writeFileSync(step.file, (await target.webContents.capturePage()).toPNG());
+    const image = area?.width ? await target.webContents.capturePage(area) : await target.webContents.capturePage();
+    writeFileSync(step.file, image.toPNG());
     console.log("SHOT " + step.file);
   }
   app.quit();

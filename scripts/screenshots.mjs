@@ -1,44 +1,82 @@
-// Regenerates the screenshots in docs/ from the demo: English, light theme,
-// a fresh demo bureau. Run `npm run build:all` first, then: node scripts/screenshots.mjs
+// Regenerates the pictures in docs/ from the demo: English, a fresh demo
+// bureau. Run `npm run build:all` first, then: node scripts/screenshots.mjs
+//
+//   docs/floor.png             the bureau floor in motion (an animated PNG)
+//   docs/screenshot-*.png      still screens, light and dark
+//   docs/social-preview.png    1280×640 card for the repository's social preview
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readPng, writeApng } from "./skins/png.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const docs = join(root, "docs");
 const work = mkdtempSync(join(tmpdir(), "lp-shots-"));
 const electron = createRequire(join(root, "apps/desktop/package.json"))("electron");
 
+const FRAMES = 30;
+const FRAME_MS = 450;
+
 /** Click the first button whose text starts with the given words. */
 const click = (text) =>
-  `[...document.querySelectorAll("button")].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))?.click(); true`;
+  `[...document.querySelectorAll("button")].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))?.click(); null`;
+const settings = (values) =>
+  Object.entries(values).map(([key, value]) => `localStorage.setItem("losperitos.${key}", "${value}");`).join(" ") + " location.reload(); null";
+/** The rectangle of the bureau floor, so only it is captured. */
+const floorArea = `(() => { const r = document.querySelector(".floor-stage").getBoundingClientRect();
+  return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) }; })()`;
+/** Replace the page with a card built from the app's own fonts and colours. */
+const socialCard = `(() => {
+  const shot = ${JSON.stringify("data:image/png;base64,")} + window.__shot;
+  document.body.innerHTML = \`
+    <div style="width:1280px;height:640px;display:flex;align-items:center;gap:48px;padding:0 64px;box-sizing:border-box;
+                background:#1d2d3d;color:#e7e7ea;font-family:Barlow,sans-serif;overflow:hidden">
+      <div style="flex:none;width:430px">
+        <img src="./icon.png" width="128" height="128" style="display:block;margin-bottom:26px">
+        <div style="font:600 78px/1 'Barlow Condensed',sans-serif;letter-spacing:-.01em">LosPeritos</div>
+        <div style="font-size:27px;line-height:1.35;margin-top:20px;color:#b5d9fd">
+          A team of AI coding agents on your own machine. Nothing ships without your seal.</div>
+        <div style="font:17px ui-monospace,Menlo,monospace;margin-top:30px;opacity:.7">Local · open source · MIT</div>
+      </div>
+      <img src="\${shot}" style="height:520px;border:1px solid rgba(231,231,234,.25);box-shadow:0 20px 50px rgba(0,0,0,.5)">
+    </div>\`;
+  document.documentElement.style.background = "#1d2d3d";
+  return { x: 0, y: 0, width: 1280, height: 640 };
+})()`;
 
+const frame = (index) => join(work, `frame-${String(index).padStart(2, "0")}.png`);
 const steps = [
-  {
-    // English, light, correspondence open; then reload so the choices take effect.
-    run: `localStorage.setItem("losperitos.lang", "en"); localStorage.setItem("losperitos.theme", "light");
-          localStorage.setItem("losperitos.chat", "open"); location.reload(); true`,
-    waitMs: 3000,
-    file: join(work, "discard.png"),
-  },
-  { run: click("Run the demo job"), waitMs: 12000, file: join(docs, "screenshot-bench.png") },
+  // The floor in motion: chat closed so the room has the width, then the demo job.
+  { run: settings({ lang: "en", theme: "light", chat: "closed" }), waitMs: 3000, file: join(work, "discard.png") },
+  { run: click("Run the demo job"), waitMs: 400, file: join(work, "discard.png") },
+  ...Array.from({ length: FRAMES }, (_, index) => ({ run: floorArea, waitMs: FRAME_MS, file: frame(index) })),
+  // Still screens, with the correspondence panel open.
+  { run: settings({ chat: "open" }), waitMs: 3500, file: join(docs, "screenshot-bench.png") },
   { run: click("Awaiting you"), waitMs: 1500, file: join(docs, "screenshot-awaiting.png") },
   { run: click("Files"), waitMs: 1500, file: join(docs, "screenshot-files.png") },
-  {
-    run: `localStorage.setItem("losperitos.theme", "dark"); location.reload(); true`,
-    waitMs: 4000,
-    file: join(docs, "screenshot-dark.png"),
-  },
+  { run: click("The Bench") + "; " + settings({ theme: "dark" }), waitMs: 4000, file: join(docs, "screenshot-dark.png") },
 ];
 const stepsFile = join(work, "steps.json");
-writeFileSync(stepsFile, JSON.stringify(steps));
+const run = (list) => {
+  writeFileSync(stepsFile, JSON.stringify(list));
+  const result = spawnSync(electron, [join(root, "apps/desktop"), "--fake", "--shots"], {
+    stdio: "inherit",
+    env: { ...process.env, LP_SHOT_STEPS: stepsFile, LP_DATA_DIR: join(work, "data") },
+    timeout: 180_000,
+  });
+  if (result.status !== 0) process.exit(result.status ?? 1);
+};
+run(steps);
 
-const result = spawnSync(electron, [join(root, "apps/desktop"), "--fake", "--shots"], {
-  stdio: "inherit",
-  env: { ...process.env, LP_SHOT_STEPS: stepsFile, LP_DATA_DIR: join(work, "data") },
-  timeout: 120_000,
-});
-process.exit(result.status ?? 1);
+// Stitch the frames into one looping animation.
+const frames = Array.from({ length: FRAMES }, (_, index) => readPng(frame(index)));
+const { w, h } = frames[0];
+writeApng(join(docs, "floor.png"), w, h, frames.filter((f) => f.w === w && f.h === h).map((f) => f.data), FRAME_MS);
+console.log(`floor.png: ${frames.length} frames, ${w}×${h}`);
+
+// The social card shows the dark screenshot just taken.
+const shot = readFileSync(join(docs, "screenshot-dark.png")).toString("base64");
+run([{ run: `window.__shot = ${JSON.stringify(shot)}; ${socialCard}`, waitMs: 1200, file: join(docs, "social-preview.png") }]);

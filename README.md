@@ -1,52 +1,105 @@
-<p align="center"><img src="docs/logo.jpeg" alt="LosPeritos" width="260"></p>
+<div align="center">
+
+<img src="docs/icon.png" alt="" width="128" height="128">
 
 # LosPeritos
 
-A desktop app that runs a small team of AI coding agents on your own machine,
-and keeps you in charge of it. *Los peritos* is Spanish for "the experts".
+**Your own bureau of AI coding experts.**<br>
+A desktop app that runs a small team of agents on your machine,<br>
+and ships nothing without your seal.
 
-You open a project folder and tell the lead what you want. The lead splits the
-job, hands the parts to up to seven team members, and each one works on its own
-git branch. Nothing is merged, and nothing risky is run, until you put your
-seal on it.
+[![CI](https://github.com/peritotr/LosPeritos/actions/workflows/ci.yml/badge.svg)](https://github.com/peritotr/LosPeritos/actions/workflows/ci.yml)
+![License: MIT](https://img.shields.io/badge/license-MIT-416180)
+![Platform: macOS](https://img.shields.io/badge/platform-macOS-416180)
+![Version 0.1](https://img.shields.io/badge/version-0.1-416180)
 
-![The Bench: the bureau floor with the correspondence panel](docs/screenshot-bench.png)
+[Try it](#try-it) · [How it works](#how-a-job-flows) · [How much to trust it](#how-much-to-trust-it) · [Türkçe](README.tr.md)
 
-- **Your own account.** Agents run on your Claude Code CLI. LosPeritos sells no
-  AI usage and sits between you and nobody.
-- **Local.** No sign-in, no telemetry. Project data lives in
-  `<your folder>/.losperitos/`.
-- **Free and open.** MIT licensed.
+<br>
+
+<img src="docs/floor.png" alt="The bureau floor: the lead splits a job, peritos take their desks, and two of them walk to your seal desk with a question and a request." width="860">
+
+<sub>The bureau at work. A perito who needs you walks to your desk. Berlin and Luna supervise.</sub>
+
+</div>
+
+<br>
+
+*Los peritos* is Spanish for "the experts". You open a project folder and tell
+the lead what you want. The lead splits the job, hands the parts to up to seven
+team members, and each one works on its own git branch. Nothing is merged, and
+nothing risky is run, until you put your seal on it.
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### Your own account
+
+Agents run on your Claude Code CLI. LosPeritos sells no AI usage and sits
+between you and nobody.
+
+</td>
+<td width="33%" valign="top">
+
+### Local
+
+No sign-in, no telemetry. Project data lives in `<your folder>/.losperitos/`.
+
+</td>
+<td width="33%" valign="top">
+
+### Free and open
+
+MIT licensed. Read it, change it, ship your own.
+
+</td>
+</tr>
+</table>
 
 > **Status: early (0.1).** It works end to end on macOS with Claude Code.
 > Expect rough edges, and read [what is not there yet](#what-is-not-there-yet).
+
+## A look around
+
+![The Bench with the correspondence panel](docs/screenshot-bench.png)
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+![Awaiting you](docs/screenshot-awaiting.png)
+
+**Awaiting you.** Every question and every seal request, across all your
+projects, in one place. The question most worth answering first: *what is
+waiting on me?*
+
+</td>
+<td width="50%" valign="top">
+
+![Files](docs/screenshot-files.png)
+
+**Files.** The work itself: who has it, on which branch, in what state. Write
+a file yourself, set its priority, make it wait for another, or cancel it.
+
+</td>
+</tr>
+</table>
+
+![Dark theme](docs/screenshot-dark.png)
 
 ## What you get
 
 | | |
 |---|---|
-| ![Awaiting you](docs/screenshot-awaiting.png) | ![Files](docs/screenshot-files.png) |
-| **Awaiting you** gathers every question and seal request, across all your projects. | **Files** lists the work: who has it, on which branch, in what state. |
-
-- **The Bench.** A live view of the bureau: who is working, who is waiting on
-  you, where each piece of work is. A perito with a question walks to your desk.
-- **Correspondence.** A chat panel that stays open on every screen. Write to
-  the lead, or to one perito with `@`; answer questions and seal requests in
-  place; attach files.
-- **Seals.** Merges always wait for you. So do commands that publish, deploy,
-  delete or reach other machines, enforced by a permission bridge the agent
-  cannot skip.
-- **Reports.** Every finished file comes with three lists: done, tested, and
-  *not verified*.
-- **Lessons.** Peritos propose standing rules; the ones you accept are given to
-  every perito from then on. "Don't ask again" on an answer does the same.
-- **A daily budget** per project, with a warning at 80% and no new work once
-  it is spent.
-- **Staying on the job.** Conversations survive a restart; a perito that hits
-  your usage limit waits and carries on by itself when it resets.
-- **English and Turkish**, light and dark.
-
-![Dark theme](docs/screenshot-dark.png)
+| 🏢 **The Bench** | A live bureau floor: who is working, who is waiting on you, where each piece of work lies. |
+| 💬 **Correspondence** | A chat panel on every screen. Write to the lead, or to one perito with `@`. Answer and seal in place. Attach files. |
+| 🔏 **Seals** | Merges always wait for you. So do commands that publish, deploy, delete or reach other machines. |
+| 📋 **Reports** | Every finished file comes with three lists: done, tested, and *not verified*. |
+| 📚 **Lessons** | Peritos propose standing rules; the ones you accept are given to every perito from then on. |
+| 💰 **A daily budget** | Per project, with a warning at 80% and no new work once it is spent. |
+| 🔁 **Staying on the job** | Conversations survive a restart. A perito that hits your usage limit waits and carries on by itself. |
+| 🌍 **Two languages** | English and Turkish, light and dark. |
 
 ## Requirements
 
@@ -62,7 +115,7 @@ seal on it.
 There are no downloadable releases yet, so build it:
 
 ```bash
-git clone <this repository>
+git clone https://github.com/peritotr/LosPeritos.git
 cd LosPeritos
 npm install
 npx install-electron
@@ -88,17 +141,14 @@ See [Building and signing](CONTRIBUTING.md#building-and-signing).
 
 ## How a job flows
 
-1. You brief the lead. Small jobs it does itself; larger ones it splits into
-   files.
-2. Each file goes to a perito, who works in its own git worktree under
+1. **You brief the lead.** Small jobs it does itself; larger ones it splits
+   into files.
+2. **Each file goes to a perito**, who works in its own git worktree under
    `.losperitos/worktrees/` on a branch named `peritos/task-<n>-<title>`.
-3. The perito commits and hands the file in with a report.
-4. That raises a seal request. Sealing merges the branch into the branch you
-   had checked out and removes the worktree. If the merge conflicts it is
-   aborted, your checkout is left as it was, and the request stays open.
-
-You can also write files yourself, set their priority, make one wait for
-another, pause the hand-out, and cancel work under way.
+3. **The perito hands the file in** with a report: done, tested, not verified.
+4. **You seal it.** Sealing merges the branch into the branch you had checked
+   out and removes the worktree. If the merge conflicts it is aborted, your
+   checkout is left as it was, and the request stays open.
 
 ## How much to trust it
 
