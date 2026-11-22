@@ -107,12 +107,19 @@ a file yourself, set its priority, make it wait for another, or cancel it.
 - [git](https://git-scm.com/downloads).
 - [Claude Code](https://claude.com/claude-code), signed in. LosPeritos uses
   your existing login.
-- [Node.js](https://nodejs.org) 22 or newer, to build from source.
+- [Node.js](https://nodejs.org) 22 or newer, only if you build from source.
 - Optional: the [GitHub CLI](https://cli.github.com) to import issues.
 
 ## Try it
 
-There are no downloadable releases yet, so build it:
+**Download.** Get `LosPeritos-0.1.0-arm64.dmg` from the
+[latest release](https://github.com/peritotr/LosPeritos/releases/latest), open
+it, and drag LosPeritos to Applications. It is signed and notarised, so it
+opens like any other Mac app. It needs an Apple silicon Mac, and
+[git](https://git-scm.com/downloads) and
+[Claude Code](https://claude.com/claude-code) installed.
+
+**Or build it from source:**
 
 ```bash
 git clone https://github.com/peritotr/LosPeritos.git

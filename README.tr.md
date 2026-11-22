@@ -108,12 +108,19 @@ Ekran görüntüleri İngilizce arayüzden alındı; arayüzün tamamı Türkçe
 - [git](https://git-scm.com/downloads).
 - Giriş yapılmış [Claude Code](https://claude.com/claude-code). LosPeritos
   mevcut oturumunu kullanır.
-- Kaynak koddan derlemek için [Node.js](https://nodejs.org) 22 ya da üstü.
+- Yalnızca kaynak koddan derleyeceksen [Node.js](https://nodejs.org) 22 ya da üstü.
 - İsteğe bağlı: issue'ları içe aktarmak için [GitHub CLI](https://cli.github.com).
 
 ## Dene
 
-Henüz indirilebilir sürüm yok; kaynak koddan derlenir:
+**İndir.** [Son sürümden](https://github.com/peritotr/LosPeritos/releases/latest)
+`LosPeritos-0.1.0-arm64.dmg` dosyasını indir, aç ve LosPeritos'u Uygulamalar
+klasörüne sürükle. İmzalı ve noter onaylıdır; diğer Mac uygulamaları gibi
+açılır. Apple silicon işlemcili Mac ile kurulu
+[git](https://git-scm.com/downloads) ve
+[Claude Code](https://claude.com/claude-code) gerekir.
+
+**Ya da kaynak koddan derle:**
 
 ```bash
 git clone https://github.com/peritotr/LosPeritos.git
