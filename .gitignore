@@ -6,3 +6,7 @@ dist/
 .env.*
 .losperitos/
 release/
+
+# Local agent tooling (skills, MCP servers): each contributor sets up their own.
+.claude/
+.mcp.json
