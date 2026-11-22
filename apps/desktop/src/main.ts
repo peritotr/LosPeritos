@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -13,6 +13,9 @@ import { startCore, type RunningCore } from "@losperitos/core";
  *
  *   --fake    scripted agents and a demo bureau; spends nothing
  *   --smoke   load, report what rendered as JSON, save a screenshot, quit
+ *   --shots   run the steps in the file named by LP_SHOT_STEPS, saving a screenshot after each, quit
+ *
+ * LP_DATA_DIR overrides where machine-level state is kept.
  */
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -27,6 +30,7 @@ const preload = join(root, "preload.cjs");
 const icon = packaged ? join(root, "icon.png") : join(root, "assets/icon.png");
 const fake = process.argv.includes("--fake");
 const smoke = process.argv.includes("--smoke");
+const shots = process.argv.includes("--shots");
 /** Point the window at a running Vite dev server instead of the built UI. */
 const devUrl = process.env.LP_UI_DEV_URL;
 
@@ -86,7 +90,7 @@ async function openWindow(core: RunningCore): Promise<void> {
     height: 900,
     minWidth: 1024,
     minHeight: 700,
-    show: !smoke,
+    show: !smoke && !shots,
     title: "LosPeritos",
     ...(existsSync(icon) && { icon }),
     backgroundColor: "#f2f2f3",
@@ -111,6 +115,22 @@ async function openWindow(core: RunningCore): Promise<void> {
   await window.loadURL(devUrl ?? "app://ui/index.html");
   trace("UI loaded");
   if (smoke) await runSmoke(window);
+  if (shots) await runShots(window);
+}
+
+/**
+ * Take the screenshots the documentation uses. The steps file is a JSON list of
+ * `{ run, waitMs, file }`: run some JavaScript in the page, wait, save the window.
+ */
+async function runShots(target: BrowserWindow): Promise<void> {
+  const steps = JSON.parse(readFileSync(process.env.LP_SHOT_STEPS!, "utf8")) as Array<{ run: string; waitMs: number; file: string }>;
+  for (const step of steps) {
+    await target.webContents.executeJavaScript(step.run);
+    await new Promise((done) => setTimeout(done, step.waitMs));
+    writeFileSync(step.file, (await target.webContents.capturePage()).toPNG());
+    console.log("SHOT " + step.file);
+  }
+  app.quit();
 }
 
 /** Check that the UI came up and is talking to the core, then quit. */
@@ -164,7 +184,7 @@ async function start(): Promise<void> {
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
 
-  const dataDir = join(homedir(), fake ? ".losperitos-demo" : ".losperitos");
+  const dataDir = process.env.LP_DATA_DIR ?? join(homedir(), fake ? ".losperitos-demo" : ".losperitos");
   try {
     running = await startCore({ dataDir, fake, cliEntry });
   } catch (err) {

@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The merge tests create commits.
+      - run: git config --global user.name "CI" && git config --global user.email "ci@example.invalid"
+      - run: npm test
+      - run: npm run typecheck:ui
+      - run: npm run build --workspace @losperitos/ui
+      - run: npm run build --workspace @losperitos/desktop
