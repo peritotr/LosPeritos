@@ -34,3 +34,18 @@ test("unknown and non-JSON lines do not throw", () => {
   assert.deepEqual(parseStreamLine("plain text"), [{ type: "output", stream: "stdout", chunk: "plain text\n" }]);
   assert.deepEqual(parseStreamLine(""), []);
 });
+
+test("usage-limit failures are recognised and their reset time worked out", async () => {
+  const { parseLimit } = await import("./claude-code.js");
+  assert.equal(parseLimit("File not found"), undefined);
+  assert.deepEqual(parseLimit("Claude AI usage limit reached|1763950000"), {
+    resetAt: new Date(1763950000 * 1000).toISOString(),
+  });
+  const now = new Date(2026, 10, 23, 14, 0, 0);
+  assert.equal(new Date(parseLimit("You've hit your limit · resets 3pm", now)!.resetAt!).getHours(), 15);
+  const tomorrow = new Date(parseLimit("Usage limit reached. Resets at 1:53am", now)!.resetAt!);
+  assert.deepEqual([tomorrow.getDate(), tomorrow.getHours(), tomorrow.getMinutes()], [24, 1, 53]);
+  assert.deepEqual(parseLimit("You are out of usage for now"), { resetAt: null });
+  const line = JSON.stringify({ type: "result", is_error: true, result: "Claude AI usage limit reached|1763950000" });
+  assert.ok((parseStreamLine(line)[0] as { limit?: unknown }).limit);
+});

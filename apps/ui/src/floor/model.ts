@@ -45,6 +45,8 @@ const POSE: Record<Agent["status"], Pose> = {
   asking: "asking",
   awaiting_approval: "awaiting_seal",
   error: "error",
+  // Waiting for the limit to lift looks like waiting at the desk.
+  limited: "idle",
   stopped: "off_duty",
 };
 

@@ -67,7 +67,8 @@ const BRIDGE_PROMPT =
 const LEAD_PROMPT =
   "You are the lead of a small team of coding agents working in this folder. " +
   "Small jobs you do yourself. Larger jobs you split into independent tasks and hand out with " +
-  "`peritos task create --title \"<title>\" --description \"<everything the teammate needs>\" --specialty <developer|tester|designer|...>`. " +
+  "`peritos task create --title \"<title>\" --description \"<everything the teammate needs>\" --specialty <developer|tester|designer|...> --effort <small|normal|large>`. " +
+  "Use --effort small for mechanical work (renames, copy changes, simple tests) and large for hard design or debugging; it decides which model the teammate runs on. " +
   "Each task goes to a teammate who works on a separate git branch and cannot see this conversation, " +
   "so make every description self-contained and keep tasks from touching the same files. " +
   "After handing out tasks, stop; you are told when each one is merged. " +
@@ -80,6 +81,13 @@ const MEMBER_PROMPT =
   "`peritos task done --done \"<what you did>\" --tested \"<what you tested>\" --not-verified \"<what you could not verify>\"` " +
   "(repeat a flag for several items), then stop. Never merge, push or switch branches.\n" +
   BRIDGE_PROMPT;
+
+/** Small tasks run on a cheap model, large ones on the biggest; the rest on the tool's default. */
+const MODEL_FOR: Record<"small" | "normal" | "large", string | undefined> = {
+  small: "haiku",
+  normal: undefined,
+  large: "opus",
+};
 
 function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "task";
@@ -129,6 +137,10 @@ export class Core {
   private bridge: { url: string; binDir: string; cliEntry: string } | null = null;
   /** Tool calls held until the user decides, by approval id. */
   private readonly heldCalls = new Map<string, (decision: "approved" | "rejected") => void>();
+  /** Timers that wake agents whose usage limit is due to reset. */
+  private readonly limitTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Sessions that have been started on a resumed conversation and not yet said anything. */
+  private readonly resuming = new Set<string>();
   /** Agents whose process should end once their current turn has been accounted for. */
   private readonly stopAfterTurn = new Set<string>();
   private seq = 0;
@@ -260,6 +272,10 @@ export class Core {
         state.agents.put({ ...agent, adapter, status });
       }
     }
+    // Agents that were waiting out a usage limit keep waiting.
+    queueMicrotask(() => {
+      for (const agent of state.agents.all()) if (agent.status === "limited") this.scheduleResume(state, agent.id, agent.resumeAt ?? null);
+    });
     if (!state.agents.all().some((agent) => agent.role === "lead")) {
       state.agents.put({
         id: randomUUID(),
@@ -572,6 +588,7 @@ export class Core {
           status: "queued",
           assigneeId: null,
           specialty: command.specialty,
+          effort: command.effort,
           branch: null,
           baseBranch: null,
           worktree: null,
@@ -763,7 +780,8 @@ export class Core {
           updatedAt: this.now().toISOString(),
         });
         this.emit({ type: "task.updated", task: started });
-        const assigned = state.agents.put({ ...member, taskId: task.id });
+        // A new file is a new conversation: nothing carries over from the last one.
+        const assigned = state.agents.put({ ...member, taskId: task.id, sessionId: null });
         this.deliver(
           state,
           assigned,
@@ -856,7 +874,34 @@ export class Core {
     return approval;
   }
 
+  // ── Usage limits ──────────────────────────────────────────────────────────
+
+  /** How long to wait before trying again when the tool did not say when the limit lifts. */
+  private static readonly LIMIT_RETRY_MS = 20 * 60 * 1000;
+
+  /** Wake a limited agent when its limit is due to reset. */
+  private scheduleResume(state: WorkspaceState, agentId: string, resetAt: string | null): void {
+    clearTimeout(this.limitTimers.get(agentId));
+    const wait = resetAt ? Math.max(0, new Date(resetAt).getTime() - this.now().getTime()) : Core.LIMIT_RETRY_MS;
+    // A minute's grace: limits do not always lift on the stroke of the hour.
+    const timer = setTimeout(() => this.resumeLimited(state, agentId), resetAt ? wait + (wait > 1000 ? 60_000 : 0) : wait);
+    timer.unref?.();
+    this.limitTimers.set(agentId, timer);
+  }
+
+  private resumeLimited(state: WorkspaceState, agentId: string): void {
+    this.limitTimers.delete(agentId);
+    const agent = state.agents.get(agentId);
+    if (!agent || agent.status !== "limited") return;
+    // Out of budget: stay limited and look again later rather than start work the user capped.
+    if (this.budget(state.workspace.id).level === "exhausted") return this.scheduleResume(state, agentId, null);
+    this.setAgent(state, agentId, { resumeAt: null });
+    this.deliver(state, agent, "The usage limit has reset. Continue where you left off.");
+  }
+
   async close(): Promise<void> {
+    for (const timer of this.limitTimers.values()) clearTimeout(timer);
+    this.limitTimers.clear();
     await Promise.all([...this.sessions.values()].map((session) => session.stop()));
   }
 
@@ -885,7 +930,8 @@ export class Core {
   }
 
   /** Hand text to the agent, starting its process and a new run as needed. */
-  private deliver(state: WorkspaceState, agent: Agent, text: string): void {
+  private deliver(state: WorkspaceState, target: Agent, text: string): void {
+    let agent = target;
     let session = this.sessions.get(agent.id);
     if (!session) {
       const adapter = this.adapters.get(agent.adapter);
@@ -893,10 +939,18 @@ export class Core {
       const token = randomBytes(24).toString("hex");
       this.agentTokens.set(agent.id, token);
       const task = agent.taskId ? state.tasks.get(agent.taskId) : undefined;
+      // Keep one conversation per agent, so a restart picks up where it left off.
+      const resume = !!agent.sessionId;
+      const sessionId = agent.sessionId ?? randomUUID();
+      if (!resume) agent = state.agents.put({ ...agent, sessionId });
+      else this.resuming.add(agent.id);
       session = adapter.start({
         cwd: task?.worktree ?? state.workspace.path,
         trustMode: state.workspace.trustMode,
         systemPrompt: (agent.role === "lead" ? LEAD_PROMPT : MEMBER_PROMPT) + this.lessonsPrompt(state),
+        sessionId,
+        resume,
+        model: agent.role === "member" ? MODEL_FOR[task?.effort ?? "normal"] : undefined,
         addDirs: [this.attachmentsDir(state)],
         ...(this.bridge && {
           permissionBridge: {
@@ -940,6 +994,20 @@ export class Core {
   private onSessionEvent(state: WorkspaceState, agentId: string, event: SessionEvent): void {
     const agent = state.agents.get(agentId);
     if (!agent) return;
+    if (event.type === "exit" && this.resuming.delete(agentId) && event.code !== 0) {
+      // The old conversation could not be reopened; start a new one next time.
+      state.agents.put({ ...agent, sessionId: null });
+      agent.sessionId = null;
+      this.addMessage(state, {
+        author: { kind: "system" },
+        toAgentId: null,
+        taskId: agent.taskId,
+        body: `${agent.nickname ?? agent.name} could not pick up its earlier conversation. Send the message again to start a fresh one.`,
+        question: null,
+      });
+    } else if (event.type !== "exit" && event.type !== "error") {
+      this.resuming.delete(agentId);
+    }
     switch (event.type) {
       case "output": {
         this.emit({ type: "agent.output", agentId, stream: event.stream, chunk: event.chunk });
@@ -984,6 +1052,13 @@ export class Core {
       }
       case "error":
         this.activeRuns.delete(agentId);
+        if (event.limit) {
+          // Not a failure of the work: wait for the limit to lift, then carry on.
+          const resumeAt = event.limit.resetAt;
+          this.setAgent(state, agentId, { status: "limited", error: null, resumeAt, lastOutput: agent.lastOutput });
+          this.scheduleResume(state, agentId, resumeAt);
+          break;
+        }
         this.setAgent(state, agentId, {
           status: "error",
           error: event.message,

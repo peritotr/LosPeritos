@@ -36,6 +36,8 @@ export const AgentStatus = z.enum([
   "asking",
   "awaiting_approval",
   "error",
+  /** The account's usage limit is spent; the agent resumes by itself when it resets. */
+  "limited",
   "stopped",
 ]);
 
@@ -53,6 +55,10 @@ export const Agent = z.object({
   taskId: id.nullable(),
   lastOutput: z.string().nullable(),
   error: z.string().nullable(),
+  /** The agent tool's own conversation id, so the conversation survives a restart. */
+  sessionId: z.string().nullable().optional(),
+  /** When a limited agent will try again. */
+  resumeAt: timestamp.nullable().optional(),
 });
 
 // ── Task ────────────────────────────────────────────────────────────────────
@@ -66,6 +72,10 @@ export const TaskStatus = z.enum([
   "done",
   "cancelled",
 ]);
+
+/** How demanding a task is; decides which model the team member runs on. */
+export const TaskEffort = z.enum(["small", "normal", "large"]);
+export type TaskEffort = z.infer<typeof TaskEffort>;
 
 export const TaskReport = z.object({
   done: z.array(z.string()),
@@ -85,6 +95,7 @@ export const Task = z.object({
   assigneeId: id.nullable(),
   /** What kind of team member should take it, e.g. "tester". */
   specialty: z.string().nullable(),
+  effort: TaskEffort.optional(),
   branch: z.string().nullable(),
   /** Branch the task branch forked from and merges back into. */
   baseBranch: z.string().nullable(),
@@ -301,6 +312,7 @@ export const AgentCommand = z.discriminatedUnion("command", [
     title: z.string().min(1),
     description: z.string().default(""),
     specialty: z.string().min(1).default("developer"),
+    effort: TaskEffort.default("normal"),
   }),
   z.object({ command: z.literal("task.list") }),
   /** Member only: hand the task in for review and merge. */

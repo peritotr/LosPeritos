@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, powerSaveBlocker, protocol, shell } from "electron";
 import { startCore, type RunningCore } from "@losperitos/core";
 
 /**
@@ -59,6 +59,26 @@ function adoptShellPath(): void {
 const trace = (step: string) => process.env.LP_TRACE && console.log("[trace]", step);
 let running: RunningCore | undefined;
 let window: BrowserWindow | undefined;
+
+/**
+ * Stop the computer from sleeping while any agent is at work, and let it
+ * sleep again when all are done or waiting on the user. The display may
+ * still turn off.
+ */
+function keepAwakeWhileWorking({ core }: RunningCore): void {
+  const working = new Set<string>();
+  let blocker: number | null = null;
+  core.subscribe(({ event }) => {
+    if (event.type !== "agent.updated") return;
+    if (event.agent.status === "working") working.add(event.agent.id);
+    else working.delete(event.agent.id);
+    if (working.size > 0 && blocker === null) blocker = powerSaveBlocker.start("prevent-app-suspension");
+    if (working.size === 0 && blocker !== null) {
+      powerSaveBlocker.stop(blocker);
+      blocker = null;
+    }
+  });
+}
 
 async function openWindow(core: RunningCore): Promise<void> {
   window = new BrowserWindow({
@@ -159,6 +179,7 @@ async function start(): Promise<void> {
       mkdirSync(folder, { recursive: true });
       running.core.openWorkspace(folder);
     }
+    keepAwakeWhileWorking(running);
     await openWindow(running);
     app.on("activate", () => {
       if (!window && running) void openWindow(running);

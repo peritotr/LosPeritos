@@ -246,3 +246,37 @@ test("a held tool call waits for the user and is answered by the decision", asyn
   assert.equal(core.waiting().approvals.length, 0);
   assert.throws(() => core.requestPermission("nope", "Bash", {}), CoreError);
 });
+
+test("an agent that hits the usage limit waits and then carries on by itself", async () => {
+  const { core, workspace } = setup({ repo: false });
+  await tick();
+  core.sendMessage(workspace.id, { body: "/limit", toAgentId: null, taskId: null });
+  await tick();
+  const limited = core.listAgents(workspace.id)[0]!;
+  assert.equal(limited.status, "limited");
+  assert.ok(limited.resumeAt);
+
+  // The fake's limit lifts after 60 ms; the core then nudges the agent without being asked.
+  for (let i = 0; i < 100 && core.listAgents(workspace.id)[0]!.status !== "idle"; i++) await tick();
+  assert.equal(core.listAgents(workspace.id)[0]!.status, "idle");
+  assert.match(core.listMessages(workspace.id).at(-1)!.body, /usage limit has reset/);
+});
+
+test("a conversation is kept across restarts, and each new file starts a fresh one", async () => {
+  const { core, adapter, workspace, as, dataDir } = setup({ repo: false });
+  const first = adapter.starts[0]!;
+  assert.ok(first.sessionId);
+  assert.equal(first.resume, false);
+  await as(0, { command: "task.create", title: "Small one", effort: "small" });
+  assert.equal(adapter.starts[1]!.model, "haiku");
+  assert.equal(adapter.starts[0]!.model, undefined, "the lead keeps the tool's default model");
+  await core.close();
+
+  // A new core on the same data: the lead reopens its conversation.
+  const again = new FakeAdapter();
+  const restarted = new Core({ dataDir, adapters: [again], leadAdapter: "fake" });
+  restarted.sendMessage(workspace.id, { body: "back", toAgentId: null, taskId: null });
+  assert.equal(again.starts[0]!.sessionId, first.sessionId);
+  assert.equal(again.starts[0]!.resume, true);
+  await restarted.close();
+});

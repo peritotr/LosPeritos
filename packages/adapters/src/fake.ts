@@ -71,6 +71,11 @@ export class FakeAdapter implements Adapter {
 
     const turn = async (text: string) => {
       emit({ type: "output", stream: "stdout", chunk: `> ${text.split("\n")[0]}\n` });
+      if (text.startsWith("/limit")) {
+        // Pretend the account's usage limit is spent, lifting in a moment.
+        emit({ type: "error", message: "Usage limit reached", limit: { resetAt: new Date(Date.now() + 60).toISOString() } });
+        return;
+      }
       if (text.startsWith("/fail")) {
         emit({ type: "error", message: "Fake failure" });
         return;

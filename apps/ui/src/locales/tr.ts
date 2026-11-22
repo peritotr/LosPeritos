@@ -53,6 +53,9 @@ export const tr: Strings = {
     asking: "Sana soruyor",
     awaitingSeal: "Mühür bekliyor",
     error: "Hata",
+    limited: "Limit bekliyor",
+    resumesAt: (time) => `Kullanım limiti doldu. Saat ${time} olunca kendiliğinden devam eder.`,
+    resumesLater: "Kullanım limiti doldu. 20 dakikada bir yeniden dener.",
   },
   file: {
     draft: "Taslak",

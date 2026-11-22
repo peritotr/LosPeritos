@@ -18,7 +18,8 @@ export type SessionEvent =
     }
   /** The current turn finished; the agent is idle again. */
   | { type: "turn_end"; inputTokens: number; outputTokens: number; costUsd: number }
-  | { type: "error"; message: string }
+  /** `limit` is set when the failure is the account's usage limit, with the reset time if known. */
+  | { type: "error"; message: string; limit?: { resetAt: string | null } }
   /** The underlying process is gone. */
   | { type: "exit"; code: number | null };
 
@@ -33,6 +34,11 @@ export interface StartOptions {
   cwd: string;
   trustMode: TrustMode;
   systemPrompt?: string;
+  /** Conversation id to start under, or to pick up again when `resume` is set. */
+  sessionId?: string;
+  resume?: boolean;
+  /** Model alias for this agent; the tool's own default when absent. */
+  model?: string;
   /**
    * How tool calls that need the user's approval reach the core: a command that
    * speaks MCP over stdio and offers an `approve` tool. Without it such calls are refused.

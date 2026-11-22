@@ -6,6 +6,30 @@ import type { Adapter, AgentSession, SessionEvent, StartOptions } from "./types.
  * Translate one line of `claude --output-format stream-json` into session
  * events. Exported for tests; unknown line types are ignored.
  */
+/**
+ * Recognise the CLI's "usage limit" failure and work out when it lifts.
+ * Its wording has changed between versions, so several forms are accepted:
+ * a Unix time after a bar, or a clock time after "reset(s) (at)".
+ */
+export function parseLimit(message: string, now = new Date()): { resetAt: string | null } | undefined {
+  if (!/usage limit|hit your limit|limit reached|out of (extra )?usage/i.test(message)) return undefined;
+  const epoch = /\|(\d{10})\b/.exec(message);
+  if (epoch) return { resetAt: new Date(Number(epoch[1]) * 1000).toISOString() };
+  const clock = /reset(?:s)?(?: at)?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i.exec(message);
+  if (clock) {
+    let hour = Number(clock[1]);
+    const half = clock[3]?.toLowerCase();
+    if (half === "pm" && hour < 12) hour += 12;
+    if (half === "am" && hour === 12) hour = 0;
+    const at = new Date(now);
+    at.setHours(hour, Number(clock[2] ?? 0), 0, 0);
+    // A time already past today means tomorrow.
+    if (at <= now) at.setDate(at.getDate() + 1);
+    return { resetAt: at.toISOString() };
+  }
+  return { resetAt: null };
+}
+
 export function parseStreamLine(line: string): SessionEvent[] {
   let msg: any;
   try {
@@ -30,7 +54,9 @@ export function parseStreamLine(line: string): SessionEvent[] {
   if (msg?.type === "result") {
     const events: SessionEvent[] = [];
     if (msg.is_error) {
-      events.push({ type: "error", message: String(msg.result ?? msg.subtype ?? "Agent turn failed") });
+      const message = String(msg.result ?? msg.subtype ?? "Agent turn failed");
+      const limit = parseLimit(message);
+      events.push({ type: "error", message, ...(limit && { limit }) });
     }
     const usage = msg.usage ?? {};
     events.push({
@@ -98,6 +124,8 @@ export class ClaudeCodeAdapter implements Adapter {
       "--permission-mode", options.trustMode === "full" ? "acceptEdits" : "default",
       "--allowedTools", options.trustMode === "full" ? "Bash" : "Bash(peritos *)",
     ];
+    if (options.sessionId) args.push(options.resume ? "--resume" : "--session-id", options.sessionId);
+    if (options.model) args.push("--model", options.model);
     if (options.systemPrompt) args.push("--append-system-prompt", options.systemPrompt);
     for (const dir of options.addDirs ?? []) args.push("--add-dir", dir);
     if (options.permissionBridge) {

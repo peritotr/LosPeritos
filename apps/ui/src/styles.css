@@ -386,6 +386,7 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .term-out .bad { color: var(--st-err); }
 .live { font: 11px var(--lp-mono); letter-spacing: 0.08em; }
 
+.limit-note { padding: 8px 14px; font-size: 13px; color: var(--st-warn); background: var(--st-warn-bg); border-bottom: 1px solid var(--color-divider); }
 .rename { display: flex; align-items: center; gap: 8px; }
 .rename .input { max-width: 240px; font: 600 22px var(--font-heading); }
 .detail-body { display: flex; gap: 24px; flex: 1; min-height: 0; }
@@ -488,6 +489,7 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .desk.working .desk-status { fill: var(--st-work); }
 .desk.asking .desk-status, .desk.awaiting_approval .desk-status { fill: var(--st-act); }
 .desk.error .desk-status { fill: var(--st-err); }
+.desk.limited .lamp, .desk.limited .desk-status { fill: var(--st-warn); }
 .sheet { fill: var(--color-bg); stroke: var(--color-divider); }
 .sheet-line { fill: none; stroke: var(--lp-muted); stroke-width: 1.5; }
 .flag rect { fill: var(--st-act); }

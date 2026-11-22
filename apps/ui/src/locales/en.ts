@@ -54,6 +54,9 @@ export const en = {
     asking: "Asking you",
     awaitingSeal: "Awaiting seal",
     error: "Error",
+    limited: "Waiting out the limit",
+    resumesAt: (time: string) => `Usage limit reached. Carries on by itself at ${time}.`,
+    resumesLater: "Usage limit reached. Tries again every 20 minutes.",
   },
   file: {
     draft: "Draft",

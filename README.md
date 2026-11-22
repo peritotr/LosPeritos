@@ -69,9 +69,11 @@ Agents reach the core through the `peritos` CLI (`packages/cli`), which the core
 
 **Trust modes.** In a `full` workspace agents edit files and run ordinary shell commands in your folder without asking. Commands that publish, deploy, destroy or reach other machines (`git push`, `rm -rf`, `npm publish`, `ssh`, deploy tools; the list is `RISKY_COMMANDS` in `packages/adapters/src/claude-code.ts`) are held until you seal them, as is every merge. In a `restricted` workspace every edit and every command is held. Held calls reach you through a permission bridge (`peritos mcp`) that the agent's CLI must go through, so this is enforced rather than requested. It is still a safety net, not a sandbox: commands are matched by prefix, so an unusual spelling such as `git -C . push` is not caught.
 
+**Staying on the job.** Each agent keeps one conversation, so after a restart the lead picks up where it left off; a team member starts a fresh conversation with every new task. An agent that hits the account's usage limit is marked as waiting, not failed, and carries on by itself when the limit resets (or tries every 20 minutes when the tool does not say when that is). The lead can mark a task `--effort small` or `large`, which runs that team member on a cheaper or a bigger model. The desktop app keeps the computer awake while any agent is working.
+
 Answering a question with "don't ask again" files the answer as a lesson, and accepted lessons are given to every agent started afterwards.
 
-`node scripts/smoke-claude.mjs`, `node scripts/e2e-claude.mjs` and `node scripts/e2e-permission.mjs` check the adapter, the whole flow and the permission bridge against your real `claude` CLI; all three spend real usage.
+`scripts/smoke-claude.mjs`, `e2e-claude.mjs`, `e2e-permission.mjs` and `e2e-resume.mjs` check the adapter, the whole flow, the permission bridge and conversation resume against your real `claude` CLI; each spends a little real usage.
 
 In fake mode a message starting with `/ask`, `/approve` or `/fail` makes the agent ask a question, request an approval or fail; anything else is echoed.
 

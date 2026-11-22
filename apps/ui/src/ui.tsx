@@ -168,6 +168,7 @@ export const AGENT_STATUS: Record<AgentStatus, StatusMeta> = {
   asking: { label: T.status.asking, icon: MessageCircleQuestion, color: "var(--st-act)", ground: "var(--st-act-bg)" },
   awaiting_approval: { label: T.status.awaitingSeal, icon: StampIcon, color: "var(--st-act)", ground: "var(--st-act-bg)" },
   error: { label: T.status.error, icon: TriangleAlert, color: "var(--st-err)", ground: "var(--st-err-bg)" },
+  limited: { label: T.status.limited, icon: Clock, color: "var(--st-warn)", ground: "var(--st-warn-bg)" },
 };
 
 export const TASK_STATUS: Record<TaskStatus, StatusMeta> = {
