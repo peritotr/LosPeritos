@@ -219,6 +219,16 @@ Lucide. Full list in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Berlin and Luna, the office dogs, are real.
 
+## In memory
+
+<img src="docs/alpaslan-yilmaz.png" alt="A pixel portrait of Alpaslan Yılmaz" width="120" height="120" align="left" hspace="16">
+
+**Alpaslan Yılmaz** was our head of R&D, and our friend.<br>
+We lost him in March 2025.<br>
+LosPeritos is dedicated to his memory.
+
+<br clear="left">
+
 ## License
 
 [MIT](LICENSE)

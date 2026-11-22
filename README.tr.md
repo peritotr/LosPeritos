@@ -200,6 +200,16 @@ License). İkonlar: Lucide. Tam liste: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTI
 
 Ofis köpekleri Berlin ve Luna gerçektir.
 
+## Anısına
+
+<img src="docs/alpaslan-yilmaz.png" alt="Alpaslan Yılmaz'ın piksel portresi" width="120" height="120" align="left" hspace="16">
+
+**Alpaslan Yılmaz** Ar-Ge Müdürümüzdü, dostumuzdu.<br>
+Onu Mart 2025'te kaybettik.<br>
+LosPeritos onun anısına adanmıştır.
+
+<br clear="left">
+
 ## Lisans
 
 [MIT](LICENSE)

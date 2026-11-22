@@ -9,6 +9,9 @@ others.
 |---|---|---|---|
 | [Pixel Office Asset Pack](https://2dpig.itch.io/pixel-office) | 2dPig | CC0 1.0 | `apps/ui/public/skins/office/` |
 
+The portrait of Alpaslan Yılmaz in the README is an original drawing
+(`scripts/portrait.mjs`).
+
 The characters' extra animation frames are derived from that pack by
 `scripts/skins/build-office.mjs`. The two dogs, the room backdrop and the
 perito emblems are original to this project.
