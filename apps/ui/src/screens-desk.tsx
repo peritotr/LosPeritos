@@ -162,6 +162,7 @@ function QuestionCard({ ctx, message }: { ctx: Ctx; message: Message }) {
   const names = lookup(ctx);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const file = names.file(message.taskId);
   const who = names.who(message.author.kind === "agent" ? message.author.agentId : null);
@@ -171,7 +172,7 @@ function QuestionCard({ ctx, message }: { ctx: Ctx; message: Message }) {
     setBusy(true);
     setError(null);
     try {
-      await ctx.actions.answer(message.id, value.trim());
+      await ctx.actions.answer(message.id, value.trim(), remember);
       ctx.note(T.awaiting.answerSent);
     } catch (err) {
       setError((err as Error).message);
@@ -203,9 +204,14 @@ function QuestionCard({ ctx, message }: { ctx: Ctx; message: Message }) {
             {message.question!.options.map((option) => (
               <button key={option} className="btn btn-act" disabled={busy} onClick={() => answer(option)}>
                 {option}
+                {option === message.question!.recommended && <span className="suggested">★ {T.awaiting.recommended}</span>}
               </button>
             ))}
           </div>
+          <label className="remember">
+            <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+            {T.awaiting.remember}
+          </label>
           <form
             className="row"
             onSubmit={(event: FormEvent) => {
@@ -422,6 +428,12 @@ export function SealToast({ ctx, approval, onLeave }: { ctx: Ctx; approval: Appr
 export function Archive(ctx: Ctx) {
   const names = lookup(ctx);
   const lessons = ctx.state.lessons.filter((lesson) => lesson.workspaceId === ctx.bureau.id);
+  // Every answered question, newest first, numbered in the order it was asked.
+  const decisions = ctx.messages
+    .filter((message) => message.question)
+    .map((message, index) => ({ message, ref: `D-${pad(index + 1, 3)}` }))
+    .filter(({ message }) => message.question!.answer !== null)
+    .reverse();
   const proposed = lessons.filter((lesson) => lesson.status === "proposed");
   const accepted = lessons
     .filter((lesson) => lesson.status === "accepted")
@@ -459,7 +471,25 @@ export function Archive(ctx: Ctx) {
           ))}
         </section>
         <section>
-          <div className="section-label">{T.archive.onRecord}</div>
+          <div className="section-label">{T.awaiting.decisions}</div>
+          {decisions.length === 0 && <p className="muted" style={{ marginBottom: 22 }}>{T.awaiting.noDecisions}</p>}
+          {decisions.map(({ message, ref }) => (
+            <div key={message.id} className="record">
+              <span className="mono muted" style={{ fontSize: 12 }}>
+                {ref}
+              </span>
+              <div>
+                <p>{message.body}</p>
+                <p style={{ color: "var(--st-act)" }}>→ {message.question!.answer}</p>
+                <p className="muted" style={{ fontSize: 12 }}>
+                  {names.who(message.author.kind === "agent" ? message.author.agentId : null)}
+                </p>
+              </div>
+            </div>
+          ))}
+          <div className="section-label" style={{ marginTop: 26 }}>
+            {T.archive.onRecord}
+          </div>
           {accepted.length === 0 && <p className="muted">{T.archive.noRecords}</p>}
           {accepted.map(({ lesson, ref }) => (
             <div key={lesson.id} className="record">

@@ -255,6 +255,7 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
 function QuestionReply({ ctx, message, onError }: { ctx: Ctx; message: Message; onError(text: string): void }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(false);
   if (message.question!.answer !== null) {
     return (
       <div className="msg-actions muted">
@@ -266,7 +267,7 @@ function QuestionReply({ ctx, message, onError }: { ctx: Ctx; message: Message; 
   const answer = (value: string) => {
     if (!value.trim() || busy) return;
     setBusy(true);
-    ctx.actions.answer(message.id, value.trim()).then(
+    ctx.actions.answer(message.id, value.trim(), remember).then(
       () => ctx.note(T.awaiting.answerSent),
       (err: Error) => {
         setBusy(false);
@@ -280,9 +281,14 @@ function QuestionReply({ ctx, message, onError }: { ctx: Ctx; message: Message; 
         {message.question!.options.map((option) => (
           <button key={option} className="btn btn-act" disabled={busy} onClick={() => answer(option)}>
             {option}
+            {option === message.question!.recommended && <span className="suggested">★ {T.awaiting.recommended}</span>}
           </button>
         ))}
       </div>
+      <label className="remember">
+        <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+        {T.awaiting.remember}
+      </label>
       <form
         className="row"
         onSubmit={(event) => {

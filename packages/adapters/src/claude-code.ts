@@ -47,6 +47,25 @@ export function parseStreamLine(line: string): SessionEvent[] {
   return [];
 }
 
+/** A person may take a long time to answer; never give up on them. */
+const APPROVAL_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Commands that publish, deploy, destroy or reach other machines. Even in a
+ * fully trusted workspace these wait for the user's seal. Matching is by
+ * prefix, so it is a safety net, not a sandbox: `git -C . push` slips past.
+ */
+export const RISKY_COMMANDS = [
+  "git push", "git merge", "git reset --hard", "git clean", "git rebase",
+  "rm -rf", "rm -fr", "sudo",
+  "npm publish", "pnpm publish", "yarn publish",
+  "vercel", "netlify", "firebase deploy", "fly deploy", "wrangler deploy", "wrangler publish",
+  "gh release", "gh pr merge", "gh repo delete",
+  "docker push", "kubectl apply", "kubectl delete", "terraform apply", "terraform destroy",
+  "ssh", "scp", "rsync",
+  "fastlane", "eas submit", "xcrun altool", "xcrun notarytool",
+];
+
 /** Runs the user's own `claude` CLI headless, one long-lived process per agent. */
 export class ClaudeCodeAdapter implements Adapter {
   readonly id = "claude-code" as const;
@@ -81,6 +100,18 @@ export class ClaudeCodeAdapter implements Adapter {
     ];
     if (options.systemPrompt) args.push("--append-system-prompt", options.systemPrompt);
     for (const dir of options.addDirs ?? []) args.push("--add-dir", dir);
+    if (options.permissionBridge) {
+      args.push(
+        "--mcp-config",
+        JSON.stringify({ mcpServers: { peritos: { ...options.permissionBridge, timeout: APPROVAL_TIMEOUT_MS } } }),
+        "--permission-prompt-tool",
+        "mcp__peritos__approve",
+      );
+      // An "ask" rule wins over the broad Bash allowance above, so these always go to the user.
+      if (options.trustMode === "full") {
+        args.push("--settings", JSON.stringify({ permissions: { ask: RISKY_COMMANDS.map((prefix) => `Bash(${prefix}:*)`) } }));
+      }
+    }
 
     const child = spawn(this.bin, args, {
       cwd: options.cwd,

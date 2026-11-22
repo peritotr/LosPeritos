@@ -67,9 +67,11 @@ The interface ships in English and Turkish; pick one under Settings → Appearan
 
 Agents reach the core through the `peritos` CLI (`packages/cli`), which the core puts on their `PATH` with a per-agent token.
 
-**Trust modes.** In a `full` workspace agents may edit files and run any shell command in your folder, with your user's permissions. In a `restricted` workspace they can only read and call `peritos`. Rules such as "never merge or push yourself" are instructions to the agent, not a sandbox.
+**Trust modes.** In a `full` workspace agents edit files and run ordinary shell commands in your folder without asking. Commands that publish, deploy, destroy or reach other machines (`git push`, `rm -rf`, `npm publish`, `ssh`, deploy tools; the list is `RISKY_COMMANDS` in `packages/adapters/src/claude-code.ts`) are held until you seal them, as is every merge. In a `restricted` workspace every edit and every command is held. Held calls reach you through a permission bridge (`peritos mcp`) that the agent's CLI must go through, so this is enforced rather than requested. It is still a safety net, not a sandbox: commands are matched by prefix, so an unusual spelling such as `git -C . push` is not caught.
 
-`node scripts/smoke-claude.mjs` and `node scripts/e2e-claude.mjs` check the adapter and the whole flow against your real `claude` CLI; both spend real usage.
+Answering a question with "don't ask again" files the answer as a lesson, and accepted lessons are given to every agent started afterwards.
+
+`node scripts/smoke-claude.mjs`, `node scripts/e2e-claude.mjs` and `node scripts/e2e-permission.mjs` check the adapter, the whole flow and the permission bridge against your real `claude` CLI; all three spend real usage.
 
 In fake mode a message starting with `/ask`, `/approve` or `/fail` makes the agent ask a question, request an approval or fail; anything else is echoed.
 

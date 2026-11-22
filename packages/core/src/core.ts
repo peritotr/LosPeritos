@@ -57,7 +57,7 @@ interface WorkspaceState {
 
 const BRIDGE_PROMPT =
   "You talk to the team and the user through the `peritos` command in your shell:\n" +
-  "- `peritos ask \"<question>\" --option A --option B\` asks the user; then stop and wait for the answer.\n" +
+  "- `peritos ask \"<question>\" --option A --option B --recommend A\` asks the user, naming the option you would pick; then stop and wait for the answer.\n" +
   "- `peritos approval --title \"<what>\" --kind deploy|command|other --detail \"<why>\" --step \"<step>\"` " +
   "requests the user's approval before anything that deploys, publishes, deletes data or cannot be undone; then stop and wait.\n" +
   "- `peritos send --to <agent name|lead|user> \"<message>\"` messages a teammate.\n" +
@@ -126,7 +126,9 @@ export class Core {
   private readonly listeners = new Set<(envelope: EventEnvelope) => void>();
   /** Bridge token of each agent with a live session. */
   private readonly agentTokens = new Map<string, string>();
-  private bridge: { url: string; binDir: string } | null = null;
+  private bridge: { url: string; binDir: string; cliEntry: string } | null = null;
+  /** Tool calls held until the user decides, by approval id. */
+  private readonly heldCalls = new Map<string, (decision: "approved" | "rejected") => void>();
   /** Agents whose process should end once their current turn has been accounted for. */
   private readonly stopAfterTurn = new Set<string>();
   private seq = 0;
@@ -155,7 +157,7 @@ export class Core {
     const asNode = process.versions.electron ? "ELECTRON_RUN_AS_NODE=1 " : "";
     writeFileSync(script, `#!/bin/sh\n${asNode}exec "${process.execPath}" "${cliEntry}" "$@"\n`);
     chmodSync(script, 0o755);
-    this.bridge = { url, binDir };
+    this.bridge = { url, binDir, cliEntry };
   }
 
   // ── Events ────────────────────────────────────────────────────────────────
@@ -402,6 +404,17 @@ export class Core {
     return message;
   }
 
+  /** The lessons the user has accepted, as a block for an agent's system prompt. */
+  private lessonsPrompt(state: WorkspaceState): string {
+    const accepted = state.lessons.all().filter((lesson) => lesson.status === "accepted");
+    if (accepted.length === 0) return "";
+    return (
+      "\nStanding lessons for this project, accepted by the user. Follow them:\n" +
+      accepted.map((lesson) => `- ${lesson.text}`).join("\n") +
+      "\n"
+    );
+  }
+
   private attachmentsDir(state: WorkspaceState): string {
     return join(state.store.dir, "attachments");
   }
@@ -423,7 +436,11 @@ export class Core {
     return { name: stored };
   }
 
-  answerQuestion(messageId: string, answer: string): Message {
+  /**
+   * Answer an agent's question. With `remember`, the answer is also filed as a
+   * standing lesson, which every agent started afterwards is given.
+   */
+  answerQuestion(messageId: string, answer: string, remember = false): Message {
     const { state, item } = this.find((s) => s.messages, messageId, "message");
     if (!item.question || item.author.kind !== "agent") {
       throw new CoreError("bad_request", "That message is not a question.");
@@ -431,6 +448,17 @@ export class Core {
     if (item.question.answer !== null) throw new CoreError("conflict", "Already answered.");
     const updated = state.messages.put({ ...item, question: { ...item.question, answer } });
     this.emit({ type: "message.updated", message: updated });
+    if (remember) {
+      const lesson = state.lessons.put({
+        id: randomUUID(),
+        workspaceId: state.workspace.id,
+        proposedByAgentId: null,
+        text: `Decided by the user: "${item.body}" → "${answer}". Do not ask this again.`,
+        status: "accepted",
+        createdAt: this.now().toISOString(),
+      });
+      this.emit({ type: "lesson.updated", lesson });
+    }
     const agent = state.agents.get(item.author.agentId);
     if (agent) this.deliver(state, agent, answer);
     return updated;
@@ -473,6 +501,14 @@ export class Core {
     });
     this.emit({ type: "approval.decided", approval: updated });
     const agent = state.agents.get(item.agentId);
+    const release = this.heldCalls.get(item.id);
+    if (release) {
+      // The agent is blocked inside a tool call: answering that call is how it learns the decision.
+      this.heldCalls.delete(item.id);
+      if (agent) this.setAgent(state, agent.id, { status: "working" });
+      release(decision);
+      return updated;
+    }
     if (agent) {
       const verdict = decision === "approved" ? "approved" : "rejected";
       this.deliver(state, agent, `The user ${verdict} your request: ${item.title}`);
@@ -620,7 +656,7 @@ export class Core {
         return say("Sent.");
       }
       case "ask":
-        this.raiseQuestion(state, agent.id, command.body, command.options);
+        this.raiseQuestion(state, agent.id, command.body, command.options, command.recommended);
         return say("Question sent to the user. Stop here; the answer arrives as your next message.");
       case "approval":
         this.raiseApproval(state, agent.id, command);
@@ -638,6 +674,27 @@ export class Core {
         return say("Lesson proposed; the user decides whether to keep it.");
       }
     }
+  }
+
+  /**
+   * Hold a tool call until the user approves or refuses it. The agent's CLI
+   * calls this through the permission bridge for commands it may not run alone.
+   */
+  requestPermission(token: string, tool: string, input: Record<string, unknown>): Promise<"approved" | "rejected"> {
+    const agentId = [...this.agentTokens].find(([, t]) => t === token)?.[0];
+    if (!agentId) throw new CoreError("unauthorized", "Unknown agent token");
+    const { state } = this.find((s) => s.agents, agentId, "agent");
+    const command = typeof input.command === "string" ? input.command : JSON.stringify(input);
+    const why = typeof input.description === "string" ? input.description : "";
+    const approval = this.raiseApproval(state, agentId, {
+      kind: "command",
+      title: `${tool}: ${command.length > 80 ? command.slice(0, 79) + "…" : command}`,
+      detail: [why, command].filter(Boolean).join("\n\n"),
+      steps: [],
+      // Nobody has checked whether this command can be undone, so do not claim it can.
+      reversible: false,
+    });
+    return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
   }
 
   private requireBudget(state: WorkspaceState): void {
@@ -756,14 +813,21 @@ export class Core {
     await this.startQueued(state);
   }
 
-  private raiseQuestion(state: WorkspaceState, agentId: string, body: string, options: string[]): void {
+  private raiseQuestion(
+    state: WorkspaceState,
+    agentId: string,
+    body: string,
+    options: string[],
+    recommended?: string,
+  ): void {
     const agent = state.agents.get(agentId);
     this.addMessage(state, {
       author: { kind: "agent", agentId },
       toAgentId: null,
       taskId: agent?.taskId ?? null,
       body,
-      question: { options, answer: null },
+      // A recommendation only counts if it is one of the options on offer.
+      question: { options, recommended: recommended && options.includes(recommended) ? recommended : null, answer: null },
     });
     this.setAgent(state, agentId, { status: "asking" });
   }
@@ -772,7 +836,7 @@ export class Core {
     state: WorkspaceState,
     agentId: string,
     fields: Pick<Approval, "kind" | "title" | "detail" | "steps" | "reversible">,
-  ): void {
+  ): Approval {
     const approval = state.approvals.put({
       id: randomUUID(),
       workspaceId: state.workspace.id,
@@ -789,6 +853,7 @@ export class Core {
     });
     this.emit({ type: "approval.requested", approval });
     this.setAgent(state, agentId, { status: "awaiting_approval" });
+    return approval;
   }
 
   async close(): Promise<void> {
@@ -831,8 +896,19 @@ export class Core {
       session = adapter.start({
         cwd: task?.worktree ?? state.workspace.path,
         trustMode: state.workspace.trustMode,
-        systemPrompt: agent.role === "lead" ? LEAD_PROMPT : MEMBER_PROMPT,
+        systemPrompt: (agent.role === "lead" ? LEAD_PROMPT : MEMBER_PROMPT) + this.lessonsPrompt(state),
         addDirs: [this.attachmentsDir(state)],
+        ...(this.bridge && {
+          permissionBridge: {
+            command: process.execPath,
+            args: [this.bridge.cliEntry, "mcp"],
+            env: {
+              LOSPERITOS_URL: this.bridge.url,
+              LOSPERITOS_AGENT_TOKEN: token,
+              ...(process.versions.electron && { ELECTRON_RUN_AS_NODE: "1" }),
+            },
+          },
+        }),
         env: {
           LOSPERITOS_AGENT_TOKEN: token,
           ...(this.bridge && {
@@ -882,7 +958,7 @@ export class Core {
         });
         break;
       case "question":
-        this.raiseQuestion(state, agentId, event.body, event.options);
+        this.raiseQuestion(state, agentId, event.body, event.options, event.recommended);
         break;
       case "approval":
         this.raiseApproval(state, agentId, event);
@@ -915,6 +991,15 @@ export class Core {
         });
         break;
       case "exit":
+        // Calls it was still waiting on can never be answered now.
+        for (const approval of state.approvals.all()) {
+          const release = this.heldCalls.get(approval.id);
+          if (!release || approval.agentId !== agentId) continue;
+          this.heldCalls.delete(approval.id);
+          const closed = state.approvals.put({ ...approval, status: "rejected", decidedAt: this.now().toISOString() });
+          this.emit({ type: "approval.decided", approval: closed });
+          release("rejected");
+        }
         this.sessions.delete(agentId);
         this.agentTokens.delete(agentId);
         this.activeRuns.delete(agentId);

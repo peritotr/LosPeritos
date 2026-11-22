@@ -198,3 +198,51 @@ test("an agent can be nicknamed, and teammates can address it by that name", asy
   assert.throws(() => core.renameAgent(lead.id, "ADA"), /already called/);
   assert.equal(core.renameAgent(member.id, "").nickname, null);
 });
+
+test("a remembered answer becomes a lesson that later agents are given", async () => {
+  const { core, adapter, workspace, as } = setup({ repo: false });
+  await as(0, { command: "task.create", title: "One" });
+  await as(1, { command: "ask", body: "Tabs or spaces?", options: ["Tabs", "Spaces"], recommended: "Spaces" });
+  const [question] = core.waiting().questions;
+  assert.equal(question!.question!.recommended, "Spaces");
+
+  core.answerQuestion(question!.id, "Spaces", true);
+  const [lesson] = core.listLessons(workspace.id);
+  assert.equal(lesson!.status, "accepted");
+  assert.match(lesson!.text, /Tabs or spaces\?.*Spaces/);
+
+  // The next agent to be seated starts with the lesson in its instructions.
+  await as(0, { command: "task.create", title: "Two", specialty: "tester" });
+  assert.match(adapter.starts.at(-1)!.systemPrompt!, /Standing lessons[\s\S]*Tabs or spaces/);
+
+  // A recommendation that is not among the options is dropped.
+  await as(1, { command: "ask", body: "Again?", options: ["A"], recommended: "Z" });
+  assert.equal(core.waiting().questions.at(-1)!.question!.recommended, null);
+});
+
+test("a held tool call waits for the user and is answered by the decision", async () => {
+  const { core, workspace, tokenOf } = setup({ repo: false });
+  const lead = core.listAgents(workspace.id)[0]!;
+  const held = core.requestPermission(tokenOf(0), "Bash", { command: "git push origin main", description: "Publish the branch" });
+  const [approval] = core.waiting().approvals;
+  assert.equal(approval!.kind, "command");
+  assert.match(approval!.title, /^Bash: git push origin main$/);
+  assert.equal(approval!.reversible, false);
+  assert.equal(core.listAgents(workspace.id)[0]!.status, "awaiting_approval");
+
+  // Let the reply to the opening message land first, so only new messages are counted.
+  await tick();
+  const before = core.listMessages(workspace.id).length;
+  await core.decideApproval(approval!.id, "approved");
+  assert.equal(await held, "approved");
+  assert.equal(core.listAgents(workspace.id)[0]!.status, "working");
+  await tick();
+  assert.equal(core.listMessages(workspace.id).length, before, "no extra message: the tool result is the answer");
+
+  // A call still held when the agent goes away is refused, not left hanging.
+  const orphan = core.requestPermission(tokenOf(0), "Bash", { command: "rm -rf build" });
+  await core.stopAgent(lead.id);
+  assert.equal(await orphan, "rejected");
+  assert.equal(core.waiting().approvals.length, 0);
+  assert.throws(() => core.requestPermission("nope", "Bash", {}), CoreError);
+});

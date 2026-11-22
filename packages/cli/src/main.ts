@@ -5,13 +5,14 @@
  */
 import { parseArgs } from "node:util";
 import type { AgentCommandInput } from "@losperitos/protocol";
+import { runPermissionBridge } from "./mcp.js";
 
 const USAGE = `Usage:
   peritos task create --title <t> [--description <d>] [--specialty <s>]   (lead)
   peritos task list
   peritos task done --done <text>... [--tested <text>...] [--not-verified <text>...]
   peritos send --to <agent name|lead|user> <message>
-  peritos ask <question> [--option <o>...]
+  peritos ask <question> [--option <o>...] [--recommend <o>]
   peritos approval --title <t> [--kind deploy|command|other] [--detail <d>] [--step <s>...] [--irreversible]
   peritos lesson <text>`;
 
@@ -33,6 +34,7 @@ function build(argv: string[]): AgentCommandInput {
       "not-verified": { type: "string", multiple: true },
       to: { type: "string" },
       option: { type: "string", multiple: true },
+      recommend: { type: "string" },
       kind: { type: "string" },
       detail: { type: "string" },
       step: { type: "string", multiple: true },
@@ -63,7 +65,7 @@ function build(argv: string[]): AgentCommandInput {
     case "send":
       return { command: "send", to: values.to ?? "", body: text };
     case "ask":
-      return { command: "ask", body: text, options: values.option };
+      return { command: "ask", body: text, options: values.option, recommended: values.recommend };
     case "approval":
       return {
         command: "approval",
@@ -84,6 +86,14 @@ const url = process.env.LOSPERITOS_URL;
 const token = process.env.LOSPERITOS_AGENT_TOKEN;
 if (!url || !token) fail("peritos only works inside an agent started by LosPeritos.");
 
+if (process.argv[2] === "mcp") {
+  // Not a one-shot command: serve permission requests until the agent's CLI closes the pipe.
+  runPermissionBridge(url, token);
+} else {
+  await runCommand(url, token);
+}
+
+async function runCommand(url: string, token: string): Promise<void> {
 let command: AgentCommandInput;
 try {
   command = build(process.argv.slice(2));
@@ -102,4 +112,5 @@ try {
   console.log(body.message);
 } catch (err) {
   fail(`Cannot reach LosPeritos: ${(err as Error).message}`);
+}
 }

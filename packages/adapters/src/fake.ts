@@ -106,6 +106,7 @@ export class FakeAdapter implements Adapter {
             command: "ask",
             body: "Should the tests also cover the password-reset flow?",
             options: ["Yes, cover it", "No, sign-up only"],
+            recommended: "No, sign-up only",
           });
         } else if (text.includes("[demo:approve]")) {
           finishOnNextMessage = true;

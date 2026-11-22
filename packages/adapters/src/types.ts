@@ -6,7 +6,7 @@ export type SessionEvent =
   /** A complete assistant message for the team chat. */
   | { type: "text"; text: string }
   /** The agent asks the user something and waits. */
-  | { type: "question"; body: string; options: string[] }
+  | { type: "question"; body: string; options: string[]; recommended?: string }
   /** The agent wants to do something that needs the user's approval. */
   | {
       type: "approval";
@@ -33,6 +33,11 @@ export interface StartOptions {
   cwd: string;
   trustMode: TrustMode;
   systemPrompt?: string;
+  /**
+   * How tool calls that need the user's approval reach the core: a command that
+   * speaks MCP over stdio and offers an `approve` tool. Without it such calls are refused.
+   */
+  permissionBridge?: { command: string; args: string[]; env: Record<string, string> };
   /** Folders outside `cwd` the agent may read, e.g. where attachments are kept. */
   addDirs?: string[];
   /** Extra environment for the agent process, on top of the core's own. */

@@ -230,7 +230,8 @@ export interface Actions {
   send(workspaceId: string, body: string, toAgentId?: string | null, attachments?: string[]): Promise<void>;
   /** Store a file for the next message; resolves to the name to attach. */
   upload(workspaceId: string, name: string, base64: string): Promise<string>;
-  answer(messageId: string, answer: string): Promise<void>;
+  /** `remember` also files the answer as a standing lesson, so peritos stop asking. */
+  answer(messageId: string, answer: string, remember?: boolean): Promise<void>;
   decideApproval(approvalId: string, decision: "approved" | "rejected"): Promise<void>;
   decideLesson(lessonId: string, decision: "accepted" | "rejected"): Promise<void>;
   stopAgent(agentId: string): Promise<void>;
@@ -363,7 +364,8 @@ export function useCore(): [State, Actions] {
       void (await post(`/workspaces/${workspaceId}/messages`, { body, toAgentId, attachments })),
     upload: async (workspaceId, name, data) =>
       (await post<{ name: string }>(`/workspaces/${workspaceId}/attachments`, { name, data })).name,
-    answer: async (messageId, answer) => void (await post(`/messages/${messageId}/answer`, { answer })),
+    answer: async (messageId, answer, remember = false) =>
+      void (await post(`/messages/${messageId}/answer`, { answer, remember })),
     decideApproval: async (approvalId, decision) =>
       void (await post(`/approvals/${approvalId}/decision`, { decision })),
     decideLesson: async (lessonId, decision) => void (await post(`/lessons/${lessonId}/decision`, { decision })),

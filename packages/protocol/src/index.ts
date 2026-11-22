@@ -115,6 +115,8 @@ export const Message = z.object({
   question: z
     .object({
       options: z.array(z.string()),
+      /** The option the agent would pick itself, if it said so. */
+      recommended: z.string().nullable().optional(),
       answer: z.string().nullable(),
     })
     .nullable(),
@@ -217,7 +219,11 @@ export const UpdateAgentRequest = z.object({
   /** Empty or null removes the nickname. */
   nickname: z.string().trim().max(24).nullable(),
 });
-export const AnswerQuestionRequest = z.object({ answer: z.string().min(1) });
+export const AnswerQuestionRequest = z.object({
+  answer: z.string().min(1),
+  /** Keep the answer as a standing lesson, so agents stop asking. */
+  remember: z.boolean().default(false),
+});
 export const DecideApprovalRequest = z.object({
   decision: z.enum(["approved", "rejected"]),
 });
@@ -258,6 +264,8 @@ export const routes = {
   events: "WS /events",
   /** Agent bridge, used by the `peritos` CLI with a per-agent token. */
   agentCommand: "POST /agent",
+  /** Held open until the user decides; answers with a PermissionResult. */
+  agentPermission: "POST /agent/permission",
 } as const;
 
 export const ApiError = z.object({
@@ -303,6 +311,8 @@ export const AgentCommand = z.discriminatedUnion("command", [
     command: z.literal("ask"),
     body: z.string().min(1),
     options: z.array(z.string()).default([]),
+    /** One of the options: the agent's own suggestion. */
+    recommended: z.string().optional(),
   }),
   z.object({
     command: z.literal("approval"),
@@ -317,6 +327,18 @@ export const AgentCommand = z.discriminatedUnion("command", [
 export type AgentCommand = z.infer<typeof AgentCommand>;
 /** What the CLI sends: defaults not yet applied. */
 export type AgentCommandInput = z.input<typeof AgentCommand>;
+
+/**
+ * A tool call the agent's CLI will not run without the user's say-so. Sent by
+ * the permission bridge; the reply comes only once the user has decided.
+ */
+export const PermissionRequest = z.object({
+  tool: z.string().min(1),
+  /** The tool's arguments, as the CLI passed them. */
+  input: z.record(z.unknown()).default({}),
+});
+export const PermissionResult = z.object({ decision: z.enum(["approved", "rejected"]) });
+export type PermissionResult = z.infer<typeof PermissionResult>;
 
 /** Every agent command answers with a line of text for the agent to read. */
 export const AgentCommandResult = z.object({ message: z.string() });

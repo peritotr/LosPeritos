@@ -123,6 +123,10 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 - Diğer uygulamaların üstünde yüzen koordinatör.
 - Lisans sunucusu ve ücretli plan: LosPeritos ücretsiz ve açık kaynak.
 
+## Tamamlananlar
+
+1 (sohbet her ekranda), 2 ("Sen yokken" özeti), 3 (büro katı cilası; yakınlaştırma ve gerçek yürüme kareleri hariç) ve 4 (kararlar ve gerçek güvenlik; önerileri toplu kabul hariç) yapıldı.
+
 ## Önerilen sıra
 
 1 → 2 → 3 → imzalama → 4 → 5 → 6 → 7(a) → 8 → 9, sonrası kullanıcı geri

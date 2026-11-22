@@ -9,6 +9,7 @@ import {
   DecideApprovalRequest,
   DecideLessonRequest,
   OpenWorkspaceRequest,
+  PermissionRequest,
   SendMessageRequest,
   UpdateAgentRequest,
   UploadAttachmentRequest,
@@ -55,8 +56,10 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
       const upload = parse(UploadAttachmentRequest, body);
       return core.uploadAttachment(p.workspaceId!, upload.name, upload.data);
     },
-    "POST /messages/:messageId/answer": (p, body) =>
-      core.answerQuestion(p.messageId!, parse(AnswerQuestionRequest, body).answer),
+    "POST /messages/:messageId/answer": (p, body) => {
+      const request = parse(AnswerQuestionRequest, body);
+      return core.answerQuestion(p.messageId!, request.answer, request.remember);
+    },
     "GET /workspaces/:workspaceId/approvals": (p) => core.listApprovals(p.workspaceId!),
     "POST /approvals/:approvalId/decision": (p, body) =>
       core.decideApproval(p.approvalId!, parse(DecideApprovalRequest, body).decision),
@@ -122,6 +125,13 @@ export function createServer(core: Core, token: string): Server {
       }
       const bearer = req.headers.authorization?.replace(/^Bearer /, "");
       const path = new URL(req.url ?? "/", "http://localhost").pathname;
+      if (req.method === "POST" && path === "/agent/permission") {
+        // Stays open for as long as the user takes to decide.
+        req.socket.setTimeout(0);
+        const request = parse(PermissionRequest, await readBody(req));
+        send(200, { decision: await core.requestPermission(bearer ?? "", request.tool, request.input) });
+        return;
+      }
       if (req.method === "POST" && path === "/agent") {
         // Agents authenticate with their own token, not the user's.
         const command = parse(AgentCommand, await readBody(req));
