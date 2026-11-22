@@ -33,6 +33,8 @@ export interface StartOptions {
   cwd: string;
   trustMode: TrustMode;
   systemPrompt?: string;
+  /** Folders outside `cwd` the agent may read, e.g. where attachments are kept. */
+  addDirs?: string[];
   /** Extra environment for the agent process, on top of the core's own. */
   env?: Record<string, string>;
 }

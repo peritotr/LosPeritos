@@ -11,7 +11,7 @@ branch. Risky steps (merge, deploy) wait for your approval. Agents run on your
 own Claude Code or Codex account. No sign-in, no telemetry; data stays in
 `<folder>/.losperitos/`.
 
-**Status:** early. The desktop app runs from source (`npm run desktop`); there is no packaged installer yet. The core runs a lead and up to 7 team members per workspace; each task gets its own git branch and worktree and is merged only after you approve.
+**Status:** early. `npm run package` builds a standalone app for your own machine; there are no signed, downloadable releases yet. The core runs a lead and up to 7 team members per workspace; each task gets its own git branch and worktree and is merged only after you approve.
 
 ## Layout
 
@@ -43,6 +43,16 @@ npm run core        # daemon with your own Claude Code CLI
 ```
 
 The API token is written to `~/.losperitos/token.json` (`~/.losperitos-demo/` in fake mode). Send it as `Authorization: Bearer <token>`; the WebSocket at `/events` takes `?token=`. Routes and event shapes are in `packages/protocol/src/index.ts`.
+
+## Building the app
+
+```bash
+npm run package
+```
+
+This writes `apps/desktop/release/LosPeritos-<platform>-<arch>/` with the app inside, and on macOS a `.dmg` next to it. The app carries everything it needs except the agent tools themselves: `git` and Claude Code must be installed on the machine.
+
+The build is for the platform you run it on, and it is not code-signed or notarised. It opens normally on the machine that built it; on another Mac, Gatekeeper will refuse it until the user allows it under System Settings → Privacy & Security, and Windows SmartScreen shows a similar warning. Publishing releases needs an Apple Developer ID and a Windows signing certificate.
 
 ## Languages
 

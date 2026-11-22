@@ -11,7 +11,10 @@ import {
   Inbox,
   LayoutGrid,
   MessagesSquare,
+  Maximize2,
   Moon,
+  PanelRightClose,
+  PanelRightOpen,
   Search,
   Settings as SettingsIcon,
   Sun,
@@ -21,6 +24,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import { Chat } from "./Chat";
 import { openQuestions, pendingApprovals, type Ctx, type Route } from "./context";
 import { Archive, Awaiting, BudgetBar, Ledger, SealToast, Settings, Setup } from "./screens-desk";
 import { Bench, Correspondence, FileDetail, Files, PeritoDetail } from "./screens-work";
@@ -31,6 +35,7 @@ import { I, fileRef, money, perito } from "./ui";
 type Theme = "light" | "dark";
 const THEME_KEY = "losperitos.theme";
 const BUREAU_KEY = "losperitos.bureau";
+const CHAT_KEY = "losperitos.chat";
 
 function stored(key: string): string | null {
   try {
@@ -69,6 +74,12 @@ export function App() {
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
   const [toastId, setToastId] = useState<string | null>(null);
   const [palette, setPalette] = useState(false);
+  // The correspondence panel stays open across screens; on a narrow window it starts closed.
+  const [chatOpen, setChatOpenState] = useState(() => (stored(CHAT_KEY) ?? (innerWidth >= 1280 ? "open" : "closed")) === "open");
+  const setChatOpen = (open: boolean) => {
+    setChatOpenState(open);
+    store(CHAT_KEY, open ? "open" : "closed");
+  };
   const noteTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const bureau = state.workspaces.find((w) => w.id === bureauId) ?? state.workspaces[0];
@@ -149,12 +160,15 @@ export function App() {
     : null;
 
   const fill = screen.screen === "mail" || screen.screen === "perito";
+  // The panel would only repeat what Correspondence shows, and Setup has nobody to write to.
+  const chatAllowed = !!ctx && screen.screen !== "mail" && screen.screen !== "setup";
+  const showChat = chatAllowed && chatOpen;
   const current = (id: NavScreen) =>
     screen.screen === id || (id === "files" && screen.screen === "file") || (id === "bench" && screen.screen === "perito");
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="lp shell" data-theme={theme}>
+      <div className={`lp shell ${showChat ? "with-chat" : ""}`} data-theme={theme}>
         <nav className="sidebar" aria-label="Primary">
           <div className="brand">
             <img src={`${import.meta.env.BASE_URL}icon.png`} alt="" width={28} height={28} />
@@ -253,6 +267,17 @@ export function App() {
               {T.top.search}
               <kbd>{(shell?.platform ?? navigator.platform).toLowerCase().includes("mac") || shell?.platform === "darwin" ? "⌘K" : "Ctrl K"}</kbd>
             </button>
+            {chatAllowed && (
+              <button
+                className="btn btn-secondary btn-icon"
+                aria-label={chatOpen ? T.chat.hide : T.chat.show}
+                aria-pressed={chatOpen}
+                title={chatOpen ? T.chat.hide : T.chat.show}
+                onClick={() => setChatOpen(!chatOpen)}
+              >
+                <I icon={chatOpen ? PanelRightClose : PanelRightOpen} />
+              </button>
+            )}
             <button
               className="btn btn-secondary btn-icon"
               aria-label={T.top.theme}
@@ -303,7 +328,7 @@ export function App() {
             )}
           </main>
 
-          {ctx && toast && screen.screen !== "awaiting" && screen.screen !== "setup" && (
+          {ctx && toast && !showChat && screen.screen !== "awaiting" && screen.screen !== "setup" && (
             <SealToast
               key={toast.id}
               ctx={ctx}
@@ -321,6 +346,21 @@ export function App() {
             </div>
           )}
         </div>
+
+        {showChat && ctx && (
+          <aside className="chat-panel" aria-label={T.chat.title}>
+            <header>
+              <h3 className="grow">{T.chat.title}</h3>
+              <button className="btn btn-ghost btn-icon" aria-label={T.chat.full} title={T.chat.full} onClick={() => setRoute({ screen: "mail" })}>
+                <I icon={Maximize2} size={14} />
+              </button>
+              <button className="btn btn-ghost btn-icon" aria-label={T.chat.hide} title={T.chat.hide} onClick={() => setChatOpen(false)}>
+                <I icon={PanelRightClose} />
+              </button>
+            </header>
+            <Chat ctx={ctx} onPickAgent={(id) => setRoute({ screen: "perito", id })} />
+          </aside>
+        )}
 
         {palette && (
           <Palette

@@ -185,6 +185,39 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
   grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
   overflow: hidden; position: relative;
 }
+.shell.with-chat { grid-template-columns: 232px minmax(0, 1fr) 360px; }
+.chat-panel { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--color-divider); background: var(--color-bg); }
+.chat-panel > header { height: 48px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 16px; border-bottom: 1px solid var(--color-divider); }
+.chat-panel > header h3 { font-size: 18px; }
+.chat { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.chat-log { flex: 1; min-height: 0; overflow: auto; padding: 4px 16px; }
+.away { flex: none; max-height: 42%; overflow: auto; margin: 10px 12px 4px; padding: 10px 12px; border: 1px solid var(--color-divider); background: var(--color-surface); }
+.away > header { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.away > header .mono { font-size: 11px; }
+.away h4 { display: flex; align-items: center; gap: 6px; margin: 10px 0 2px; font: 600 13px var(--font-heading); letter-spacing: 0.04em; text-transform: uppercase; color: var(--lp-muted); }
+.away h4.act { color: var(--st-act); }
+.away-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: baseline; width: 100%; padding: 3px 0; border: 0; background: none; text-align: left; cursor: pointer; font-size: 13px; }
+.away-row:hover .ellipsis { text-decoration: underline; }
+.away-row .mono, .away-row .muted { font-size: 11px; }
+.chat-empty { padding: 18px 0; }
+.chat-error { padding: 6px 16px; font-size: 13px; }
+.chat-composer { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--color-divider); }
+.chat-to { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.to-chip { padding: 3px 8px; font-size: 12px; border: 1px solid var(--color-divider); background: none; cursor: pointer; }
+.to-chip:hover { background: var(--lp-faint); }
+.to-chip[aria-pressed="true"] { background: var(--color-text); color: var(--color-bg); border-color: var(--color-text); }
+.chat-input { position: relative; }
+.chat-input textarea { resize: none; display: block; }
+.chat-hint { font-size: 11px; text-align: right; }
+.mention-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); z-index: 5; display: flex; flex-direction: column; background: var(--color-bg); border: 1px solid var(--color-divider); box-shadow: var(--shadow-md); }
+.mention-menu button { padding: 7px 10px; text-align: left; border: 0; border-left: 2px solid transparent; background: none; cursor: pointer; }
+.mention-menu button[aria-selected="true"], .mention-menu button:hover { border-left-color: var(--color-text); background: var(--color-surface); }
+.msg-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.file-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; font: 11px var(--lp-mono); border: 1px solid var(--color-divider); max-width: 100%; }
+.file-chip button { display: inline-flex; padding: 0; border: 0; background: none; cursor: pointer; color: var(--lp-muted); }
+.reply-card { display: grid; gap: 8px; margin-top: 9px; padding: 10px; border: 1px solid var(--st-act); background: var(--st-act-bg); }
+.reply-card .rev { font-size: 12px; }
+.reply-card .msg-actions { margin-top: 0; }
 .sidebar { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--color-divider); overflow: auto; }
 .brand {
   height: 48px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px;
@@ -262,6 +295,8 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .sprite-layer[data-desks="pixel"] ~ .scene .seat-empty text,
 .sprite-layer[data-desks="pixel"] ~ .scene .shelf text { fill: var(--color-text); }
 .sprite-layer[data-desks="pixel"] ~ .scene .seat-empty rect { stroke: var(--color-text); opacity: 0.45; }
+/* A perito with a question carries its own sign to your desk, so the one over the desk goes. */
+.sprite-layer[data-desks="pixel"] ~ .scene .flag.asking { display: none; }
 /* The lines of command would cut across the drawn desks. */
 .sprite-layer[data-desks="pixel"] ~ .scene .wire { display: none; }
 /* Characters share the floor's coordinates, so the canvas simply covers it. */
@@ -348,6 +383,8 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .term-out .bad { color: var(--st-err); }
 .live { font: 11px var(--lp-mono); letter-spacing: 0.08em; }
 
+.rename { display: flex; align-items: center; gap: 8px; }
+.rename .input { max-width: 240px; font: 600 22px var(--font-heading); }
 .detail-body { display: flex; gap: 24px; flex: 1; min-height: 0; }
 .aside { width: 280px; flex: none; display: flex; flex-direction: column; gap: 22px; }
 .figure { font: 600 42px/1 var(--font-heading); }

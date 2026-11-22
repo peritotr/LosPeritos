@@ -227,11 +227,15 @@ export interface Actions {
     workspaceId: string,
     patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode">>,
   ): Promise<void>;
-  send(workspaceId: string, body: string, toAgentId?: string | null): Promise<void>;
+  send(workspaceId: string, body: string, toAgentId?: string | null, attachments?: string[]): Promise<void>;
+  /** Store a file for the next message; resolves to the name to attach. */
+  upload(workspaceId: string, name: string, base64: string): Promise<string>;
   answer(messageId: string, answer: string): Promise<void>;
   decideApproval(approvalId: string, decision: "approved" | "rejected"): Promise<void>;
   decideLesson(lessonId: string, decision: "accepted" | "rejected"): Promise<void>;
   stopAgent(agentId: string): Promise<void>;
+  /** Give a perito a name of your own; null goes back to the default. */
+  renameAgent(agentId: string, nickname: string | null): Promise<void>;
   checkTools(): Promise<ToolCheck[]>;
   taskDiff(taskId: string): Promise<string>;
   flightDone(id: string): void;
@@ -355,13 +359,16 @@ export function useCore(): [State, Actions] {
       return workspace;
     },
     updateWorkspace: async (workspaceId, patch) => void (await post(`/workspaces/${workspaceId}`, patch, "PATCH")),
-    send: async (workspaceId, body, toAgentId = null) =>
-      void (await post(`/workspaces/${workspaceId}/messages`, { body, toAgentId })),
+    send: async (workspaceId, body, toAgentId = null, attachments = []) =>
+      void (await post(`/workspaces/${workspaceId}/messages`, { body, toAgentId, attachments })),
+    upload: async (workspaceId, name, data) =>
+      (await post<{ name: string }>(`/workspaces/${workspaceId}/attachments`, { name, data })).name,
     answer: async (messageId, answer) => void (await post(`/messages/${messageId}/answer`, { answer })),
     decideApproval: async (approvalId, decision) =>
       void (await post(`/approvals/${approvalId}/decision`, { decision })),
     decideLesson: async (lessonId, decision) => void (await post(`/lessons/${lessonId}/decision`, { decision })),
     stopAgent: async (agentId) => void (await post(`/agents/${agentId}/stop`)),
+    renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
     checkTools: () => post<ToolCheck[]>("/setup", undefined, "GET"),
     taskDiff: async (taskId) => (await post<{ diff: string }>(`/tasks/${taskId}/diff`, undefined, "GET")).diff,
     flightDone: (id) => dispatch({ type: "flight_done", id }),

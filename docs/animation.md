@@ -20,10 +20,12 @@ A new renderer (PixiJS, Rive) only needs to consume `FloorModel`. The poses a
 character can be in are `idle`, `working`, `asking`, `awaiting_seal`, `error`
 and `off_duty`.
 
+A perito with a question or a seal request leaves its desk, walks the aisles to your seal desk and queues there holding a sign; it walks back once you have dealt with it. Work that ends earns a cheer and a burst of confetti, and so does a fresh seal. Routes are in `apps/ui/src/floor/routes.ts`.
+
 Off-duty peritos sit on the lounge sofas (four at most). Two office dogs,
 Berlin and Luna, stroll the front of the floor; they are drawn in
 `scripts/skins/pets.mjs` and configured in `decor.ts`. Not built yet:
-walking between desks and per-tool poses such as reading versus typing.
+real walk cycles (walking reuses the hop frame, because the installed pack has one drawing per character) and per-tool poses such as reading versus typing.
 
 When the skin has a `desk` prop, each perito's desk is drawn from art
 (partition, table, computer) and the SVG keeps only the labels, flags and

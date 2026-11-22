@@ -176,6 +176,8 @@ function Desk({ actor, onOpen }: { actor: Actor; onOpen(agentId: string): void }
         if (event.key === "Enter") onOpen(agent.id);
       }}
     >
+      {/* What the browser shows on hover: who, doing what, on which file. */}
+      <title>{[view.who, status, actor.file, lastLine].filter(Boolean).join("\n")}</title>
       <rect x={-half - 5} y={-45} width={half * 2 + 10} height={90} className="desk-focus" />
       <rect x={-half} y={-40} width={half * 2} height={80} className="desk-top" />
 

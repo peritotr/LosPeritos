@@ -3,12 +3,15 @@ import { timingSafeEqual } from "node:crypto";
 import { WebSocketServer } from "ws";
 import type { z } from "zod";
 import {
+  MAX_ATTACHMENT_BYTES,
   AgentCommand,
   AnswerQuestionRequest,
   DecideApprovalRequest,
   DecideLessonRequest,
   OpenWorkspaceRequest,
   SendMessageRequest,
+  UpdateAgentRequest,
+  UploadAttachmentRequest,
   UpdateWorkspaceRequest,
   type ApiError,
 } from "@losperitos/protocol";
@@ -41,12 +44,17 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
       core.updateWorkspace(p.workspaceId!, parse(UpdateWorkspaceRequest, body)),
     "GET /workspaces/:workspaceId/agents": (p) => core.listAgents(p.workspaceId!),
     "POST /agents/:agentId/stop": (p) => core.stopAgent(p.agentId!),
+    "PATCH /agents/:agentId": (p, body) => core.renameAgent(p.agentId!, parse(UpdateAgentRequest, body).nickname),
     "GET /workspaces/:workspaceId/tasks": (p) => core.listTasks(p.workspaceId!),
     "GET /tasks/:taskId": (p) => core.getTask(p.taskId!),
     "GET /tasks/:taskId/diff": async (p) => ({ diff: await core.taskDiff(p.taskId!) }),
     "GET /workspaces/:workspaceId/messages": (p) => core.listMessages(p.workspaceId!),
     "POST /workspaces/:workspaceId/messages": (p, body) =>
       core.sendMessage(p.workspaceId!, parse(SendMessageRequest, body)),
+    "POST /workspaces/:workspaceId/attachments": (p, body) => {
+      const upload = parse(UploadAttachmentRequest, body);
+      return core.uploadAttachment(p.workspaceId!, upload.name, upload.data);
+    },
     "POST /messages/:messageId/answer": (p, body) =>
       core.answerQuestion(p.messageId!, parse(AnswerQuestionRequest, body).answer),
     "GET /workspaces/:workspaceId/approvals": (p) => core.listApprovals(p.workspaceId!),
@@ -73,12 +81,12 @@ function tokenMatches(given: string | null | undefined, expected: string): boole
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-async function readBody(req: IncomingMessage): Promise<unknown> {
+async function readBody(req: IncomingMessage, limit = 1_000_000): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > 1_000_000) throw new CoreError("bad_request", "Body too large");
+    if (size > limit) throw new CoreError("bad_request", "Body too large");
     chunks.push(chunk as Buffer);
   }
   if (chunks.length === 0) return undefined;
@@ -125,7 +133,9 @@ export function createServer(core: Core, token: string): Server {
         if (route.method !== req.method) continue;
         const match = route.pattern.exec(path);
         if (!match) continue;
-        const body = req.method === "GET" ? undefined : await readBody(req);
+        // Attachments arrive base64-encoded, so the body is a third larger than the file.
+        const limit = path.endsWith("/attachments") ? MAX_ATTACHMENT_BYTES * 1.4 : undefined;
+        const body = req.method === "GET" ? undefined : await readBody(req, limit);
         send(200, await route.handler(match.groups ?? {}, body));
         return;
       }

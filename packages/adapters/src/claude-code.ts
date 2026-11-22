@@ -80,6 +80,7 @@ export class ClaudeCodeAdapter implements Adapter {
       "--allowedTools", options.trustMode === "full" ? "Bash" : "Bash(peritos *)",
     ];
     if (options.systemPrompt) args.push("--append-system-prompt", options.systemPrompt);
+    for (const dir of options.addDirs ?? []) args.push("--add-dir", dir);
 
     const child = spawn(this.bin, args, {
       cwd: options.cwd,

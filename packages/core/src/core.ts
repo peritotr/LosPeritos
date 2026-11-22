@@ -20,7 +20,7 @@ import type {
   Waiting,
   Workspace,
 } from "@losperitos/protocol";
-import { MAX_AGENTS_PER_WORKSPACE, PROTOCOL_VERSION } from "@losperitos/protocol";
+import { MAX_AGENTS_PER_WORKSPACE, MAX_ATTACHMENT_BYTES, PROTOCOL_VERSION } from "@losperitos/protocol";
 import * as git from "@losperitos/git";
 import { AppStore, WorkspaceStore, type Collection } from "@losperitos/storage";
 import type { Adapter, AgentSession, SessionEvent } from "@losperitos/adapters";
@@ -368,7 +368,7 @@ export class Core {
   /** A new job from the user. Refused once today's budget is spent. */
   sendMessage(
     workspaceId: string,
-    request: { body: string; toAgentId: string | null; taskId: string | null },
+    request: { body: string; toAgentId: string | null; taskId: string | null; attachments?: string[] },
   ): Message {
     const state = this.state(workspaceId);
     const agent = request.toAgentId
@@ -378,15 +378,49 @@ export class Core {
     if (this.budget(workspaceId).level === "exhausted") {
       throw new CoreError("budget_exhausted", "Today's budget for this workspace is spent.");
     }
+    const attachments = request.attachments ?? [];
+    const folder = this.attachmentsDir(state);
+    for (const name of attachments) {
+      // Names come from uploadAttachment; anything else is not ours to hand to an agent.
+      if (basename(name) !== name || !existsSync(join(folder, name))) {
+        throw new CoreError("bad_request", `No attachment named "${name}"`);
+      }
+    }
     const message = this.addMessage(state, {
       author: { kind: "user" },
       toAgentId: agent.id,
       taskId: request.taskId,
       body: request.body,
       question: null,
+      ...(attachments.length && { attachments }),
     });
-    this.deliver(state, agent, request.body);
+    const note = attachments.length
+      ? "\n\nThe user attached these files; read them as needed:\n" +
+        attachments.map((name) => `- ${join(folder, name)}`).join("\n")
+      : "";
+    this.deliver(state, agent, request.body + note);
     return message;
+  }
+
+  private attachmentsDir(state: WorkspaceState): string {
+    return join(state.store.dir, "attachments");
+  }
+
+  /** Store a file the user wants to attach; returns the name to send with the message. */
+  uploadAttachment(workspaceId: string, name: string, base64: string): { name: string } {
+    const state = this.state(workspaceId);
+    const data = Buffer.from(base64, "base64");
+    if (data.length === 0) throw new CoreError("bad_request", "The file is empty.");
+    if (data.length > MAX_ATTACHMENT_BYTES) {
+      throw new CoreError("bad_request", `Files can be at most ${MAX_ATTACHMENT_BYTES / 1024 / 1024} MB.`);
+    }
+    // Keep the name recognisable but safe as a single path segment, and unique.
+    const safe = basename(name).replace(/[^\w.-]+/g, "_").replace(/^\.+/, "").slice(-80) || "file";
+    const stored = `${randomBytes(4).toString("hex")}-${safe}`;
+    const folder = this.attachmentsDir(state);
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, stored), data);
+    return { name: stored };
   }
 
   answerQuestion(messageId: string, answer: string): Message {
@@ -451,6 +485,17 @@ export class Core {
     const updated = state.lessons.put({ ...item, status: decision });
     this.emit({ type: "lesson.updated", lesson: updated });
     return updated;
+  }
+
+  /** Give an agent a nickname, or take it away with null or an empty string. */
+  renameAgent(agentId: string, nickname: string | null): Agent {
+    const { state, item } = this.find((s) => s.agents, agentId, "agent");
+    const wanted = nickname?.trim() || null;
+    const taken = state.agents
+      .all()
+      .some((a) => a.id !== agentId && [a.name, a.nickname].some((n) => n && wanted && n.toLowerCase() === wanted.toLowerCase()));
+    if (taken) throw new CoreError("conflict", `Another agent is already called "${wanted}".`);
+    return this.setAgent(state, item.id, { nickname: wanted })!;
   }
 
   async stopAgent(agentId: string): Promise<Agent> {
@@ -554,7 +599,11 @@ export class Core {
         const target =
           name === "user"
             ? null
-            : state.agents.all().find((a) => (name === "lead" ? a.role === "lead" : a.name.toLowerCase() === name));
+            : state.agents
+                .all()
+                .find((a) =>
+                  name === "lead" ? a.role === "lead" : a.name.toLowerCase() === name || a.nickname?.toLowerCase() === name,
+                );
         if (name !== "user" && !target) {
           const names = state.agents.all().map((a) => a.name).join(", ");
           throw new CoreError("not_found", `No agent named "${command.to}". Agents: ${names}`);
@@ -750,7 +799,7 @@ export class Core {
 
   private addMessage(
     state: WorkspaceState,
-    fields: Pick<Message, "author" | "toAgentId" | "taskId" | "body" | "question">,
+    fields: Pick<Message, "author" | "toAgentId" | "taskId" | "body" | "question" | "attachments">,
   ): Message {
     const message = state.messages.put({
       id: randomUUID(),
@@ -783,6 +832,7 @@ export class Core {
         cwd: task?.worktree ?? state.workspace.path,
         trustMode: state.workspace.trustMode,
         systemPrompt: agent.role === "lead" ? LEAD_PROMPT : MEMBER_PROMPT,
+        addDirs: [this.attachmentsDir(state)],
         env: {
           LOSPERITOS_AGENT_TOKEN: token,
           ...(this.bridge && {

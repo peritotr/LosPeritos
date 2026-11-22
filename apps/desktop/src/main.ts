@@ -16,10 +16,15 @@ import { startCore, type RunningCore } from "@losperitos/core";
  */
 
 const here = fileURLToPath(new URL(".", import.meta.url));
-const uiDir = join(here, "../../ui/dist");
-const cliEntry = join(here, "../../../packages/cli/dist/main.js");
-/** The app icon, once one has been added; see assets/README.md. */
-const icon = join(here, "../assets/icon.png");
+// Run from source, the pieces live across the monorepo; a packaged app carries
+// them side by side in its own folder (see scripts/package-desktop.mjs).
+const packaged = app.isPackaged;
+const root = packaged ? app.getAppPath() : join(here, "..");
+const uiDir = packaged ? join(root, "ui") : join(root, "../ui/dist");
+const cliEntry = packaged ? join(root, "cli/main.js") : join(root, "../../packages/cli/dist/main.js");
+const preload = join(root, "preload.cjs");
+/** The app icon; see assets/README.md. */
+const icon = packaged ? join(root, "icon.png") : join(root, "assets/icon.png");
 const fake = process.argv.includes("--fake");
 const smoke = process.argv.includes("--smoke");
 /** Point the window at a running Vite dev server instead of the built UI. */
@@ -66,7 +71,7 @@ async function openWindow(core: RunningCore): Promise<void> {
     ...(existsSync(icon) && { icon }),
     backgroundColor: "#f2f2f3",
     webPreferences: {
-      preload: join(here, "../preload.cjs"),
+      preload,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

@@ -43,6 +43,8 @@ export const Agent = z.object({
   id,
   workspaceId: id,
   name: z.string(),
+  /** A name the user gave this agent; shown instead of its speciality and seat number. */
+  nickname: z.string().nullable().optional(),
   role: AgentRole,
   /** Free-form specialty, e.g. "architect", "tester". */
   specialty: z.string().nullable(),
@@ -116,6 +118,8 @@ export const Message = z.object({
       answer: z.string().nullable(),
     })
     .nullable(),
+  /** Files the user attached, as names inside the workspace's attachments folder. */
+  attachments: z.array(z.string()).optional(),
   createdAt: timestamp,
 });
 
@@ -199,6 +203,19 @@ export const SendMessageRequest = z.object({
   body: z.string().min(1),
   toAgentId: id.nullable().default(null),
   taskId: id.nullable().default(null),
+  /** Names returned by earlier attachment uploads. */
+  attachments: z.array(z.string()).default([]),
+});
+/** One file for the user to attach to a message; the reply is `{ name }`. */
+export const UploadAttachmentRequest = z.object({
+  name: z.string().min(1).max(200),
+  /** The file's bytes, base64-encoded. */
+  data: z.string().min(1),
+});
+export const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+export const UpdateAgentRequest = z.object({
+  /** Empty or null removes the nickname. */
+  nickname: z.string().trim().max(24).nullable(),
 });
 export const AnswerQuestionRequest = z.object({ answer: z.string().min(1) });
 export const DecideApprovalRequest = z.object({
@@ -219,12 +236,15 @@ export const routes = {
   updateWorkspace: "PATCH /workspaces/:workspaceId",
   agents: "GET /workspaces/:workspaceId/agents",
   stopAgent: "POST /agents/:agentId/stop",
+  updateAgent: "PATCH /agents/:agentId",
   tasks: "GET /workspaces/:workspaceId/tasks",
   task: "GET /tasks/:taskId",
   /** `{ diff: string }`: the task branch against the branch it started from. */
   taskDiff: "GET /tasks/:taskId/diff",
   messages: "GET /workspaces/:workspaceId/messages",
   sendMessage: "POST /workspaces/:workspaceId/messages",
+  /** Store a file so the next message can attach it. */
+  uploadAttachment: "POST /workspaces/:workspaceId/attachments",
   answerQuestion: "POST /messages/:messageId/answer",
   approvals: "GET /workspaces/:workspaceId/approvals",
   decideApproval: "POST /approvals/:approvalId/decision",

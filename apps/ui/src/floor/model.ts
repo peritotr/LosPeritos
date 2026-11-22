@@ -1,6 +1,6 @@
 import type { Agent, Approval, Task } from "@losperitos/protocol";
 import type { Flight, FloorStamp } from "../store";
-import { perito, type Perito } from "../ui";
+import { fileRef, perito, type Perito } from "../ui";
 
 /**
  * The bureau floor as plain data: who sits where, in what pose, and where
@@ -56,6 +56,8 @@ export interface Actor {
   pose: Pose;
   /** The newest line of output, for a caption while working. */
   lastLine: string;
+  /** "F-0003 Title" of the file on its desk, if any. */
+  file: string | null;
 }
 
 export type FilePlace = "lead" | "desk" | "seal" | "shelf";
@@ -91,6 +93,8 @@ export interface FloorInput {
   output: Record<string, string[]>;
 }
 
+const fileLabel = (task: Task | undefined) => (task ? `${fileRef(task)} ${task.title}` : null);
+
 export function buildFloor({ agents, tasks, approvals, flights, stamps, output }: FloorInput): FloorModel {
   const lead = agents.find((agent) => agent.role === "lead");
   const members = agents.filter((agent) => agent.role === "member").slice(0, FLOOR.seats.length);
@@ -109,6 +113,7 @@ export function buildFloor({ agents, tasks, approvals, flights, stamps, output }
     lead: agent.role === "lead",
     pose: POSE[agent.status],
     lastLine: output[agent.id]?.at(-1) ?? "",
+    file: fileLabel(tasks.find((task) => task.id === agent.taskId)),
   });
 
   const pending = approvals.filter((approval) => approval.status === "pending");

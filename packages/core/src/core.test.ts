@@ -173,3 +173,24 @@ test("HTTP API requires the token and streams events over WebSocket", async () =
     server.close();
   }
 });
+
+test("an attached file is stored in the workspace and handed to the agent by path", async () => {
+  const { core, events, folder } = setup();
+  const workspace = core.openWorkspace(folder);
+  const { name } = core.uploadAttachment(workspace.id, "../../sneaky name.txt", Buffer.from("hello").toString("base64"));
+  assert.match(name, /^[0-9a-f]{8}-sneaky_name\.txt$/);
+  const stored = join(folder, ".losperitos", "attachments", name);
+  assert.equal(readFileSync(stored, "utf8"), "hello");
+
+  const sent = core.sendMessage(workspace.id, { body: "look", toAgentId: null, taskId: null, attachments: [name] });
+  assert.deepEqual(sent.attachments, [name]);
+  await until(events, "budget.updated");
+  // The fake agent echoes what it was given, which shows the path reached it.
+  assert.ok(core.listMessages(workspace.id).at(-1)!.body.includes(stored));
+
+  assert.throws(
+    () => core.sendMessage(workspace.id, { body: "x", toAgentId: null, taskId: null, attachments: ["../token.json"] }),
+    CoreError,
+  );
+  assert.throws(() => core.uploadAttachment(workspace.id, "empty.txt", ""), CoreError);
+});

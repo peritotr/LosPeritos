@@ -185,3 +185,16 @@ test("the peritos CLI reaches the core over HTTP with the agent's own token", as
     server.close();
   }
 });
+
+test("an agent can be nicknamed, and teammates can address it by that name", async () => {
+  const { core, workspace, as } = setup({ repo: false });
+  await as(0, { command: "task.create", title: "One" });
+  const member = core.listAgents(workspace.id).find((a) => a.role === "member")!;
+  assert.equal(core.renameAgent(member.id, "  Ada  ").nickname, "Ada");
+  await as(0, { command: "send", to: "ada", body: "hello" });
+  assert.equal(core.listMessages(workspace.id).at(-1)!.toAgentId, member.id);
+
+  const lead = core.listAgents(workspace.id).find((a) => a.role === "lead")!;
+  assert.throws(() => core.renameAgent(lead.id, "ADA"), /already called/);
+  assert.equal(core.renameAgent(member.id, "").nickname, null);
+});

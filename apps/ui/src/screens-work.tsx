@@ -14,6 +14,7 @@ import {
   GripVertical,
   Inbox,
   List,
+  PencilLine,
   Plus,
   Send,
   Square,
@@ -21,6 +22,7 @@ import {
   Terminal,
 } from "lucide-react";
 import type { Agent, Task } from "@losperitos/protocol";
+import { Chat } from "./Chat";
 import { SvgFloor } from "./floor/SvgFloor";
 import { SpriteLayer } from "./floor/SpriteLayer";
 import { buildFloor } from "./floor/model";
@@ -621,30 +623,14 @@ function TerminalOutput({ lines, fallback }: { lines: string[] | undefined; fall
 // ── Correspondence ─────────────────────────────────────────────────────────
 
 export function Correspondence(ctx: Ctx) {
-  const { agents, messages, approvals, actions, bureau } = ctx;
+  const { agents, bureau } = ctx;
   const [split, setSplit] = useState(54);
   const [followId, setFollowId] = useState<string | null>(null);
-  const [text, setText] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
-  const log = useRef<HTMLDivElement>(null);
 
+  // The terminal follows whoever you clicked, else whoever is working, else the lead.
   const followed =
     agents.find((a) => a.id === followId) ?? agents.find((a) => a.status === "working") ?? agents.find((a) => a.role === "lead");
-  const name = (id: string | null) => {
-    const agent = agents.find((a) => a.id === id);
-    return agent ? perito(agent, agents).who : null;
-  };
-
-  // Seal requests are part of the conversation, in the order they were raised.
-  const items = [
-    ...messages.map((message) => ({ at: message.createdAt, message, approval: null })),
-    ...approvals.map((approval) => ({ at: approval.createdAt, message: null, approval })),
-  ].sort((a, b) => a.at.localeCompare(b.at));
-
-  useEffect(() => {
-    log.current?.scrollTo({ top: log.current.scrollHeight });
-  }, [items.length]);
 
   const clamp = (value: number) => Math.min(72, Math.max(30, value));
   const drag = (event: React.PointerEvent) => {
@@ -659,126 +645,12 @@ export function Correspondence(ctx: Ctx) {
     event.preventDefault();
   };
 
-  const send = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!text.trim()) return;
-    setError(null);
-    try {
-      await actions.send(bureau.id, text.trim());
-      setText("");
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  };
-
   return (
     <>
       <PageHead kicker={T.mail.kicker(bureau.name)} title={T.mail.title} />
       <div className="split" ref={box}>
         <section className="thread" style={{ width: `${split}%` }}>
-          <div className="thread-log" ref={log}>
-            {items.length === 0 && (
-              <p className="muted" style={{ padding: "18px 0" }}>
-                {T.mail.empty}
-              </p>
-            )}
-            {items.map(({ at, message, approval }) => {
-              const agentId = message
-                ? message.author.kind === "agent"
-                  ? message.author.agentId
-                  : null
-                : approval!.agentId;
-              const agent = agents.find((a) => a.id === agentId);
-              const view = agent ? perito(agent, agents) : null;
-              const from = view?.who ?? (message?.author.kind === "user" ? T.mail.you : T.mail.bureau);
-              const to = approval || message?.question ? T.mail.you : (name(message!.toAgentId) ?? T.mail.panel);
-              return (
-                <div
-                  key={(message ?? approval)!.id}
-                  className="msg"
-                  onClick={() => agent && setFollowId(agent.id)}
-                  style={{ cursor: agent ? "pointer" : undefined }}
-                >
-                  {view ? (
-                    <Emblem role={view.role} mono={view.mono} size={26} />
-                  ) : (
-                    <Emblem role="other" mono={message?.author.kind === "user" ? "YOU" : "LP"} size={26} />
-                  )}
-                  <div className="grow">
-                    <div className="msg-head">
-                      <b>{from}</b> → {to} · <span className="mono">{clock(at)}</span>
-                    </div>
-                    <div className="msg-body">{message ? message.body : approval!.title}</div>
-                    {message?.question && (
-                      <div className="msg-actions">
-                        {message.question.answer === null ? (
-                          message.question.options.map((option) => (
-                            <button
-                              key={option}
-                              className="btn btn-act"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                actions.answer(message.id, option).then(
-                                  () => ctx.note(T.awaiting.answerSent),
-                                  (err: Error) => setError(err.message),
-                                );
-                              }}
-                            >
-                              {option}
-                            </button>
-                          ))
-                        ) : (
-                          <span className="row muted" style={{ gap: 6 }}>
-                            <I icon={Check} />
-                            {T.mail.answered(message.question.answer)}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {approval && (
-                      <div className="msg-actions">
-                        {approval.status === "pending" ? (
-                          <button
-                            className="btn btn-primary"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              ctx.go({ screen: "awaiting", id: approval.id });
-                            }}
-                          >
-                            <I icon={StampIcon} />
-                            {T.bench.reviewSeal}
-                          </button>
-                        ) : (
-                          <span className="row muted" style={{ gap: 6 }}>
-                            <I icon={Check} />
-                            {approval.status === "approved" ? T.mail.sealed : T.mail.declined}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {error && (
-            <p className="err" style={{ padding: "6px 14px", fontSize: 13 }}>
-              {error}
-            </p>
-          )}
-          <form className="composer" onSubmit={send}>
-            <input
-              className="input grow"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              placeholder={T.mail.placeholder}
-              aria-label={T.mail.placeholder}
-            />
-            <button className="btn btn-secondary" disabled={!text.trim()}>
-              <I icon={Send} />
-              {T.mail.send}
-            </button>
-          </form>
+          <Chat ctx={ctx} onPickAgent={setFollowId} />
         </section>
         <div
           className="split-handle"
@@ -804,10 +676,7 @@ export function Correspondence(ctx: Ctx) {
                 <I icon={Terminal} />
                 <span className="grow ellipsis">
                   {perito(followed, agents).who}
-                  <span className="mono muted">
-                    {" "}
-                    {ctx.tasks.find((t) => t.id === followed.taskId)?.branch ?? ""}
-                  </span>
+                  <span className="mono muted"> {ctx.tasks.find((t) => t.id === followed.taskId)?.branch ?? ""}</span>
                 </span>
                 <Badge meta={AGENT_STATUS[followed.status]} />
                 <button className="btn btn-secondary" onClick={() => ctx.go({ screen: "perito", id: followed.id })}>
@@ -832,8 +701,15 @@ export function Correspondence(ctx: Ctx) {
 export function PeritoDetail({ ctx, id }: { ctx: Ctx; id: string }) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /** The name being typed while renaming; null when not renaming. */
+  const [draft, setDraft] = useState<string | null>(null);
   const agent = ctx.agents.find((a) => a.id === id);
   if (!agent) return <Empty icon={Square} title={T.bench.seatOpen} />;
+  const rename = (nickname: string | null) =>
+    ctx.actions.renameAgent(agent.id, nickname).then(
+      () => setDraft(null),
+      (err: Error) => setError(err.message),
+    );
   const view = perito(agent, ctx.agents);
   const task = ctx.tasks.find((t) => t.id === agent.taskId);
   const runs = (ctx.state.runs[ctx.bureau.id] ?? []).filter((run) => run.agentId === agent.id);
@@ -862,7 +738,42 @@ export function PeritoDetail({ ctx, id }: { ctx: Ctx; id: string }) {
       <header className="page-head" style={{ alignItems: "center" }}>
         <Emblem role={view.role} mono={view.mono} size={52} />
         <div className="grow">
-          <h2>{view.who}</h2>
+          {draft === null ? (
+            <div className="rename">
+              <h2>{view.who}</h2>
+              <button className="btn btn-ghost btn-icon" aria-label={T.peritoDetail.rename} title={T.peritoDetail.rename} onClick={() => setDraft(agent.nickname ?? "")}>
+                <I icon={PencilLine} size={14} />
+              </button>
+            </div>
+          ) : (
+            <form
+              className="rename"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void rename(draft.trim() || null);
+              }}
+            >
+              <input
+                className="input"
+                value={draft}
+                maxLength={24}
+                autoFocus
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => event.key === "Escape" && setDraft(null)}
+                aria-label={T.peritoDetail.nameLabel}
+                placeholder={T.peritoDetail.nameLabel}
+              />
+              <button className="btn btn-secondary">{T.peritoDetail.save}</button>
+              {agent.nickname && (
+                <button type="button" className="btn btn-ghost" onClick={() => rename(null)}>
+                  {T.peritoDetail.defaultName}
+                </button>
+              )}
+              <button type="button" className="btn btn-ghost" onClick={() => setDraft(null)}>
+                {T.peritoDetail.cancel}
+              </button>
+            </form>
+          )}
           <div className="muted" style={{ fontSize: 13 }}>
             {view.sub}
           </div>

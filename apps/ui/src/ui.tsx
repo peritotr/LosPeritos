@@ -74,7 +74,14 @@ export interface Perito {
 export function perito(agent: Agent, all: Agent[]): Perito {
   const tool = TOOL[agent.adapter];
   if (agent.role === "lead") {
-    return { role: "lead", title: T.perito.lead, who: T.perito.lead, sub: `${T.perito.leadSub} · ${tool}`, mono: "BP", tool };
+    return {
+      role: "lead",
+      title: T.perito.lead,
+      who: agent.nickname || T.perito.lead,
+      sub: `${agent.nickname ? T.perito.lead : T.perito.leadSub} · ${tool}`,
+      mono: "BP",
+      tool,
+    };
   }
   const seat = all.filter((a) => a.workspaceId === agent.workspaceId && a.role === "member").indexOf(agent) + 1;
   const speciality = (agent.specialty ?? "perito").toLowerCase();
@@ -88,8 +95,9 @@ export function perito(agent: Agent, all: Agent[]): Perito {
   return {
     role: known ? (speciality as EmblemRole) : "other",
     title,
-    who: `${title} ${numeral}`,
-    sub: `Perito ${numeral} · ${tool}`,
+    // A nickname replaces "Developer II"; the speciality then moves to the line below.
+    who: agent.nickname || `${title} ${numeral}`,
+    sub: agent.nickname ? `${title} · Perito ${numeral} · ${tool}` : `Perito ${numeral} · ${tool}`,
     mono: (speciality[0]! + (consonants[1] ?? speciality[1] ?? "")).toUpperCase(),
     tool,
   };

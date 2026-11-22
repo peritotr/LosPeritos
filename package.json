@@ -23,7 +23,8 @@
     "typecheck:ui": "npm run typecheck --workspace @losperitos/ui",
     "build:all": "npm run build && npm run build --workspace @losperitos/ui && npm run build --workspace @losperitos/desktop",
     "desktop": "npm run build:all && npm run start --workspace @losperitos/desktop",
-    "desktop:demo": "npm run build:all && npm run start --workspace @losperitos/desktop -- --fake"
+    "desktop:demo": "npm run build:all && npm run start --workspace @losperitos/desktop -- --fake",
+    "package": "npm run build:all && node scripts/package-desktop.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
