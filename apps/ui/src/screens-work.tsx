@@ -14,6 +14,8 @@ import {
   GripVertical,
   Inbox,
   List,
+  Pause,
+  Play,
   PencilLine,
   Plus,
   Send,
@@ -23,6 +25,7 @@ import {
 } from "lucide-react";
 import type { Agent, Task } from "@losperitos/protocol";
 import { Chat } from "./Chat";
+import { IssueImport, NewFileForm } from "./files-tools";
 import { SvgFloor } from "./floor/SvgFloor";
 import { SpriteLayer } from "./floor/SpriteLayer";
 import { buildFloor } from "./floor/model";
@@ -280,6 +283,16 @@ function PeritoCard({ ctx, agent }: { ctx: Ctx; agent: Agent }) {
 
 export function Files(ctx: Ctx) {
   const [view, setView] = useState<"list" | "board">("list");
+  /** Which tool is open above the list, if any. */
+  const [tool, setTool] = useState<"new" | "issues" | null>(null);
+  const paused = !!ctx.bureau.dispatchPaused;
+  /** "waits for F-0003" for a file that depends on ones not yet closed. */
+  const waitsFor = (task: Task) => {
+    const blocking = (task.dependsOn ?? [])
+      .map((id) => tasks.find((t) => t.id === id))
+      .filter((t): t is Task => !!t && t.status !== "done");
+    return blocking.length ? T.files.waitsFor(blocking.map(fileRef).join(", ")) : null;
+  };
   const { tasks, agents } = ctx;
   const who = (task: Task) => {
     const agent = agents.find((a) => a.id === task.assigneeId);
@@ -295,6 +308,21 @@ export function Files(ctx: Ctx) {
   return (
     <>
       <PageHead kicker={T.files.kicker(ctx.bureau.name)} title={T.files.title}>
+        <button className="btn btn-primary" onClick={() => setTool(tool === "new" ? null : "new")}>
+          <I icon={Plus} />
+          {T.files.newFile}
+        </button>
+        <button className="btn btn-secondary" onClick={() => setTool(tool === "issues" ? null : "issues")}>
+          {T.files.importIssues}
+        </button>
+        <button
+          className="btn btn-secondary"
+          aria-pressed={paused}
+          onClick={() => void ctx.actions.updateWorkspace(ctx.bureau.id, { dispatchPaused: !paused })}
+        >
+          <I icon={paused ? Play : Pause} />
+          {paused ? T.files.resume : T.files.pause}
+        </button>
         <Segmented<"list" | "board">
           label={T.files.view}
           value={view}
@@ -305,6 +333,15 @@ export function Files(ctx: Ctx) {
           ]}
         />
       </PageHead>
+
+      {paused && (
+        <p className="notice" style={{ borderColor: "var(--st-warn)", background: "var(--st-warn-bg)", color: "var(--st-warn)" }}>
+          <I icon={Pause} size={18} />
+          {T.files.paused}
+        </p>
+      )}
+      {tool === "new" && <NewFileForm ctx={ctx} onClose={() => setTool(null)} />}
+      {tool === "issues" && <IssueImport ctx={ctx} onClose={() => setTool(null)} />}
 
       {tasks.length === 0 ? (
         <Empty icon={FileText} title={T.files.emptyTitle}>
@@ -325,6 +362,8 @@ export function Files(ctx: Ctx) {
               <span className="row" style={{ paddingLeft: task.parentId ? 20 : 0, fontWeight: task.parentId ? 400 : 500, gap: 8 }}>
                 <I icon={task.parentId ? CornerDownRight : FileText} size={14} />
                 <span className="ellipsis">{task.title}</span>
+                {task.priority === "high" && <span className="tag act">{T.files.priority.high}</span>}
+                {waitsFor(task) && <span className="tag">{waitsFor(task)}</span>}
               </span>
               <Badge meta={TASK_STATUS[task.status]} />
               <span className={who(task) ? "ellipsis" : "muted"}>{who(task) ?? T.file.unassigned}</span>
@@ -519,6 +558,35 @@ export function FileDetail({ ctx, id }: { ctx: Ctx; id: string }) {
         </div>
       </header>
 
+      {(task.status === "draft" || task.status === "queued" || task.status === "in_progress") && (
+        <div className="row" style={{ marginBottom: 20 }}>
+          {task.status === "draft" && (
+            <button className="btn btn-primary" onClick={() => void ctx.actions.updateTask(task.id, { status: "queued" })}>
+              {T.files.startDraft}
+            </button>
+          )}
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              if (task.status !== "in_progress" || window.confirm(T.files.cancelConfirm)) {
+                void ctx.actions.updateTask(task.id, { status: "cancelled" });
+              }
+            }}
+          >
+            {T.files.cancelFile}
+          </button>
+          {task.priority && task.priority !== "normal" && (
+            <span className="tag">
+              {T.files.form.priority}: {T.files.priority[task.priority]}
+            </span>
+          )}
+          {task.effort && task.effort !== "normal" && (
+            <span className="tag">
+              {T.files.form.effort}: {T.files.effort[task.effort]}
+            </span>
+          )}
+        </div>
+      )}
       {approval && (
         <div className="notice">
           <I icon={StampIcon} size={18} />

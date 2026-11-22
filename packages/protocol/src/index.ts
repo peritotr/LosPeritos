@@ -23,6 +23,8 @@ export const Workspace = z.object({
   trustMode: TrustMode,
   /** Daily budget in USD; null means no limit. */
   dailyBudgetUsd: z.number().nonnegative().nullable(),
+  /** While set, queued tasks are not handed out; work already started carries on. */
+  dispatchPaused: z.boolean().optional(),
   createdAt: timestamp,
 });
 
@@ -77,6 +79,9 @@ export const TaskStatus = z.enum([
 export const TaskEffort = z.enum(["small", "normal", "large"]);
 export type TaskEffort = z.infer<typeof TaskEffort>;
 
+export const TaskPriority = z.enum(["low", "normal", "high"]);
+export type TaskPriority = z.infer<typeof TaskPriority>;
+
 export const TaskReport = z.object({
   done: z.array(z.string()),
   tested: z.array(z.string()),
@@ -96,6 +101,9 @@ export const Task = z.object({
   /** What kind of team member should take it, e.g. "tester". */
   specialty: z.string().nullable(),
   effort: TaskEffort.optional(),
+  priority: TaskPriority.optional(),
+  /** Tasks that must be closed before this one is handed out. */
+  dependsOn: z.array(id).optional(),
   branch: z.string().nullable(),
   /** Branch the task branch forked from and merges back into. */
   baseBranch: z.string().nullable(),
@@ -210,7 +218,40 @@ export const UpdateWorkspaceRequest = Workspace.pick({
   name: true,
   trustMode: true,
   dailyBudgetUsd: true,
+  dispatchPaused: true,
 }).partial();
+
+/** A task the user writes themselves, rather than the lead. */
+export const CreateTaskRequest = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().default(""),
+  specialty: z.string().trim().min(1).default("developer"),
+  effort: TaskEffort.default("normal"),
+  priority: TaskPriority.default("normal"),
+  dependsOn: z.array(id).default([]),
+  /** Queue it for the team straight away; otherwise it is kept as a draft. */
+  start: z.boolean().default(true),
+});
+/** Details can change until a task has been handed out; `status` queues, shelves or cancels it. */
+export const UpdateTaskRequest = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  description: z.string().optional(),
+  specialty: z.string().trim().min(1).optional(),
+  effort: TaskEffort.optional(),
+  priority: TaskPriority.optional(),
+  dependsOn: z.array(id).optional(),
+  status: z.enum(["draft", "queued", "cancelled"]).optional(),
+});
+
+/** An issue in the workspace's GitHub repository, offered for import. */
+export const Issue = z.object({
+  number: z.number().int(),
+  title: z.string(),
+  body: z.string(),
+  url: z.string(),
+  labels: z.array(z.string()),
+});
+export type Issue = z.infer<typeof Issue>;
 /** Give the lead a job, or message a specific agent. */
 export const SendMessageRequest = z.object({
   body: z.string().min(1),
@@ -255,6 +296,10 @@ export const routes = {
   stopAgent: "POST /agents/:agentId/stop",
   updateAgent: "PATCH /agents/:agentId",
   tasks: "GET /workspaces/:workspaceId/tasks",
+  createTask: "POST /workspaces/:workspaceId/tasks",
+  updateTask: "PATCH /tasks/:taskId",
+  /** Open issues of the workspace's GitHub repository, read with the `gh` CLI. */
+  issues: "GET /workspaces/:workspaceId/issues",
   task: "GET /tasks/:taskId",
   /** `{ diff: string }`: the task branch against the branch it started from. */
   taskDiff: "GET /tasks/:taskId/diff",
@@ -313,6 +358,9 @@ export const AgentCommand = z.discriminatedUnion("command", [
     description: z.string().default(""),
     specialty: z.string().min(1).default("developer"),
     effort: TaskEffort.default("normal"),
+    priority: TaskPriority.default("normal"),
+    /** Numbers of tasks that must be closed first. */
+    after: z.array(z.number().int().positive()).default([]),
   }),
   z.object({ command: z.literal("task.list") }),
   /** Member only: hand the task in for review and merge. */

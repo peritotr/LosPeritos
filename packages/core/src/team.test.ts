@@ -280,3 +280,49 @@ test("a conversation is kept across restarts, and each new file starts a fresh o
   assert.equal(again.starts[0]!.resume, true);
   await restarted.close();
 });
+
+test("the user can write tasks, order them, pause the hand-out and cancel", async () => {
+  const { core, workspace } = setup({ repo: false });
+  const base = { description: "", specialty: "developer", effort: "normal" as const, priority: "normal" as const, dependsOn: [], start: true };
+  core.updateWorkspace(workspace.id, { dispatchPaused: true });
+
+  const low = await core.createTask(workspace.id, { ...base, title: "Low", priority: "low" });
+  const high = await core.createTask(workspace.id, { ...base, title: "High", priority: "high" });
+  const later = await core.createTask(workspace.id, { ...base, title: "Later", priority: "high", dependsOn: [high.id] });
+  const draft = await core.createTask(workspace.id, { ...base, title: "Draft", start: false });
+  const status = (id: string) => core.getTask(id).status;
+  assert.deepEqual([low, high, later, draft].map((t) => status(t.id)), ["queued", "queued", "queued", "draft"], "paused: nothing starts");
+
+  // Details can still change while a task waits.
+  assert.equal((await core.updateTask(draft.id, { title: "Draft, renamed" })).title, "Draft, renamed");
+  await assert.rejects(core.updateTask(later.id, { dependsOn: [later.id] }), /wait for itself/);
+
+  core.updateWorkspace(workspace.id, { dispatchPaused: false });
+  for (let i = 0; i < 50 && status(high.id) !== "in_progress"; i++) await tick();
+  assert.equal(status(high.id), "in_progress");
+  assert.equal(status(low.id), "in_progress");
+  assert.equal(status(later.id), "queued", "waits for the task it depends on");
+  assert.equal(status(draft.id), "draft", "a draft waits for the user");
+  const started = core.listTasks(workspace.id).filter((t) => t.status === "in_progress");
+  const seats = core.listAgents(workspace.id).filter((a) => a.role === "member");
+  assert.equal(seats.find((a) => a.taskId === high.id)!.name, "Developer", "the urgent task took the first seat");
+  assert.equal(started.length, 2);
+
+  // Once handed out, a task can only be cancelled; cancelling frees its perito.
+  await assert.rejects(core.updateTask(high.id, { title: "Too late" }), /handed out/);
+  assert.equal((await core.updateTask(high.id, { status: "cancelled" })).status, "cancelled");
+  assert.equal(core.listAgents(workspace.id).find((a) => a.name === "Developer")!.taskId, null);
+  assert.equal(status(later.id), "queued", "a cancelled task does not unblock what waited for it");
+  await assert.rejects(core.updateTask(high.id, { status: "queued" }), /already closed/);
+});
+
+test("the lead can make one task wait for another", async () => {
+  const { core, workspace, as } = setup({ repo: false });
+  await as(0, { command: "task.create", title: "First" });
+  const reply = await as(0, { command: "task.create", title: "Second", after: [1] });
+  assert.match(reply.message, /starts when the tasks it waits for are closed/);
+  await assert.rejects(as(0, { command: "task.create", title: "Third", after: [99] }), /no task #99/);
+
+  await as(1, { command: "task.done", report: { done: ["x"], tested: [], notVerified: [] } });
+  assert.equal(core.listTasks(workspace.id).find((t) => t.title === "Second")!.status, "in_progress");
+});

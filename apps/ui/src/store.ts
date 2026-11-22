@@ -4,6 +4,7 @@ import type {
   Approval,
   BudgetState,
   EventEnvelope,
+  Issue,
   Lesson,
   Message,
   Run,
@@ -65,6 +66,18 @@ async function call<T>(token: string, method: string, path: string, body?: unkno
   const json = await response.json();
   if (!response.ok) throw new ApiError(json.error?.code ?? "internal", json.error?.message ?? "Request failed");
   return json as T;
+}
+
+/** What the user fills in to open a file themselves. */
+export interface NewTask {
+  title: string;
+  description?: string;
+  specialty?: string;
+  effort?: Task["effort"];
+  priority?: Task["priority"];
+  dependsOn?: string[];
+  /** Queue it straight away; otherwise it is kept as a draft. */
+  start?: boolean;
 }
 
 /** A note travelling across the floor: a message between two seats. */
@@ -225,8 +238,12 @@ export interface Actions {
   openWorkspace(path: string): Promise<Workspace>;
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode">>,
+    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "dispatchPaused">>,
   ): Promise<void>;
+  createTask(workspaceId: string, task: NewTask): Promise<void>;
+  updateTask(taskId: string, patch: Partial<NewTask> & { status?: "draft" | "queued" | "cancelled" }): Promise<void>;
+  /** Open issues of the bureau's GitHub repository. */
+  listIssues(workspaceId: string): Promise<Issue[]>;
   send(workspaceId: string, body: string, toAgentId?: string | null, attachments?: string[]): Promise<void>;
   /** Store a file for the next message; resolves to the name to attach. */
   upload(workspaceId: string, name: string, base64: string): Promise<string>;
@@ -360,6 +377,9 @@ export function useCore(): [State, Actions] {
       return workspace;
     },
     updateWorkspace: async (workspaceId, patch) => void (await post(`/workspaces/${workspaceId}`, patch, "PATCH")),
+    createTask: async (workspaceId, task) => void (await post(`/workspaces/${workspaceId}/tasks`, task)),
+    updateTask: async (taskId, patch) => void (await post(`/tasks/${taskId}`, patch, "PATCH")),
+    listIssues: (workspaceId) => post<Issue[]>(`/workspaces/${workspaceId}/issues`, undefined, "GET"),
     send: async (workspaceId, body, toAgentId = null, attachments = []) =>
       void (await post(`/workspaces/${workspaceId}/messages`, { body, toAgentId, attachments })),
     upload: async (workspaceId, name, data) =>

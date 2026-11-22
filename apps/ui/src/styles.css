@@ -320,7 +320,7 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 
 .table { border: 1px solid var(--color-divider); background: var(--color-bg); }
 .table-row {
-  display: grid; grid-template-columns: 84px minmax(0, 1fr) 150px 140px minmax(0, 220px) 96px; gap: 12px;
+  display: grid; grid-template-columns: 76px minmax(160px, 2fr) 126px minmax(0, 110px) minmax(0, 1fr) 72px; gap: 12px;
   align-items: center; padding: 10px 14px; border-top: 1px solid var(--lp-faint); width: 100%;
   background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left;
 }
@@ -334,6 +334,14 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .board-card { padding: 10px 12px; gap: 4px; text-align: left; }
 .board-empty { padding: 14px; border: 1px dashed var(--color-divider); color: var(--lp-muted); font-size: 12px; text-align: center; }
 
+.file-form { margin-bottom: 22px; }
+.file-form-row { display: flex; flex-wrap: wrap; gap: 14px; }
+.file-form-row .field { min-width: 130px; }
+.file-form select.input { appearance: auto; }
+.issue-list { max-height: 260px; overflow: auto; border: 1px solid var(--color-divider); }
+.issue-row { display: grid; grid-template-columns: auto 52px minmax(0, 2fr) minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 10px; border-top: 1px solid var(--lp-faint); cursor: pointer; font-size: 13px; }
+.issue-row:first-child { border-top: 0; }
+.issue-row:hover { background: var(--lp-faint); }
 .two-col { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 28px; align-items: start; }
 .notice {
   display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 20px;

@@ -67,7 +67,8 @@ const BRIDGE_PROMPT =
 const LEAD_PROMPT =
   "You are the lead of a small team of coding agents working in this folder. " +
   "Small jobs you do yourself. Larger jobs you split into independent tasks and hand out with " +
-  "`peritos task create --title \"<title>\" --description \"<everything the teammate needs>\" --specialty <developer|tester|designer|...> --effort <small|normal|large>`. " +
+  "`peritos task create --title \"<title>\" --description \"<everything the teammate needs>\" --specialty <developer|tester|designer|...> --effort <small|normal|large> [--priority high] [--after <task number>]`. " +
+  "Use --after N (repeatable) when a task must wait until task #N is closed. " +
   "Use --effort small for mechanical work (renames, copy changes, simple tests) and large for hard design or debugging; it decides which model the teammate runs on. " +
   "Each task goes to a teammate who works on a separate git branch and cannot see this conversation, " +
   "so make every description self-contained and keep tasks from touching the same files. " +
@@ -228,14 +229,145 @@ export class Core {
 
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "name" | "trustMode" | "dailyBudgetUsd">>,
+    patch: Partial<Pick<Workspace, "name" | "trustMode" | "dailyBudgetUsd" | "dispatchPaused">>,
   ): Workspace {
     const state = this.state(workspaceId);
     state.workspace = { ...state.workspace, ...patch };
     state.store.writeDoc("workspace", state.workspace);
     this.emit({ type: "workspace.updated", workspace: state.workspace });
     this.emit({ type: "budget.updated", budget: this.budget(workspaceId) });
+    // Lifting a pause, or raising the budget, may let waiting tasks start.
+    void this.startQueued(state).catch(() => undefined);
     return state.workspace;
+  }
+
+  // ── Tasks the user manages ────────────────────────────────────────────────
+
+  /** A task written by the user. Queued tasks go to the team as seats allow. */
+  async createTask(
+    workspaceId: string,
+    fields: {
+      title: string;
+      description: string;
+      specialty: string;
+      effort: Task["effort"];
+      priority: Task["priority"];
+      dependsOn: string[];
+      start: boolean;
+    },
+  ): Promise<Task> {
+    const state = this.state(workspaceId);
+    const task = this.addTask(state, { ...fields, status: fields.start ? "queued" : "draft" });
+    if (fields.start) await this.startQueued(state);
+    return state.tasks.get(task.id)!;
+  }
+
+  private addTask(
+    state: WorkspaceState,
+    fields: Pick<Task, "title" | "description" | "specialty" | "effort" | "priority" | "dependsOn" | "status">,
+  ): Task {
+    for (const dependency of fields.dependsOn ?? []) {
+      if (!state.tasks.get(dependency)) throw new CoreError("bad_request", `No task ${dependency} to wait for.`);
+    }
+    const now = this.now().toISOString();
+    const task = state.tasks.put({
+      id: randomUUID(),
+      workspaceId: state.workspace.id,
+      number: Math.max(0, ...state.tasks.all().map((t) => t.number)) + 1,
+      parentId: null,
+      assigneeId: null,
+      branch: null,
+      baseBranch: null,
+      worktree: null,
+      report: null,
+      createdAt: now,
+      updatedAt: now,
+      ...fields,
+    });
+    this.emit({ type: "task.updated", task });
+    return task;
+  }
+
+  /**
+   * Change a task. Its details can be edited until it is handed out; after
+   * that the only change allowed is cancelling it.
+   */
+  async updateTask(
+    taskId: string,
+    patch: Partial<Pick<Task, "title" | "description" | "specialty" | "effort" | "priority" | "dependsOn">> & {
+      status?: "draft" | "queued" | "cancelled";
+    },
+  ): Promise<Task> {
+    const { state, item } = this.find((s) => s.tasks, taskId, "task");
+    const waiting = item.status === "draft" || item.status === "queued";
+    const { status, ...details } = patch;
+    if (item.status === "done" || item.status === "cancelled") {
+      throw new CoreError("conflict", "This task is already closed.");
+    }
+    if (!waiting && (Object.keys(details).length > 0 || (status && status !== "cancelled"))) {
+      throw new CoreError("conflict", "This task has been handed out; it can only be cancelled now.");
+    }
+    if (details.dependsOn?.includes(taskId)) throw new CoreError("bad_request", "A task cannot wait for itself.");
+    for (const dependency of details.dependsOn ?? []) {
+      if (!state.tasks.get(dependency)) throw new CoreError("bad_request", `No task ${dependency} to wait for.`);
+    }
+
+    if (status === "cancelled" && !waiting) {
+      // Under way: stop the perito, drop the worktree (the branch is kept), refuse its open requests.
+      if (item.assigneeId) {
+        await this.sessions.get(item.assigneeId)?.stop();
+        this.setAgent(state, item.assigneeId, { taskId: null, status: "stopped", sessionId: null });
+      }
+      if (item.worktree) await git.removeWorktree(state.workspace.path, item.worktree).catch(() => undefined);
+      for (const approval of state.approvals.all()) {
+        if (approval.taskId !== taskId || approval.status !== "pending") continue;
+        const closed = state.approvals.put({ ...approval, status: "rejected", decidedAt: this.now().toISOString() });
+        this.emit({ type: "approval.decided", approval: closed });
+        this.heldCalls.get(approval.id)?.("rejected");
+        this.heldCalls.delete(approval.id);
+      }
+    }
+    const updated = state.tasks.put({
+      ...item,
+      ...details,
+      ...(status && { status }),
+      ...(status === "cancelled" && { worktree: null }),
+      updatedAt: this.now().toISOString(),
+    });
+    this.emit({ type: "task.updated", task: updated });
+    await this.startQueued(state);
+    return state.tasks.get(taskId)!;
+  }
+
+  /** Open issues of the workspace's GitHub repository, for import as tasks. */
+  listIssues(workspaceId: string): Promise<Array<{ number: number; title: string; body: string; url: string; labels: string[] }>> {
+    const state = this.state(workspaceId);
+    return new Promise((resolve, reject) => {
+      execFile(
+        "gh",
+        ["issue", "list", "--state", "open", "--limit", "50", "--json", "number,title,body,url,labels"],
+        { cwd: state.workspace.path, timeout: 30_000, maxBuffer: 10 * 1024 * 1024 },
+        (err, stdout, stderr) => {
+          if (err) {
+            const missing = (err as NodeJS.ErrnoException).code === "ENOENT";
+            return reject(
+              new CoreError(
+                "conflict",
+                missing
+                  ? "The GitHub CLI (gh) is not installed. Install it from https://cli.github.com and run `gh auth login`."
+                  : `GitHub could not list issues: ${(stderr || err.message).trim().split("\n")[0]}`,
+              ),
+            );
+          }
+          try {
+            const issues = JSON.parse(stdout) as Array<{ number: number; title: string; body: string; url: string; labels: Array<{ name: string }> }>;
+            resolve(issues.map((issue) => ({ ...issue, body: issue.body ?? "", labels: issue.labels.map((label) => label.name) })));
+          } catch {
+            reject(new CoreError("internal", "GitHub gave an unreadable answer."));
+          }
+        },
+      );
+    });
   }
 
   private load(path: string): WorkspaceState {
@@ -577,33 +709,31 @@ export class Core {
       case "task.create": {
         if (agent.role !== "lead") throw new CoreError("bad_request", "Only the lead can create tasks.");
         this.requireBudget(state);
-        const now = this.now().toISOString();
-        const task = state.tasks.put({
-          id: randomUUID(),
-          workspaceId: state.workspace.id,
-          number: Math.max(0, ...state.tasks.all().map((t) => t.number)) + 1,
-          parentId: null,
+        const dependsOn = command.after.map((number) => {
+          const earlier = state.tasks.all().find((t) => t.number === number);
+          if (!earlier) throw new CoreError("bad_request", `There is no task #${number} to wait for.`);
+          return earlier.id;
+        });
+        const task = this.addTask(state, {
           title: command.title,
           description: command.description,
-          status: "queued",
-          assigneeId: null,
           specialty: command.specialty,
           effort: command.effort,
-          branch: null,
-          baseBranch: null,
-          worktree: null,
-          report: null,
-          createdAt: now,
-          updatedAt: now,
+          priority: command.priority,
+          dependsOn,
+          status: "queued",
         });
-        this.emit({ type: "task.updated", task });
         await this.startQueued(state);
         const started = state.tasks.get(task.id)!;
         const who = started.assigneeId ? state.agents.get(started.assigneeId)?.name : null;
         return say(
           who
             ? `Task #${task.number} created and assigned to ${who}.`
-            : `Task #${task.number} created and queued: all ${MAX_AGENTS_PER_WORKSPACE} agents are busy.`,
+            : state.workspace.dispatchPaused
+              ? `Task #${task.number} created and queued: the user has paused handing out work.`
+              : dependsOn.length
+                ? `Task #${task.number} created; it starts when the tasks it waits for are closed.`
+                : `Task #${task.number} created and queued: all ${MAX_AGENTS_PER_WORKSPACE} agents are busy.`,
         );
       }
       case "task.done": {
@@ -725,8 +855,17 @@ export class Core {
   /** Hand queued tasks to team members while there is room. One at a time per workspace. */
   private startQueued(state: WorkspaceState): Promise<void> {
     const run = state.queue.then(async () => {
-      const queued = state.tasks.all().filter((t) => t.status === "queued").sort((a, b) => a.number - b.number);
+      if (state.workspace.dispatchPaused) return;
+      const rank = { high: 0, normal: 1, low: 2 };
+      const closed = (taskId: string) => state.tasks.get(taskId)?.status === "done";
+      const queued = state.tasks
+        .all()
+        .filter((t) => t.status === "queued")
+        // Urgent work first; among equals, the older task.
+        .sort((a, b) => rank[a.priority ?? "normal"] - rank[b.priority ?? "normal"] || a.number - b.number);
       for (const task of queued) {
+        // Still waiting on another task: leave it and look at the next.
+        if (!(task.dependsOn ?? []).every(closed)) continue;
         const agents = state.agents.all();
         const busy = agents.filter((a) => a.role === "lead" || a.taskId !== null).length;
         if (busy >= MAX_AGENTS_PER_WORKSPACE) break;

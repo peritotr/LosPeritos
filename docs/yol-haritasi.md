@@ -125,7 +125,7 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 
 ## Tamamlananlar
 
-1 (sohbet her ekranda), 2 ("Sen yokken" özeti), 3 (büro katı cilası; yakınlaştırma ve gerçek yürüme kareleri hariç) 4 (kararlar ve gerçek güvenlik; önerileri toplu kabul hariç) ve 5 (takılmayan ekip) yapıldı. 5. maddede limit sonrası devam gerçek bir limitle denenemedi; yalnızca otomatik testle doğrulandı.
+1 (sohbet her ekranda), 2 ("Sen yokken" özeti), 3 (büro katı cilası; yakınlaştırma ve gerçek yürüme kareleri hariç) 4 (kararlar ve gerçek güvenlik; önerileri toplu kabul hariç) 5 (takılmayan ekip) ve 6 (görev yönetimi; etiketler ve maliyet tahmini hariç) yapıldı. 5. maddede limit sonrası devam gerçek bir limitle denenemedi; yalnızca otomatik testle doğrulandı.
 
 ## Önerilen sıra
 
