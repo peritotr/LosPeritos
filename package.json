@@ -1,0 +1,26 @@
+{
+  "name": "losperitos",
+  "private": true,
+  "version": "0.0.0",
+  "description": "A desktop workspace for running a team of coding agents on your own machine.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -b packages/core packages/cli",
+    "typecheck": "tsc -b packages/core packages/cli",
+    "test": "npm run build && node --test \"packages/*/dist/**/*.test.js\"",
+    "core": "node packages/core/dist/main.js",
+    "core:fake": "node packages/core/dist/main.js --fake"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@losperitos/core",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@losperitos/protocol": "0.0.0",
+    "@losperitos/storage": "0.0.0",
+    "@losperitos/adapters": "0.0.0",
+    "ws": "^8.18.0",
+    "@losperitos/git": "0.0.0"
+  },
+  "bin": {
+    "losperitos-core": "./dist/main.js"
+  }
+}

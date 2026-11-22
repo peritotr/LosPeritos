@@ -1,0 +1,44 @@
+import type { ToolCheck, TrustMode } from "@losperitos/protocol";
+
+export type SessionEvent =
+  /** Raw terminal-style output for the live view. */
+  | { type: "output"; stream: "stdout" | "stderr"; chunk: string }
+  /** A complete assistant message for the team chat. */
+  | { type: "text"; text: string }
+  /** The agent asks the user something and waits. */
+  | { type: "question"; body: string; options: string[] }
+  /** The agent wants to do something that needs the user's approval. */
+  | {
+      type: "approval";
+      kind: "merge" | "deploy" | "command" | "other";
+      title: string;
+      detail: string;
+      steps: string[];
+      reversible: boolean;
+    }
+  /** The current turn finished; the agent is idle again. */
+  | { type: "turn_end"; inputTokens: number; outputTokens: number; costUsd: number }
+  | { type: "error"; message: string }
+  /** The underlying process is gone. */
+  | { type: "exit"; code: number | null };
+
+export interface AgentSession {
+  /** Start a turn with a user message. */
+  send(text: string): void;
+  stop(): Promise<void>;
+  onEvent(listener: (event: SessionEvent) => void): void;
+}
+
+export interface StartOptions {
+  cwd: string;
+  trustMode: TrustMode;
+  systemPrompt?: string;
+  /** Extra environment for the agent process, on top of the core's own. */
+  env?: Record<string, string>;
+}
+
+export interface Adapter {
+  readonly id: "claude-code" | "codex" | "fake";
+  check(): Promise<ToolCheck>;
+  start(options: StartOptions): AgentSession;
+}
