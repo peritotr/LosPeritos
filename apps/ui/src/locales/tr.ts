@@ -413,6 +413,18 @@ export const tr: Strings = {
     commits: "Son commit'ler",
     more: (n) => `ve ${n} dosya daha`,
   },
+  updates: {
+    label: "Güncellemeler",
+    toggle: "Yeni sürümleri denetle",
+    hint: "Günde bir kez GitHub'a son sürüm sorulur; başka hiçbir bilgi gönderilmez. Uygulamanın yerel servis dışında yaptığı tek istek budur. Hiçbir şey kendiliğinden kurulmaz.",
+    version: (v) => `Bu sürüm: ${v}`,
+    check: "Şimdi denetle",
+    checking: "Denetleniyor…",
+    current: "Güncelsin.",
+    failed: "GitHub'a ulaşılamadı.",
+    available: (v) => `${v} sürümü çıktı — indir`,
+    skip: "Bu sürümü atla",
+  },
   mode: {
     label: "Görünüm düzeyi",
     simple: "Sade",

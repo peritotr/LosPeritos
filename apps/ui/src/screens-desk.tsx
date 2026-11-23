@@ -20,6 +20,7 @@ import type { Approval, Message, ToolCheck, Workspace, WorkspaceKind } from "@lo
 const KINDS = ["software", "marketing", "content"] as const satisfies readonly WorkspaceKind[];
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
 import { Connectors } from "./connectors";
+import { UpdateSettings } from "./updates";
 import { showTour } from "./onboarding";
 import { CORE_URL, shell } from "./store";
 import { LANGUAGES, T, dateLocale, fromCore, language, setLanguage, type Language } from "./strings";
@@ -899,6 +900,7 @@ export function Settings(ctx: Ctx) {
           <button className="btn btn-secondary" style={{ alignSelf: "flex-start" }} onClick={showTour}>
             {T.tour.again}
           </button>
+          <UpdateSettings updates={ctx.updates} />
           <div className="field">
             <label>{T.mode.label}</label>
             <Segmented<"simple" | "advanced">

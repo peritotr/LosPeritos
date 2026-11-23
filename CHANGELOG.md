@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Update notice**
+- The app asks GitHub once a day whether a newer release is out and says so
+  in the side bar, with a link to the download. Nothing installs by itself,
+  nothing else is sent, and Settings turns the check off.
+
 **Code panel**
 - A software bureau under git has a Code screen: the checked-out branch, what
   is not yet committed, the other branches with how far ahead each is (a task's

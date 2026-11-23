@@ -415,6 +415,18 @@ export const en = {
     commits: "Recent commits",
     more: (n: number) => `and ${n} more`,
   },
+  updates: {
+    label: "Updates",
+    toggle: "Check for new releases",
+    hint: "Once a day GitHub is asked for the latest release; nothing else is sent. It is the only request the app makes to anything but the local service. Nothing installs by itself.",
+    version: (v: string) => `This version: ${v}`,
+    check: "Check now",
+    checking: "Checking…",
+    current: "You are up to date.",
+    failed: "GitHub could not be reached.",
+    available: (v: string) => `${v} is out — download`,
+    skip: "Skip this release",
+  },
   mode: {
     label: "How much to show",
     simple: "Plain",

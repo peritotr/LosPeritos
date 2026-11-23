@@ -45,6 +45,7 @@ between you and nobody.
 ### Local
 
 No sign-in, no telemetry. Project data lives in `<your folder>/.losperitos/`.
+Once a day the app asks GitHub whether a newer release is out; Settings turns that off.
 
 </td>
 <td width="33%" valign="top">

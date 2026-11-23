@@ -26,6 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Chat } from "./Chat";
+import { UpdateNotice, useUpdates } from "./updates";
 import { Code } from "./code";
 import { openQuestions, pendingApprovals, type Ctx, type Route } from "./context";
 import { Archive, Awaiting, BudgetBar, Ledger, SealToast, Settings, Setup } from "./screens-desk";
@@ -86,6 +87,7 @@ export function App() {
     setSimpleState(next);
     store(MODE_KEY, next ? "simple" : "advanced");
   };
+  const updates = useUpdates();
   const [note, setNote] = useState<string | null>(null);
   const [deferred, setDeferred] = useState<ReadonlySet<string>>(new Set());
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
@@ -176,6 +178,7 @@ export function App() {
         setTheme,
         simple,
         setSimple,
+        updates,
       }
     : null;
 
@@ -264,6 +267,7 @@ export function App() {
             <I icon={SettingsIcon} size={16} />
             {T.nav.settings}
           </button>
+          <UpdateNotice updates={updates} />
           <div className="side-foot">{T.footer}</div>
         </nav>
 

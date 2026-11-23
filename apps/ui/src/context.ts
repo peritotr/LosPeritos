@@ -1,5 +1,6 @@
 import type { Agent, Approval, Message, Task, Workspace } from "@losperitos/protocol";
 import type { Actions, State } from "./store";
+import type { Updates } from "./updates";
 
 export type Route =
   | { screen: "bench" | "files" | "code" | "mail" | "archive" | "ledger" | "settings" | "setup" }
@@ -27,6 +28,8 @@ export interface Ctx {
   theme: "light" | "dark";
   setTheme(theme: "light" | "dark"): void;
   /** The plain view: fewer screens and controls, for someone new to the app. */
+  /** Whether a newer release is out, and the switch for asking. */
+  updates: Updates;
   simple: boolean;
   setSimple(simple: boolean): void;
 }
