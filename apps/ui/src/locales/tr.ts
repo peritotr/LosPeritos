@@ -219,6 +219,9 @@ export const tr: Strings = {
     show: "Yazışmaları göster",
     hide: "Yazışmaları gizle",
     full: "Tam görünümü aç",
+    scope: "Hangi yazışmalar",
+    allBureaus: "Tüm bürolar",
+    openBureau: (name) => `${name} bürosuna geç`,
   },
   away: {
     title: "Sen yokken",

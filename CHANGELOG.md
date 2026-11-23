@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**One conversation over every bureau**
+- With more than one bureau open, the correspondence panel can show them all
+  at once: each message carries its bureau's name, questions and seals are
+  answered where they stand, and a message can be written to any bureau's lead.
+
 **Documents**
 - A Documents screen gathers what there is to read about a bureau: the
   notebook its team keeps, the Markdown files of the project folder, and the

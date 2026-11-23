@@ -153,7 +153,9 @@ Telefon tarayıcısından soru cevaplama ve mühürleme; bildirimler.
 
 ### 14. Çok projeli koordinatör (O)
 
-Tüm büroların üstünde tek sohbet. Bekleyenler ekranı bunun yarısını zaten yapıyor.
+Tüm büroların üstünde tek sohbet: yapıldı. Yazışmalar panelinde "Tüm bürolar"
+görünümü her büronun mesajını, sorusunu ve mührünü tek akışta gösteriyor.
+Bürolar arasında iş dağıtan ayrı bir koordinatör ajan yok.
 
 ### 15. İlk kullanım (K)
 

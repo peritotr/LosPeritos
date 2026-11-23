@@ -20,6 +20,8 @@ export interface Ctx {
   messages: Message[];
   approvals: Approval[];
   go(route: Route): void;
+  /** Switch to another bureau. */
+  openBureau(workspaceId: string): void;
   /** Show a short confirmation at the bottom of the window. */
   note(text: string): void;
   /** Seal requests the user put off with "Not now"; they stay pending. */

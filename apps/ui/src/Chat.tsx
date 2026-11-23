@@ -31,8 +31,32 @@ function toBase64(file: File): Promise<string> {
 /** What follows "@" while a mention is being typed at the start of the message. */
 const mentionOf = (text: string) => /^@(\S*)$/.exec(text)?.[1]?.toLowerCase() ?? null;
 
+const SCOPE_KEY = "losperitos.chat.scope";
+
 export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: string): void }) {
-  const { agents, messages, approvals, actions, bureau } = ctx;
+  const { actions, bureau } = ctx;
+  // One conversation over every bureau, or this bureau's own.
+  const bureaus = ctx.state.workspaces;
+  const [scope, setScopeState] = useState<"bureau" | "all">(() => {
+    try {
+      return localStorage.getItem(SCOPE_KEY) === "all" ? "all" : "bureau";
+    } catch {
+      return "bureau";
+    }
+  });
+  const setScope = (next: "bureau" | "all") => {
+    setScopeState(next);
+    try {
+      localStorage.setItem(SCOPE_KEY, next);
+    } catch {
+      // Private mode: the choice lasts for this page load.
+    }
+  };
+  const all = scope === "all" && bureaus.length > 1;
+  const agents = all ? ctx.state.agents : ctx.agents;
+  const messages = all ? ctx.state.messages : ctx.messages;
+  const approvals = all ? ctx.state.approvals : ctx.approvals;
+  const bureauName = (workspaceId: string) => bureaus.find((item) => item.id === workspaceId)?.name ?? "";
   const [text, setText] = useState("");
   const [toId, setToId] = useState<string | null>(null);
   const [files, setFiles] = useState<Pending[]>([]);
@@ -42,15 +66,23 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
   const picker = useRef<HTMLInputElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
-  const lead = agents.find((agent) => agent.role === "lead");
+  const lead = ctx.agents.find((agent) => agent.role === "lead");
   // The recipient falls back to the lead if the chosen perito is gone.
   const recipient = agents.find((agent) => agent.id === toId) ?? lead;
-  const who = (agent: Agent) => perito(agent, agents).who;
+  // A perito's number counts within its own bureau.
+  const mates = (agent: Agent) => (all ? agents.filter((other) => other.workspaceId === agent.workspaceId) : agents);
+  const who = (agent: Agent) => perito(agent, mates(agent)).who;
+  /** Over every bureau, a message goes to a bureau's lead, named by the bureau. */
+  const chips = all
+    ? agents.filter((agent) => agent.role === "lead")
+    : agents.filter((agent) => agent.status !== "stopped" || agent.role === "lead");
+  const chipLabel = (agent: Agent) => (all ? bureauName(agent.workspaceId) : who(agent));
   const name = (id: string | null) => {
     const agent = agents.find((a) => a.id === id);
     return agent ? who(agent) : null;
   };
-  const spent = ctx.state.budgets[bureau.id]?.level === "exhausted";
+  const target = recipient?.workspaceId ?? bureau.id;
+  const spent = ctx.state.budgets[target]?.level === "exhausted";
 
   // Seal requests are part of the conversation, in the order they were raised.
   const items = [
@@ -64,7 +96,7 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
 
   const fragment = mentionOf(text);
   const suggestions =
-    fragment === null ? [] : agents.filter((agent) => who(agent).toLowerCase().replace(/\s+/g, "").includes(fragment));
+    fragment === null ? [] : ctx.agents.filter((agent) => who(agent).toLowerCase().replace(/\s+/g, "").includes(fragment));
   const pick = (agent: Agent) => {
     setToId(agent.id);
     setText("");
@@ -75,7 +107,7 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
     setError(null);
     for (const file of list) {
       try {
-        const stored = await actions.upload(bureau.id, file.name || "pasted-image.png", await toBase64(file));
+        const stored = await actions.upload(target, file.name || "pasted-image.png", await toBase64(file));
         setFiles((current) => [...current, { name: stored, label: file.name || T.chat.pasted }]);
       } catch (err) {
         setError(`${file.name}: ${(err as Error).message}`);
@@ -103,7 +135,7 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
     setError(null);
     try {
       await actions.send(
-        bureau.id,
+        target,
         text.trim(),
         recipient?.id ?? null,
         files.map((file) => file.name),
@@ -119,20 +151,31 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
 
   return (
     <div className="chat">
+      {bureaus.length > 1 && (
+        <div className="chat-scope" role="group" aria-label={T.chat.scope}>
+          <button className="to-chip" aria-pressed={!all} onClick={() => setScope("bureau")}>
+            {bureau.name}
+          </button>
+          <button className="to-chip" aria-pressed={all} onClick={() => (setScope("all"), setToId(null))}>
+            {T.chat.allBureaus}
+          </button>
+        </div>
+      )}
       <AwayCard ctx={ctx} />
       <div className="chat-log" ref={log}>
         {items.length === 0 && <p className="muted chat-empty">{T.mail.empty}</p>}
         {items.map(({ at, message, approval }) => {
           const agentId = message ? (message.author.kind === "agent" ? message.author.agentId : null) : approval!.agentId;
           const agent = agents.find((a) => a.id === agentId);
-          const view = agent ? perito(agent, agents) : null;
+          const view = agent ? perito(agent, mates(agent)) : null;
+          const home = (message ?? approval)!.workspaceId;
           const from = view?.who ?? (message?.author.kind === "user" ? T.mail.you : T.mail.bureau);
           const to = approval || message?.question ? T.mail.you : (name(message!.toAgentId) ?? T.mail.panel);
           return (
             <div
               key={(message ?? approval)!.id}
-              className={`msg ${agent && onPickAgent ? "clickable" : ""}`}
-              onClick={() => agent && onPickAgent?.(agent.id)}
+              className={`msg ${agent && onPickAgent && home === bureau.id ? "clickable" : ""}`}
+              onClick={() => agent && home === bureau.id && onPickAgent?.(agent.id)}
             >
               {view ? (
                 <Emblem role={view.role} mono={view.mono} size={26} />
@@ -141,6 +184,15 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
               )}
               <div className="grow">
                 <div className="msg-head">
+                  {all && (
+                    <button
+                      className="tag msg-bureau"
+                      title={T.chat.openBureau(bureauName(home))}
+                      onClick={(event) => (event.stopPropagation(), ctx.openBureau(home))}
+                    >
+                      {bureauName(home)}
+                    </button>
+                  )}
                   <b>{from}</b> → {to} · <span className="mono">{clock(at)}</span>
                 </div>
                 {message?.author.kind === "agent" ? (
@@ -173,19 +225,17 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
       <form className="chat-composer" onSubmit={send} onDrop={onDrop} onDragOver={(event) => event.preventDefault()}>
         <div className="chat-to" role="group" aria-label={T.chat.to}>
           <span className="muted">{T.chat.to}</span>
-          {agents
-            .filter((agent) => agent.status !== "stopped" || agent.role === "lead")
-            .map((agent) => (
-              <button
-                key={agent.id}
-                type="button"
-                className="to-chip"
-                aria-pressed={recipient?.id === agent.id}
-                onClick={() => setToId(agent.id)}
-              >
-                {who(agent)}
-              </button>
-            ))}
+          {chips.map((agent) => (
+            <button
+              key={agent.id}
+              type="button"
+              className="to-chip"
+              aria-pressed={recipient?.id === agent.id}
+              onClick={() => setToId(agent.id)}
+            >
+              {chipLabel(agent)}
+            </button>
+          ))}
         </div>
         {files.length > 0 && (
           <div className="msg-files">
@@ -339,7 +389,7 @@ function SealReply({ ctx, approval, onError }: { ctx: Ctx; approval: Approval; o
   return (
     <div className="reply-card" onClick={(event) => event.stopPropagation()}>
       <p className={`rev ${approval.reversible ? "" : "no"}`}>
-        {T.seal.toastLine(approval.reversible, approval.steps.length, sealKind(ctx.bureau, approval))}
+        {T.seal.toastLine(approval.reversible, approval.steps.length, sealKind(ctx.state.workspaces.find((item) => item.id === approval.workspaceId) ?? ctx.bureau, approval))}
       </p>
       <div className="msg-actions">
         <button className="btn btn-primary" disabled={busy} onClick={seal}>

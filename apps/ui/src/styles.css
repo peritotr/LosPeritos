@@ -654,3 +654,8 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .code-text .diff-line { grid-template-columns: 48px 6px 1fr; }
 .docs-body { max-height: none; font-size: 14px; line-height: 1.6; max-width: 760px; }
 .code-side h5 { display: flex; align-items: center; gap: 6px; }
+
+/* ── One conversation over every bureau ─────────────────────────────────── */
+.chat-scope { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--color-divider); }
+.msg-bureau { margin-right: 6px; background: none; cursor: pointer; }
+.msg-bureau:hover { color: var(--color-text); border-color: var(--color-text); }

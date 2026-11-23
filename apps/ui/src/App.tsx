@@ -170,6 +170,7 @@ export function App() {
         messages: state.messages.filter((m) => m.workspaceId === bureau.id),
         approvals: state.approvals.filter((a) => a.workspaceId === bureau.id),
         go: setRoute,
+        openBureau: pickBureau,
         note(text) {
           clearTimeout(noteTimer.current);
           setNote(text);

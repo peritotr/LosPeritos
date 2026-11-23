@@ -221,6 +221,9 @@ export const en = {
     show: "Show correspondence",
     hide: "Hide correspondence",
     full: "Open full view",
+    scope: "Which correspondence",
+    allBureaus: "All bureaus",
+    openBureau: (name: string) => `Go to the ${name} bureau`,
   },
   away: {
     title: "While you were away",
