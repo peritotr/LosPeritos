@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 — 2026-11-23
 
 **Documents**
 - You can write in the bureau's notebook yourself: a new page, or a page the
