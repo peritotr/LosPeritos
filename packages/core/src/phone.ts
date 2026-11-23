@@ -67,7 +67,7 @@ function certificate(dir: string, hosts: string[]): { key: Buffer; cert: Buffer;
     mkdirSync(dir, { recursive: true });
     const names = ["DNS:localhost", "IP:127.0.0.1", ...hosts.map((host) => `IP:${host}`)].join(",");
     execFileSync(
-      "openssl",
+      openssl(),
       ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", keyFile, "-out", certFile, "-days", "825", "-subj", "/CN=LosPeritos", "-addext", `subjectAltName=${names}`],
       { stdio: "ignore", timeout: 20_000 },
     );
@@ -76,6 +76,19 @@ function certificate(dir: string, hosts: string[]): { key: Buffer; cert: Buffer;
   } catch {
     return null;
   }
+}
+
+/** The `openssl` to use: the one on the path, or on Windows the one Git brings along. */
+function openssl(): string {
+  if (process.platform !== "win32") return "openssl";
+  const roots = [process.env.ProgramFiles, process.env["ProgramFiles(x86)"], process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, "Programs")];
+  for (const root of roots) {
+    for (const inside of ["usr\\bin", "mingw64\\bin"]) {
+      const candidate = root && join(root, "Git", inside, "openssl.exe");
+      if (candidate && existsSync(candidate)) return candidate;
+    }
+  }
+  return "openssl";
 }
 
 export class Phone {

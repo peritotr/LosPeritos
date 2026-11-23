@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { launch, rulePath, started, viaShell } from "./launch.js";
 import type { Adapter, AgentSession, SessionEvent, StartOptions } from "./types.js";
 
 /**
@@ -145,7 +146,7 @@ export class ClaudeCodeAdapter implements Adapter {
 
   check() {
     return new Promise<Awaited<ReturnType<Adapter["check"]>>>((resolve) => {
-      execFile(this.bin, ["--version"], { timeout: 10_000 }, (err, stdout) => {
+      execFile(...started(this.bin, ["--version"]), { timeout: 10_000, ...viaShell(this.bin) }, (err, stdout) => {
         const check = {
           tool: "claude" as const,
           required: true,
@@ -155,7 +156,7 @@ export class ClaudeCodeAdapter implements Adapter {
         };
         if (err) return resolve(check);
         // Installed is not signed in: ask the tool itself, in the environment the agents will get.
-        execFile(this.bin, ["auth", "status"], { timeout: 15_000 }, (_failed, said) => {
+        execFile(...started(this.bin, ["auth", "status"]), { timeout: 15_000, ...viaShell(this.bin) }, (_failed, said) => {
           let signedIn: boolean | undefined;
           try {
             const status = JSON.parse(said) as { loggedIn?: unknown };
@@ -208,10 +209,12 @@ export class ClaudeCodeAdapter implements Adapter {
       permissions.ask = RISKY_COMMANDS.map((prefix) => `Bash(${prefix}:*)`);
     }
     // A "deny" rule wins over everything: these folders are read, never edited. `//` marks an absolute path.
-    if (options.readOnlyDirs?.length) permissions.deny = options.readOnlyDirs.map((dir) => `Edit(/${dir}/**)`);
+    if (options.readOnlyDirs?.length) permissions.deny = options.readOnlyDirs.map((dir) => `Edit(/${rulePath(dir)}/**)`);
     if (permissions.ask || permissions.deny) args.push("--settings", JSON.stringify({ permissions }));
 
-    const child = spawn(this.bin, args, {
+    const how = launch(this.bin, args);
+    const child = spawn(how.file, how.args, {
+      shell: how.shell,
       cwd: options.cwd,
       env: { ...process.env, ...options.env },
       stdio: ["pipe", "pipe", "pipe"],

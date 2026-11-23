@@ -4,7 +4,7 @@
  */
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import type { McpServer } from "@losperitos/adapters";
+import { launch, type McpServer } from "@losperitos/adapters";
 import type { ConnectorTool } from "@losperitos/protocol";
 
 const TIMEOUT_MS = 45_000;
@@ -38,7 +38,9 @@ function shape(result: unknown): ConnectorTool[] {
 /** A local program: newline-delimited JSON-RPC over its stdin and stdout. */
 function listOverStdio(server: Extract<McpServer, { command: string }>): Promise<ConnectorTool[]> {
   return new Promise((resolve, reject) => {
-    const child = spawn(server.command, server.args, {
+    const how = launch(server.command, server.args);
+    const child = spawn(how.file, how.args, {
+      shell: how.shell,
       env: { ...process.env, ...server.env },
       stdio: ["pipe", "pipe", "pipe"],
     });

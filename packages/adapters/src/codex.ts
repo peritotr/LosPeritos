@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { createInterface } from "node:readline";
 import { parseLimit } from "./claude-code.js";
+import { launch, started, viaShell } from "./launch.js";
 import type { Adapter, AgentSession, SessionEvent, StartOptions } from "./types.js";
 
 /**
@@ -94,6 +95,12 @@ export function parseCodexLine(line: string): { events: SessionEvent[]; threadId
   }
 }
 
+/** One word of the hook's command line, quoted for the shell Codex hands it to. */
+function hookWord(word: string): string {
+  if (process.platform === "win32") return /[\s"]/.test(word) ? `"${word.replace(/"/g, '\\"')}"` : word;
+  return /[^\w@%+=:,./-]/.test(word) ? `'${word.replace(/'/g, "'\\''")}'` : word;
+}
+
 /**
  * Runs the user's own `codex` CLI headless: one `codex exec` per turn, the
  * conversation carried on with `resume`.
@@ -129,7 +136,7 @@ export class CodexAdapter implements Adapter {
 
   check() {
     return new Promise<Awaited<ReturnType<Adapter["check"]>>>((resolve) => {
-      execFile(this.bin, ["--version"], { timeout: 10_000 }, (err, stdout) => {
+      execFile(...started(this.bin, ["--version"]), { timeout: 10_000, ...viaShell(this.bin) }, (err, stdout) => {
         const check = {
           tool: "codex" as const,
           required: false,
@@ -139,7 +146,7 @@ export class CodexAdapter implements Adapter {
         };
         if (err) return resolve(check);
         // Codex answers with its exit code: 0 signed in, 1 not.
-        execFile(this.bin, ["login", "status"], { timeout: 15_000 }, (failed) => {
+        execFile(...started(this.bin, ["login", "status"]), { timeout: 15_000, ...viaShell(this.bin) }, (failed) => {
           const code = (failed as (Error & { code?: unknown }) | null)?.code;
           resolve({ ...check, ...(failed === null ? { signedIn: true } : code === 1 ? { signedIn: false } : {}) });
         });
@@ -167,7 +174,7 @@ export class CodexAdapter implements Adapter {
     // command, run as `hook`, holds the risky ones for the user's seal. Unknown settings are ignored by
     // Codex, so where hooks do not run this changes nothing.
     const hook = options.permissionBridge
-      ? [options.permissionBridge.command, ...options.permissionBridge.args.slice(0, -1), "hook"].map((word) => (/[^\w@%+=:,./-]/.test(word) ? `'${word.replace(/'/g, "'\\''")}'` : word)).join(" ")
+      ? [options.permissionBridge.command, ...options.permissionBridge.args.slice(0, -1), "hook"].map(hookWord).join(" ")
       : null;
     if (hook) config.push(`hooks.PreToolUse=[{matcher=".*",hooks=[{type="command",command=${toml(hook)},timeout=604800}]}]`);
 
@@ -179,7 +186,8 @@ export class CodexAdapter implements Adapter {
       for (const entry of config) args.push("-c", entry);
       if (thread) args.push("resume", thread.threadId);
       args.push("-");
-      const running = spawn(this.bin, args, { cwd: options.cwd, env: { ...process.env, ...options.env }, stdio: ["pipe", "pipe", "pipe"] });
+      const how = launch(this.bin, args);
+      const running = spawn(how.file, how.args, { shell: how.shell, cwd: options.cwd, env: { ...process.env, ...options.env }, stdio: ["pipe", "pipe", "pipe"] });
       child = running;
       let ended = false;
       let failed = false;

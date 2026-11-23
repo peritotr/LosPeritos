@@ -28,8 +28,11 @@ test("Codex's event lines become output, chat messages and tool calls", () => {
 /** A stand-in for the `codex` command: it speaks the same lines, and remembers threads in a file. */
 function standIn(dir: string): string {
   const bin = join(dir, "codex");
+  // On Windows a tool from npm is a batch file around a script; the stand-in is made the same way.
+  const windows = process.platform === "win32";
+  if (windows) writeFileSync(join(dir, "codex.cmd"), '@ECHO off\r\nSETLOCAL\r\nSET dp0=%~dp0\r\nnode  "%dp0%\\codex.js" %*\r\n');
   writeFileSync(
-    bin,
+    windows ? join(dir, "codex.js") : bin,
     `#!/usr/bin/env node
 const fs = require("node:fs");
 const args = process.argv.slice(2);
@@ -62,7 +65,7 @@ process.stdin.on("data", (chunk) => (prompt += chunk)).on("end", () => {
 });
 `,
   );
-  chmodSync(bin, 0o755);
+  if (!windows) chmodSync(bin, 0o755);
   return bin;
 }
 

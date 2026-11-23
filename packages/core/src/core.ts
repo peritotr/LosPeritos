@@ -536,6 +536,10 @@ export class Core {
     const asNode = process.versions.electron ? "ELECTRON_RUN_AS_NODE=1 " : "";
     writeFileSync(script, `#!/bin/sh\n${asNode}exec "${process.execPath}" "${cliEntry}" "$@"\n`);
     chmodSync(script, 0o755);
+    // Windows shells other than Git Bash look for a batch file of that name.
+    if (process.platform === "win32") {
+      writeFileSync(join(binDir, "peritos.cmd"), `@echo off\r\n${process.versions.electron ? "set ELECTRON_RUN_AS_NODE=1\r\n" : ""}"${process.execPath}" "${cliEntry}" %*\r\n`);
+    }
     const first = !this.bridge;
     this.bridge = { url, binDir, cliEntry };
     // Only now can an agent be started again: pick up whoever the last closing cut off.
