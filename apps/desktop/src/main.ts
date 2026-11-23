@@ -119,6 +119,19 @@ async function openWindow(core: RunningCore): Promise<void> {
   window.webContents.on("will-navigate", (event, url) => {
     if (!url.startsWith(devUrl ?? "app://ui/")) event.preventDefault();
   });
+  // The preview shows the user's own dev server in a frame. A local server that
+  // forbids framing is still theirs to look at; sites elsewhere keep their say.
+  window.webContents.session.webRequest.onHeadersReceived({ urls: ["http://localhost/*", "http://127.0.0.1/*", "http://[::1]/*", "https://localhost/*"] }, (details, respond) => {
+    const headers = Object.fromEntries(
+      Object.entries(details.responseHeaders ?? {})
+        .filter(([name]) => name.toLowerCase() !== "x-frame-options")
+        .map(([name, values]) => [
+          name,
+          name.toLowerCase() === "content-security-policy" ? values.map((value) => value.replace(/frame-ancestors[^;]*;?/gi, "")) : values,
+        ]),
+    );
+    respond({ responseHeaders: headers });
+  });
   window.on("closed", () => (window = undefined));
   trace("loading UI");
   await window.loadURL(devUrl ?? "app://ui/index.html");

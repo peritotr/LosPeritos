@@ -58,6 +58,11 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
   const approvals = all ? ctx.state.approvals : ctx.approvals;
   const bureauName = (workspaceId: string) => bureaus.find((item) => item.id === workspaceId)?.name ?? "";
   const [text, setText] = useState("");
+  // Another screen put words in the box: take them once, and leave the user to finish.
+  const asked = ctx.composed?.n;
+  useEffect(() => {
+    if (ctx.composed) setText((before) => (before.trim() ? `${before}\n${ctx.composed!.text}` : ctx.composed!.text));
+  }, [asked]);
   const [toId, setToId] = useState<string | null>(null);
   const [files, setFiles] = useState<Pending[]>([]);
   const [error, setError] = useState<string | null>(null);

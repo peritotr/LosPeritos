@@ -243,6 +243,30 @@ export const Page = z.object({
 });
 export const MAX_PAGE_CHARS = 200_000;
 
+// ── Terminal ────────────────────────────────────────────────────────────────
+
+/** A shell the user opened in a bureau's folder. It lives in the core, not in the window. */
+export const Terminal = z.object({
+  id,
+  workspaceId: id,
+  title: z.string(),
+  cwd: z.string(),
+  alive: z.boolean(),
+  exitCode: z.number().nullable(),
+  createdAt: timestamp,
+});
+export const OpenTerminalRequest = z.object({
+  /** Open it in this task's working folder rather than the bureau's. */
+  taskId: id.optional(),
+  cols: z.number().int().min(2).max(500).default(100),
+  rows: z.number().int().min(1).max(300).default(30),
+});
+/** What travels over a terminal's socket, each way. */
+export const TerminalInput = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("input"), data: z.string().max(1_000_000) }),
+  z.object({ type: z.literal("resize"), cols: z.number(), rows: z.number() }),
+]);
+
 // ── Run & budget ────────────────────────────────────────────────────────────
 
 export const Run = z.object({
@@ -475,6 +499,12 @@ export const routes = {
   removePage: "POST /pages/:pageId/remove",
   /** `{ files: string[] }`: Markdown files of the project folder, to read beside the notebook. */
   docs: "GET /workspaces/:workspaceId/docs",
+  /** `{ available, terminals }`: the shells open in this bureau. */
+  terminals: "GET /workspaces/:workspaceId/terminals",
+  openTerminal: "POST /workspaces/:workspaceId/terminals",
+  closeTerminal: "POST /terminals/:terminalId/close",
+  /** WebSocket, `?token=`: `{type:"data"|"exit"}` out, TerminalInput in. */
+  terminalSocket: "GET /terminals/:terminalId/socket",
   connectors: "GET /workspaces/:workspaceId/connectors",
   saveConnector: "POST /workspaces/:workspaceId/connectors",
   removeConnector: "POST /workspaces/:workspaceId/connectors/:connectorId/remove",
@@ -635,6 +665,8 @@ export type ApprovalKind = z.infer<typeof ApprovalKind>;
 export type RepoState = z.infer<typeof RepoState>;
 export type Connector = z.infer<typeof Connector>;
 export type ConnectorTool = z.infer<typeof ConnectorTool>;
+export type Terminal = z.infer<typeof Terminal>;
+export type OpenTerminalRequest = z.infer<typeof OpenTerminalRequest>;
 export type SavePageRequest = z.infer<typeof SavePageRequest>;
 export type SaveConnectorRequest = z.infer<typeof SaveConnectorRequest>;
 export type ApprovalStatus = z.infer<typeof ApprovalStatus>;

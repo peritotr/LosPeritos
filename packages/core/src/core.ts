@@ -17,8 +17,10 @@ import type {
   EventEnvelope,
   Lesson,
   Message,
+  OpenTerminalRequest,
   Page,
   SavePageRequest,
+  Terminal,
   RepoState,
   Run,
   SaveConnectorRequest,
@@ -32,6 +34,7 @@ import type {
 import { MAX_AGENTS_PER_WORKSPACE, MAX_ATTACHMENT_BYTES, MAX_PREVIEW_BYTES, PROTOCOL_VERSION } from "@losperitos/protocol";
 import * as git from "@losperitos/git";
 import { listTools } from "./mcp-client.js";
+import { Terminals } from "./terminal.js";
 import { beginSignIn, finishSignIn, refresh, type OAuthGrant, type PendingSignIn } from "./oauth.js";
 import { AppStore, WorkspaceStore, type Collection } from "@losperitos/storage";
 import type { Adapter, AgentSession, McpServer, SessionEvent } from "@losperitos/adapters";
@@ -813,6 +816,33 @@ export class Core {
 
   listApprovals(workspaceId: string): Approval[] {
     return this.state(workspaceId).approvals.all();
+  }
+
+  // ── Terminals ─────────────────────────────────────────────────────────────
+
+  /** The user's own shells. They are the user's hands, not an agent's: nothing here is sealed or metered. */
+  readonly terminals = new Terminals();
+
+  listTerminals(workspaceId: string): { available: boolean; terminals: Terminal[] } {
+    this.state(workspaceId);
+    return { available: this.terminals.available, terminals: this.terminals.list(workspaceId) };
+  }
+
+  openTerminal(workspaceId: string, request: OpenTerminalRequest): Terminal {
+    const state = this.state(workspaceId);
+    const task = request.taskId ? state.tasks.get(request.taskId) : undefined;
+    if (request.taskId && !task) throw new CoreError("not_found", `No task ${request.taskId}`);
+    const cwd = task?.worktree && existsSync(task.worktree) ? task.worktree : state.workspace.path;
+    const title = task?.worktree && cwd === task.worktree ? `#${task.number}` : basename(cwd);
+    try {
+      return this.terminals.open(workspaceId, cwd, title, request.cols, request.rows, this.now());
+    } catch (err) {
+      throw new CoreError("bad_request", (err as Error).message);
+    }
+  }
+
+  closeTerminal(terminalId: string): { closed: boolean } {
+    return { closed: this.terminals.close(terminalId) !== null };
   }
 
   /** The bureau's notebook, most recently written first. */
@@ -1759,6 +1789,7 @@ export class Core {
     this.renewTimers.clear();
     this.limitTimers.clear();
     this.stallTimers.clear();
+    this.terminals.closeAll();
     await Promise.all([...this.sessions.values()].map((session) => session.stop()));
   }
 

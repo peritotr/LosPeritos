@@ -24,12 +24,15 @@ import {
   Wrench,
   ChevronsDown,
   BookOpen,
-  type LucideIcon,
+  type LucideIcon, SquareTerminal, Eye, Rocket,
 } from "lucide-react";
 import { Chat } from "./Chat";
 import { UpdateNotice, useUpdates } from "./updates";
 import { Code } from "./code";
 import { Docs } from "./docs";
+import { Guides } from "./guides";
+import { SitePreview } from "./sitepreview";
+import { TerminalScreen } from "./terminal";
 import { openQuestions, pendingApprovals, type Ctx, type Route } from "./context";
 import { Archive, Awaiting, BudgetBar, Ledger, SealToast, Settings, Setup } from "./screens-desk";
 import { Bench, Correspondence, FileDetail, Files, PeritoDetail } from "./screens-work";
@@ -44,7 +47,7 @@ const BUREAU_KEY = "losperitos.bureau";
 const CHAT_KEY = "losperitos.chat";
 const MODE_KEY = "losperitos.mode";
 /** Screens the plain view leaves out of the side bar. */
-const ADVANCED_ONLY: ReadonlySet<string> = new Set(["code", "docs", "mail", "archive", "ledger"]);
+const ADVANCED_ONLY: ReadonlySet<string> = new Set(["code", "docs", "guides", "mail", "archive", "ledger"]);
 
 function stored(key: string): string | null {
   try {
@@ -61,12 +64,15 @@ function store(key: string, value: string) {
   }
 }
 
-type NavScreen = "bench" | "files" | "code" | "docs" | "mail" | "awaiting" | "archive" | "ledger";
+type NavScreen = "bench" | "files" | "code" | "terminal" | "preview" | "docs" | "guides" | "mail" | "awaiting" | "archive" | "ledger";
 const NAV: Array<[NavScreen, string, LucideIcon]> = [
   ["bench", T.nav.bench, LayoutGrid],
   ["files", T.nav.files, FilesIcon],
   ["code", T.nav.code, GitBranch],
+  ["terminal", T.nav.terminal, SquareTerminal],
+  ["preview", T.nav.preview, Eye],
   ["docs", T.nav.docs, BookOpen],
+  ["guides", T.nav.guides, Rocket],
   ["mail", T.nav.correspondence, MessagesSquare],
   ["awaiting", T.nav.awaiting, Inbox],
   ["archive", T.nav.archive, ArchiveIcon],
@@ -99,6 +105,7 @@ export function App() {
   const [tour, closeTour] = useTour(state.loaded && state.workspaces.length > 0);
   // The correspondence panel stays open across screens; on a narrow window it starts closed.
   const [chatOpen, setChatOpenState] = useState(() => (stored(CHAT_KEY) ?? (innerWidth >= 1280 ? "open" : "closed")) === "open");
+  const [composed, setComposed] = useState<{ text: string; n: number } | null>(null);
   const setChatOpen = (open: boolean) => {
     setChatOpenState(open);
     store(CHAT_KEY, open ? "open" : "closed");
@@ -171,6 +178,11 @@ export function App() {
         approvals: state.approvals.filter((a) => a.workspaceId === bureau.id),
         go: setRoute,
         openBureau: pickBureau,
+        compose(text) {
+          setChatOpen(true);
+          setComposed((before) => ({ text, n: (before?.n ?? 0) + 1 }));
+        },
+        composed,
         note(text) {
           clearTimeout(noteTimer.current);
           setNote(text);
@@ -186,7 +198,7 @@ export function App() {
       }
     : null;
 
-  const fill = screen.screen === "mail" || screen.screen === "perito";
+  const fill = screen.screen === "mail" || screen.screen === "perito" || screen.screen === "terminal" || screen.screen === "preview";
   // The panel would only repeat what Correspondence shows, and Setup has nobody to write to.
   const chatAllowed = !!ctx && screen.screen !== "mail" && screen.screen !== "setup";
   const showChat = chatAllowed && chatOpen;
@@ -359,6 +371,12 @@ export function App() {
               <Docs {...ctx} />
             ) : screen.screen === "code" ? (
               <Code {...ctx} />
+            ) : screen.screen === "terminal" ? (
+              <TerminalScreen {...ctx} />
+            ) : screen.screen === "preview" ? (
+              <SitePreview ctx={ctx} url={screen.url} />
+            ) : screen.screen === "guides" ? (
+              <Guides {...ctx} />
             ) : screen.screen === "ledger" ? (
               <Ledger {...ctx} />
             ) : (

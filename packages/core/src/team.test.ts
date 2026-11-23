@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { WebSocket } from "ws";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
@@ -9,7 +10,7 @@ import type { AddressInfo } from "node:net";
 import { createServer as createHttp } from "node:http";
 import { createHash } from "node:crypto";
 import { FakeAdapter } from "@losperitos/adapters";
-import { MAX_AGENTS_PER_WORKSPACE, type AgentCommandInput } from "@losperitos/protocol";
+import { MAX_AGENTS_PER_WORKSPACE, type AgentCommandInput, OpenTerminalRequest } from "@losperitos/protocol";
 import { AgentCommand, SaveConnectorRequest } from "@losperitos/protocol";
 import { Core, CoreError } from "./core.js";
 import { createServer } from "./server.js";
@@ -870,4 +871,54 @@ test("the team keeps pages in the bureau's notebook, and the project's Markdown 
 
   assert.deepEqual(core.removePage(page!.id), []);
   assert.throws(() => core.removePage(page!.id), /No page/);
+});
+
+test("a terminal is a real shell in the bureau's folder that outlives the screen watching it", async (t) => {
+  const { core, folder, workspace } = setup({ repo: false });
+  if (!core.listTerminals(workspace.id).available) return t.skip("no pseudo-terminal library on this machine");
+  const server = createServer(core, "user-token");
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  const port = (server.address() as AddressInfo).port;
+
+  const terminal = core.openTerminal(workspace.id, OpenTerminalRequest.parse({ cols: 90, rows: 20 }));
+  assert.equal(terminal.cwd, folder);
+  assert.deepEqual(core.listTerminals(workspace.id).terminals.map((item) => item.id), [terminal.id]);
+
+  const follow = (path: string) => {
+    const socket = new WebSocket(`ws://127.0.0.1:${port}${path}`);
+    let seen = "";
+    let exit: number | null = null;
+    socket.on("message", (raw) => {
+      const message = JSON.parse(String(raw)) as { type: string; data?: string; code?: number };
+      if (message.type === "data") seen += message.data;
+      else exit = message.code ?? 0;
+    });
+    const until = async (test: () => boolean) => {
+      for (let i = 0; i < 200 && !test(); i++) await tick();
+      assert.ok(test(), `terminal printed: ${JSON.stringify(seen.slice(-300))}`);
+    };
+    return { socket, until, seen: () => seen, exit: () => exit, opened: new Promise((done) => socket.on("open", done)) };
+  };
+  const first = follow(`/terminals/${terminal.id}/socket?token=user-token`);
+  await first.opened;
+  first.socket.send(JSON.stringify({ type: "resize", cols: 77, rows: 20 }));
+  first.socket.send(JSON.stringify({ type: "input", data: "echo sum-$((40+2)) && pwd && stty size\r" }));
+  await first.until(() => first.seen().includes("sum-42") && first.seen().includes("20 77"));
+  assert.ok(first.seen().includes(folder), "the shell starts in the bureau's folder");
+  first.socket.close();
+
+  // A screen that comes later is given what was printed while nobody watched.
+  const second = follow(`/terminals/${terminal.id}/socket?token=user-token`);
+  await second.until(() => second.seen().includes("sum-42"));
+  second.socket.send(JSON.stringify({ type: "input", data: "exit 3\r" }));
+  await second.until(() => second.exit() === 3);
+  assert.equal(core.listTerminals(workspace.id).terminals[0]!.alive, false);
+
+  const refused = new WebSocket(`ws://127.0.0.1:${port}/terminals/${terminal.id}/socket?token=wrong`);
+  await new Promise((done) => refused.on("error", done));
+  assert.deepEqual(core.closeTerminal(terminal.id), { closed: true });
+  assert.deepEqual(core.listTerminals(workspace.id).terminals, []);
+  second.socket.close();
+  await core.close();
+  server.close();
 });

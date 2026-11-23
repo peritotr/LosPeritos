@@ -38,13 +38,30 @@ const bundle = (entry, outfile) =>
     platform: "node",
     format: "esm",
     target: "node20",
-    external: ["electron"],
+    external: ["electron", "node-pty"],
     // Some dependencies are CommonJS and call require() at run time.
     banner: { js: 'import { createRequire as __lpRequire } from "node:module"; const require = __lpRequire(import.meta.url);' },
     logLevel: "warning",
   });
 await bundle("apps/desktop/dist/main.js", "main.js");
 await bundle("packages/cli/dist/main.js", "cli/main.js");
+
+// The terminal's pseudo-terminal library is native, so it travels as files beside the bundle:
+// its JavaScript and the binaries built for this platform, nothing else.
+{
+  const from = path.dirname(createRequire(path.join(root, "packages/core/package.json")).resolve("node-pty/package.json"));
+  const to = path.join(stage, "node_modules/node-pty");
+  const built = `${process.platform}-${process.arch}`;
+  fs.mkdirSync(to, { recursive: true });
+  fs.copyFileSync(path.join(from, "package.json"), path.join(to, "package.json"));
+  fs.copyFileSync(path.join(from, "LICENSE"), path.join(to, "LICENSE"));
+  fs.cpSync(path.join(from, "lib"), path.join(to, "lib"), { recursive: true, filter: (file) => !/\.(test\.js|map|d\.ts)$/.test(file) });
+  for (const dir of [path.join("prebuilds", built), path.join("build", "Release")]) {
+    if (fs.existsSync(path.join(from, dir))) fs.cpSync(path.join(from, dir), path.join(to, dir), { recursive: true, filter: (file) => !/\.(pdb|o|a|d|mk)$|\/obj\.target/.test(file) });
+  }
+  const helper = path.join(to, "prebuilds", built, "spawn-helper");
+  if (fs.existsSync(helper)) fs.chmodSync(helper, 0o755);
+}
 
 fs.copyFileSync(path.join(desktop, "preload.cjs"), path.join(stage, "preload.cjs"));
 fs.copyFileSync(path.join(desktop, "assets/icon.png"), path.join(stage, "icon.png"));
@@ -90,6 +107,8 @@ const [appPath] = await packager({
   icon: path.join(desktop, "assets/icon"), // packager adds .icns or .ico
   // Kept as plain files: agents run cli/main.js with Electron acting as Node.
   asar: false,
+  // The stage holds only what ships; its node_modules is the terminal library, not a dependency list.
+  prune: false,
   overwrite: true,
   quiet: true,
   ...(identity && {

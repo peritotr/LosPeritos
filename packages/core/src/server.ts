@@ -17,6 +17,8 @@ import {
   PermissionRequest,
   SaveConnectorRequest,
   SavePageRequest,
+  OpenTerminalRequest,
+  TerminalInput,
   SendMessageRequest,
   UpdateAgentRequest,
   UploadAttachmentRequest,
@@ -100,6 +102,9 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "POST /workspaces/:workspaceId/pages": (p, body) => core.savePage(p.workspaceId!, parse(SavePageRequest, body)),
     "POST /pages/:pageId/remove": (p) => core.removePage(p.pageId!),
     "GET /workspaces/:workspaceId/docs": (p) => core.listDocs(p.workspaceId!),
+    "GET /workspaces/:workspaceId/terminals": (p) => core.listTerminals(p.workspaceId!),
+    "POST /workspaces/:workspaceId/terminals": (p, body) => core.openTerminal(p.workspaceId!, parse(OpenTerminalRequest, body ?? {})),
+    "POST /terminals/:terminalId/close": (p) => core.closeTerminal(p.terminalId!),
     "GET /workspaces/:workspaceId/connectors": (p) => core.listConnectors(p.workspaceId!),
     "POST /workspaces/:workspaceId/connectors": (p, body) =>
       core.saveConnector(p.workspaceId!, parse(SaveConnectorRequest, body)),
@@ -262,9 +267,29 @@ export function createServer(core: Core, token: string): Server {
   const sockets = new WebSocketServer({ noServer: true });
   server.on("upgrade", (req, socket, head) => {
     const url = new URL(req.url ?? "/", "http://localhost");
-    if (url.pathname !== "/events" || !tokenMatches(url.searchParams.get("token"), token)) {
+    const terminal = /^\/terminals\/([^/]+)\/socket$/.exec(url.pathname);
+    if ((url.pathname !== "/events" && !terminal) || !tokenMatches(url.searchParams.get("token"), token)) {
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();
+      return;
+    }
+    if (terminal) {
+      sockets.handleUpgrade(req, socket, head, (ws) => {
+        const detach = core.terminals.attach(terminal[1]!, (message) => ws.send(JSON.stringify(message)));
+        if (!detach) return ws.close(4404, "No such terminal");
+        ws.on("message", (raw) => {
+          let message: z.infer<typeof TerminalInput>;
+          try {
+            message = TerminalInput.parse(JSON.parse(String(raw)));
+          } catch {
+            return;
+          }
+          if (message.type === "input") core.terminals.write(terminal[1]!, message.data);
+          else core.terminals.resize(terminal[1]!, message.cols, message.rows);
+        });
+        ws.on("close", detach);
+        ws.on("error", detach);
+      });
       return;
     }
     sockets.handleUpgrade(req, socket, head, (ws) => {

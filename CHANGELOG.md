@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+**Terminal**
+- A Terminal screen with real shells in the bureau's folder, in tabs. They
+  are kept by the app, not the window: leave the screen and come back, and
+  the shell and what it printed are still there.
+
+**Preview**
+- A Preview screen shows a running dev server inside the app, at desk, tablet
+  or phone width. An address the terminal prints is offered with one click,
+  and a note about the page can be started to the lead from there.
+
+**Guides**
+- Publishing guides, step by step: a web site, a Mac app, an iPhone app, an
+  Android app, an npm package, an article or campaign. Steps can be ticked
+  off, commands copied, and a guide handed to the lead as a brief.
+
 ## 0.4.1 — 2026-11-23
 
 **Documents**

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type {
+import type { Terminal,
   Agent,
   Approval,
   BudgetState,
@@ -317,6 +317,11 @@ export interface Actions {
   repoFiles(workspaceId: string, repo?: string | null): Promise<{ files: string[]; more: boolean }>;
   repoFile(workspaceId: string, path: string, repo?: string | null): Promise<TaskFile>;
   repoSearch(workspaceId: string, query: string, repo?: string | null): Promise<Array<{ path: string; line: number; text: string }>>;
+  terminals(workspaceId: string): Promise<{ available: boolean; terminals: Terminal[] }>;
+  openTerminal(workspaceId: string, taskId?: string): Promise<Terminal>;
+  closeTerminal(terminalId: string): Promise<{ closed: boolean }>;
+  /** A live connection to a terminal: what it prints comes in, keystrokes go out. */
+  terminalSocket(terminalId: string): WebSocket;
   /** The bureau's notebook, newest first. */
   pages(workspaceId: string): Promise<Page[]>;
   /** Write a new page, or with `id` rewrite one. */
@@ -486,6 +491,10 @@ export function useCore(): [State, Actions] {
     repoFile: (workspaceId, path, repo) => post<TaskFile>(`/workspaces/${workspaceId}/repo/file${query({ path, repo })}`, undefined, "GET"),
     repoSearch: async (workspaceId, words, repo) =>
       (await post<{ hits: Array<{ path: string; line: number; text: string }> }>(`/workspaces/${workspaceId}/repo/search${query({ q: words, repo })}`, undefined, "GET")).hits,
+    terminals: (workspaceId) => post(`/workspaces/${workspaceId}/terminals`, undefined, "GET"),
+    openTerminal: (workspaceId, taskId) => post<Terminal>(`/workspaces/${workspaceId}/terminals`, { taskId, cols: 100, rows: 30 }),
+    closeTerminal: (terminalId) => post(`/terminals/${terminalId}/close`, {}),
+    terminalSocket: (terminalId) => new WebSocket(`${CORE_URL.replace(/^http/, "ws")}/terminals/${terminalId}/socket?token=${encodeURIComponent(token.current)}`),
     pages: (workspaceId) => post<Page[]>(`/workspaces/${workspaceId}/pages`, undefined, "GET"),
     savePage: (workspaceId, page) => post<Page[]>(`/workspaces/${workspaceId}/pages`, page),
     removePage: (pageId) => post<Page[]>(`/pages/${pageId}/remove`, {}),

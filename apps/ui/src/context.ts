@@ -3,7 +3,9 @@ import type { Actions, State } from "./store";
 import type { Updates } from "./updates";
 
 export type Route =
-  | { screen: "bench" | "files" | "code" | "docs" | "mail" | "archive" | "ledger" | "settings" | "setup" }
+  | { screen: "bench" | "files" | "code" | "docs" | "terminal" | "guides" | "mail" | "archive" | "ledger" | "settings" | "setup" }
+  /** `url` opens that address in the frame. */
+  | { screen: "preview"; url?: string }
   | { screen: "file"; id: string }
   | { screen: "perito"; id: string }
   /** `id` selects one seal or question. */
@@ -24,6 +26,10 @@ export interface Ctx {
   openBureau(workspaceId: string): void;
   /** Show a short confirmation at the bottom of the window. */
   note(text: string): void;
+  /** Put words in the chat's box for the user to finish and send. */
+  compose(text: string): void;
+  /** What `compose` last put there; `n` tells one request from the next. */
+  composed: { text: string; n: number } | null;
   /** Seal requests the user put off with "Not now"; they stay pending. */
   deferred: ReadonlySet<string>;
   defer(approvalId: string): void;
