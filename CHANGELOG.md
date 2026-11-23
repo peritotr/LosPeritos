@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-11-23
 
 **The floor**
 - Peritos walk between their desk and yours: a figure on the move lifts one
