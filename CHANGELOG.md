@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.1 — 2026-11-24
 
 **Signing in, from the app**
 - Setup and Settings show for each agent tool whether it is signed in, and a
