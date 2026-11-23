@@ -56,9 +56,9 @@ yalıtımı talimata dayanıyor, teknik olarak zorlanmıyor.
 - Para harcayan çağrılar için bütçe sınırı (reklam bağlayıcılarıyla birlikte).
 - Video, ses ve PDF önizleme: yapıldı (256 MB'a kadar).
 
-Bağlayıcıların eksikleri: bir sunucunun araç listesi ekranda gösterilmiyor,
-araç adları mühür isteklerinden öğreniliyor; mühürde "bundan sonra sorma"
-seçeneği yok; çalışan bir perito yeni bağlayıcıyı ancak yeniden oturunca görür.
+Araç listesi Ayarlar'da görünüyor ve işaretlenebiliyor; mühürde "bundan sonra
+sorma" seçeneği var; bağlayıcı değişikliği ekibe hemen ulaşıyor. Eksik kalan:
+tarayıcıdan giriş (OAuth) isteyen sunucular bağlanamıyor.
 
 ### 1. Sohbet her ekranda (O)
 

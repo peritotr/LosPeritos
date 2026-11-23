@@ -268,6 +268,7 @@ export const tr: Strings = {
     deferred: "Ertelendi — perito bekliyor.",
     toastLine: (reversible, steps, who) =>
       `${reversible ? "Geri alınabilir" : "Geri alınamaz"} · ${steps} adım · ${who}`,
+    rememberTool: (tool) => `Bundan sonra ${tool} için sorma`,
     kind: { merge: "Birleştirme", deploy: "Yayın", command: "Komut", connector: "Bağlayıcı", other: "İstek" },
   },
   awaiting: {
@@ -387,6 +388,12 @@ export const tr: Strings = {
     edit: (name) => `${name} bağlayıcısını düzenle`,
     remove: (name) => `${name} bağlayıcısını kaldır`,
     removeSure: "Kaldır?",
+    tools: (name) => `${name} araçlarını göster`,
+    toolsLoading: "Servise soruluyor… İlk seferde biraz sürebilir.",
+    toolsNone: "Servis hiç araç bildirmedi.",
+    toolsHint: "İşaretlediklerin sormadan kullanılır; diğerleri her çağrıda mührünü bekler. Yalnızca okuyan araçları işaretle.",
+    reads: "okur",
+    changes: "değiştirir",
     removed: (name) => `${name} kaldırıldı.`,
   },
   setup: {

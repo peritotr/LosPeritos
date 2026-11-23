@@ -17,6 +17,7 @@ import type {
   ToolOutcome,
   WorkspaceKind,
   Connector,
+  ConnectorTool,
   SaveConnectorRequest,
 } from "@losperitos/protocol";
 
@@ -275,7 +276,7 @@ export interface Actions {
   upload(workspaceId: string, name: string, base64: string): Promise<string>;
   /** `remember` also files the answer as a standing lesson, so peritos stop asking. */
   answer(messageId: string, answer: string, remember?: boolean): Promise<void>;
-  decideApproval(approvalId: string, decision: "approved" | "rejected"): Promise<void>;
+  decideApproval(approvalId: string, decision: "approved" | "rejected", remember?: boolean): Promise<void>;
   decideLesson(lessonId: string, decision: "accepted" | "rejected"): Promise<void>;
   stopAgent(agentId: string): Promise<void>;
   /** Give a perito a name of your own; null goes back to the default. */
@@ -288,6 +289,7 @@ export interface Actions {
   /** The bytes of a video, sound or PDF a task handed in. */
   taskMedia(taskId: string, path: string): Promise<Blob>;
   connectors(workspaceId: string): Promise<Connector[]>;
+  connectorTools(workspaceId: string, connectorId: string): Promise<ConnectorTool[]>;
   saveConnector(workspaceId: string, request: SaveConnectorRequest): Promise<Connector[]>;
   removeConnector(workspaceId: string, connectorId: string): Promise<Connector[]>;
   flightDone(id: string): void;
@@ -420,8 +422,8 @@ export function useCore(): [State, Actions] {
       (await post<{ name: string }>(`/workspaces/${workspaceId}/attachments`, { name, data })).name,
     answer: async (messageId, answer, remember = false) =>
       void (await post(`/messages/${messageId}/answer`, { answer, remember })),
-    decideApproval: async (approvalId, decision) =>
-      void (await post(`/approvals/${approvalId}/decision`, { decision })),
+    decideApproval: async (approvalId, decision, remember = false) =>
+      void (await post(`/approvals/${approvalId}/decision`, { decision, remember })),
     decideLesson: async (lessonId, decision) => void (await post(`/lessons/${lessonId}/decision`, { decision })),
     stopAgent: async (agentId) => void (await post(`/agents/${agentId}/stop`)),
     renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
@@ -440,6 +442,8 @@ export function useCore(): [State, Actions] {
       return response.blob();
     },
     connectors: (workspaceId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, undefined, "GET"),
+    connectorTools: async (workspaceId, connectorId) =>
+      (await post<{ tools: ConnectorTool[] }>(`/workspaces/${workspaceId}/connectors/${connectorId}/tools`, undefined, "GET")).tools,
     saveConnector: (workspaceId, request) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, request),
     removeConnector: (workspaceId, connectorId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors/${connectorId}/remove`, {}),
     estimate: (workspaceId) => post<Estimate>(`/workspaces/${workspaceId}/estimate`, undefined, "GET"),

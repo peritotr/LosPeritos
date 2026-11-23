@@ -74,7 +74,10 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     },
     "GET /workspaces/:workspaceId/approvals": (p) => core.listApprovals(p.workspaceId!),
     "POST /approvals/:approvalId/decision": (p, body) =>
-      core.decideApproval(p.approvalId!, parse(DecideApprovalRequest, body).decision),
+      {
+        const request = parse(DecideApprovalRequest, body);
+        return core.decideApproval(p.approvalId!, request.decision, request.remember);
+      },
     "GET /workspaces/:workspaceId/lessons": (p) => core.listLessons(p.workspaceId!),
     "POST /lessons/:lessonId/decision": (p, body) =>
       core.decideLesson(p.lessonId!, parse(DecideLessonRequest, body).decision),
@@ -85,6 +88,8 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "GET /workspaces/:workspaceId/connectors": (p) => core.listConnectors(p.workspaceId!),
     "POST /workspaces/:workspaceId/connectors": (p, body) =>
       core.saveConnector(p.workspaceId!, parse(SaveConnectorRequest, body)),
+    "GET /workspaces/:workspaceId/connectors/:connectorId/tools": (p) =>
+      core.connectorTools(p.workspaceId!, p.connectorId!),
     "POST /workspaces/:workspaceId/connectors/:connectorId/remove": (p) =>
       core.removeConnector(p.workspaceId!, p.connectorId!),
   };

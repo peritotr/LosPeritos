@@ -46,18 +46,20 @@ function lookup(ctx: Ctx) {
 function useSeal(ctx: Ctx, approval: Approval) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** For a connector call: let this tool go ahead unasked from now on. */
+  const [remember, setRemember] = useState(false);
   const decide = async (decision: "approved" | "rejected") => {
     setBusy(true);
     setError(null);
     try {
-      await ctx.actions.decideApproval(approval.id, decision);
+      await ctx.actions.decideApproval(approval.id, decision, remember && decision === "approved");
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
     }
   };
-  return { busy, error, decide };
+  return { busy, error, decide, remember, setRemember };
 }
 
 function stampTime(iso: string | null): string {
@@ -69,7 +71,7 @@ function stampTime(iso: string | null): string {
 
 function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
   const names = lookup(ctx);
-  const { busy, error, decide } = useSeal(ctx, approval);
+  const { busy, error, decide, remember, setRemember } = useSeal(ctx, approval);
   // Animate only a seal that lands while this card is on screen.
   const wasPending = useRef(approval.status === "pending");
   const file = names.file(approval.taskId);
@@ -129,6 +131,12 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
         <p className="err" style={{ fontSize: 13 }}>
           {error}
         </p>
+      )}
+      {approval.status === "pending" && approval.call && (
+        <label className="row" style={{ fontSize: 13, cursor: "pointer" }}>
+          <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+          <span>{T.seal.rememberTool(approval.call.tool)}</span>
+        </label>
       )}
       {approval.status === "pending" ? (
         <>

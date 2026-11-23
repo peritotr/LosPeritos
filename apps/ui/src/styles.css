@@ -620,3 +620,6 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .secret-row .input { min-width: 0; }
 .secret-row .input:first-child { flex: 0 1 42%; }
 .secret-row .input[type="password"] { flex: 1; }
+.connector-tools { padding: 4px 0 12px 26px; max-height: 320px; overflow: auto; }
+.connector-tool { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; cursor: pointer; min-width: 0; }
+.connector-tool .mono { flex: none; }

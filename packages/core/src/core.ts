@@ -11,6 +11,7 @@ import type {
   Approval,
   BudgetState,
   Connector,
+  ConnectorTool,
   Estimate,
   Event,
   EventEnvelope,
@@ -27,6 +28,7 @@ import type {
 } from "@losperitos/protocol";
 import { MAX_AGENTS_PER_WORKSPACE, MAX_ATTACHMENT_BYTES, MAX_PREVIEW_BYTES, PROTOCOL_VERSION } from "@losperitos/protocol";
 import * as git from "@losperitos/git";
+import { listTools } from "./mcp-client.js";
 import { AppStore, WorkspaceStore, type Collection } from "@losperitos/storage";
 import type { Adapter, AgentSession, McpServer, SessionEvent } from "@losperitos/adapters";
 
@@ -760,13 +762,44 @@ export class Core {
     }
     const next: StoredConnector = { ...request, secrets };
     this.storeConnectors(workspaceId, before ? stored.map((c) => (c.id === request.id ? next : c)) : [...stored, next]);
+    // Which tools are free is read at each call; only a change to the server itself needs a fresh start.
+    const same = before && before.command === next.command && before.url === next.url &&
+      JSON.stringify([before.args, before.secrets]) === JSON.stringify([next.args, next.secrets]);
+    if (!same) this.refreshSessions(workspaceId);
     return this.listConnectors(workspaceId);
   }
 
   removeConnector(workspaceId: string, connectorId: string): Connector[] {
     this.state(workspaceId);
     this.storeConnectors(workspaceId, this.storedConnectors(workspaceId).filter((c) => c.id !== connectorId));
+    this.refreshSessions(workspaceId);
     return this.listConnectors(workspaceId);
+  }
+
+  /** The tools a connector's server offers, asked of the server itself. */
+  async connectorTools(workspaceId: string, connectorId: string): Promise<{ tools: ConnectorTool[] }> {
+    const state = this.state(workspaceId);
+    const server = this.mcpServers(state)[connectorId];
+    if (!server) throw new CoreError("not_found", `No connector ${connectorId}`);
+    try {
+      return { tools: await listTools(server) };
+    } catch (err) {
+      throw new CoreError("bad_request", (err as Error).message);
+    }
+  }
+
+  /**
+   * An agent's tool reads its connectors when it starts. So that a change
+   * reaches the team, agents end their process once the turn in hand is over;
+   * the next message starts it again on the same conversation.
+   */
+  private refreshSessions(workspaceId: string): void {
+    for (const agent of this.state(workspaceId).agents.all()) {
+      const session = this.sessions.get(agent.id);
+      if (!session) continue;
+      if (agent.status === "idle") void session.stop();
+      else this.stopAfterTurn.add(agent.id);
+    }
   }
 
   /** The connectors as the agent's tool starts them. */
@@ -857,9 +890,18 @@ export class Core {
     return updated;
   }
 
-  async decideApproval(approvalId: string, decision: "approved" | "rejected"): Promise<Approval> {
+  async decideApproval(approvalId: string, decision: "approved" | "rejected", remember = false): Promise<Approval> {
     const { state, item } = this.find((s) => s.approvals, approvalId, "approval");
     if (item.status !== "pending") throw new CoreError("conflict", "Already decided.");
+    if (remember && decision === "approved" && item.call) {
+      // Only this tool, by its exact name: nothing wider than what was looked at.
+      const stored = this.storedConnectors(state.workspace.id);
+      const { connectorId, tool } = item.call;
+      this.storeConnectors(
+        state.workspace.id,
+        stored.map((c) => (c.id === connectorId && !c.free.includes(tool) ? { ...c, free: [...c.free, tool] } : c)),
+      );
+    }
     const task = item.taskId ? state.tasks.get(item.taskId) : undefined;
     if (item.kind === "merge" && task && decision === "approved") {
       // Merge first: if it fails the approval stays pending and can be retried.
@@ -1109,6 +1151,7 @@ export class Core {
         steps: [],
         // What the service does with the call is not ours to undo.
         reversible: false,
+        call: { connectorId: connector.id, tool: call },
       });
       return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
     }
@@ -1277,7 +1320,7 @@ export class Core {
   private raiseApproval(
     state: WorkspaceState,
     agentId: string,
-    fields: Pick<Approval, "kind" | "title" | "detail" | "steps" | "reversible">,
+    fields: Pick<Approval, "kind" | "title" | "detail" | "steps" | "reversible" | "call">,
   ): Approval {
     const approval = state.approvals.put({
       id: randomUUID(),
@@ -1289,6 +1332,7 @@ export class Core {
       detail: fields.detail,
       steps: fields.steps,
       reversible: fields.reversible,
+      ...(fields.call && { call: fields.call }),
       status: "pending",
       createdAt: this.now().toISOString(),
       decidedAt: null,

@@ -25,6 +25,12 @@
   folder, and are not shown again.
 - Every call to a connector waits for a seal unless the tool has been marked
   as free to use; agents are told which services they can reach.
+- Settings lists the tools a connector's server offers, each with a tick for
+  "may be used without asking", and shows which ones the server says only read.
+- A sealed connector call can be remembered: "do not ask again" frees that one
+  tool by name.
+- Adding, changing or removing a connector reaches the team at once: agents
+  restart on the same conversation when their turn in hand is over.
 - A Replicate template fills the form for image and video generation with
   Replicate's own MCP package: looking models up is free to use, every call
   that makes something waits for a seal. Agents save what a service made into

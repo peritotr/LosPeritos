@@ -550,3 +550,73 @@ test("a member that stops without a report is reminded once, then the user is as
   assert.ok(said().some((body) => body.includes("Credit added, try again")));
   await core.close();
 });
+
+test("a connector's tools can be listed, a sealed tool remembered, and a change reaches the team", async () => {
+  const { core, adapter, workspace, tokenOf, as } = setup({ repo: false });
+  // A stand-in service: two tools, one of which says it only reads.
+  const serverFile = join(mkdtempSync(join(tmpdir(), "lp-mcp-")), "server.mjs");
+  writeFileSync(
+    serverFile,
+    `import { createInterface } from "node:readline";
+const reply = (id, result) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\\n");
+console.log("starting up");
+createInterface({ input: process.stdin }).on("line", (line) => {
+  const message = JSON.parse(line);
+  if (message.id === undefined) return;
+  if (message.method === "initialize") return reply(message.id, { protocolVersion: "2025-03-26", capabilities: { tools: {} }, serverInfo: { name: "shop", version: process.env.SHOP_KEY } });
+  if (message.method === "tools/list") return reply(message.id, { tools: [
+    { name: "get_slogan", description: "Read the slogan.\\nSecond line.", annotations: { readOnlyHint: true }, inputSchema: { type: "object" } },
+    { name: "publish_slogan", description: "Publish a slogan.", inputSchema: { type: "object" } },
+  ] });
+});
+`,
+  );
+  const connector = { id: "shop", name: "Shop", command: process.execPath, args: [serverFile], secrets: { SHOP_KEY: "k" } };
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse(connector));
+  assert.deepEqual((await core.connectorTools(workspace.id, "shop")).tools, [
+    { name: "get_slogan", description: "Read the slogan.", readOnly: true },
+    { name: "publish_slogan", description: "Publish a slogan.", readOnly: null },
+  ]);
+  await assert.rejects(core.connectorTools(workspace.id, "nope"), /No connector/);
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ id: "broken", name: "Broken", command: "/no/such/program" }));
+  await assert.rejects(core.connectorTools(workspace.id, "broken"), /Cannot run/);
+  core.removeConnector(workspace.id, "broken");
+
+  // Sealing a call with "do not ask again" frees that tool alone.
+  // Adding the connector ended the lead's idle session; the next message starts it again.
+  await tick();
+  core.sendMessage(workspace.id, { body: "carry on", toAgentId: null, taskId: null });
+  const leadAt = adapter.starts.length - 1;
+  const memberToken = () => tokenOf(leadAt + 1);
+  await as(leadAt, { command: "task.create", title: "Publish", specialty: "developer" });
+  const held = core.requestPermission(memberToken(), "mcp__shop__publish_slogan", { slogan: "New" });
+  const [approval] = core.waiting().approvals;
+  assert.deepEqual(approval!.call, { connectorId: "shop", tool: "publish_slogan" });
+  await core.decideApproval(approval!.id, "approved", true);
+  assert.equal(await held, "approved");
+  assert.deepEqual(core.listConnectors(workspace.id)[0]!.free, ["publish_slogan"]);
+  assert.equal(await core.requestPermission(memberToken(), "mcp__shop__publish_slogan", { slogan: "Again" }), "approved");
+  assert.equal(core.waiting().approvals.length, 0);
+  // A refusal is never remembered as a yes.
+  const other = core.requestPermission(memberToken(), "mcp__shop__get_slogan", {});
+  await core.decideApproval(core.waiting().approvals[0]!.id, "rejected", true);
+  assert.equal(await other, "rejected");
+  assert.deepEqual(core.listConnectors(workspace.id)[0]!.free, ["publish_slogan"]);
+
+  // Changing how the server is reached ends idle sessions, so the next message starts them on the new one.
+  await tick();
+  const lead = core.listAgents(workspace.id)[0]!;
+  assert.equal(lead.status, "idle");
+  const startsBefore = adapter.starts.length;
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ ...connector, free: ["publish_slogan", "get_*"] }));
+  await tick();
+  assert.equal(core.listAgents(workspace.id)[0]!.status, "idle", "only the free list changed: nobody is restarted");
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ ...connector, args: [serverFile, "--v2"], free: ["get_*"] }));
+  await tick();
+  assert.equal(core.listAgents(workspace.id)[0]!.status, "stopped");
+  core.sendMessage(workspace.id, { body: "go on", toAgentId: null, taskId: null });
+  assert.equal(adapter.starts.length, startsBefore + 1);
+  assert.equal(adapter.starts.at(-1)!.resume, true, "on the same conversation");
+  assert.deepEqual((adapter.starts.at(-1)!.connectors!.shop as { args: string[] }).args, [serverFile, "--v2"]);
+  await core.close();
+});

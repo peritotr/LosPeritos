@@ -197,6 +197,8 @@ export const Approval = z.object({
   detail: z.string(),
   steps: z.array(z.string()),
   reversible: z.boolean(),
+  /** For a `connector` approval: which tool of which connector is being called. */
+  call: z.object({ connectorId: z.string(), tool: z.string() }).optional(),
   status: ApprovalStatus,
   createdAt: timestamp,
   decidedAt: timestamp.nullable(),
@@ -276,6 +278,13 @@ export const Connector = z.object({
   free: z.array(z.string().trim().min(1)).default([]),
 });
 
+/** One tool of a connector, as its server describes it. `readOnly` is the server's own word, when it gives one. */
+export const ConnectorTool = z.object({
+  name: z.string(),
+  description: z.string(),
+  readOnly: z.boolean().nullable(),
+});
+
 /**
  * Add a connector, or replace the one with the same id. `secrets` sets the
  * named values and leaves the others as they are; an empty value removes one.
@@ -353,6 +362,8 @@ export const AnswerQuestionRequest = z.object({
 });
 export const DecideApprovalRequest = z.object({
   decision: z.enum(["approved", "rejected"]),
+  /** With an approved connector call: let this tool go ahead unasked from now on. */
+  remember: z.boolean().optional(),
 });
 export const DecideLessonRequest = z.object({
   decision: z.enum(["accepted", "rejected"]),
@@ -401,6 +412,8 @@ export const routes = {
   connectors: "GET /workspaces/:workspaceId/connectors",
   saveConnector: "POST /workspaces/:workspaceId/connectors",
   removeConnector: "POST /workspaces/:workspaceId/connectors/:connectorId/remove",
+  /** `{ tools: ConnectorTool[] }`, asked of the server itself; may take a while the first time. */
+  connectorTools: "GET /workspaces/:workspaceId/connectors/:connectorId/tools",
   events: "WS /events",
   /** Agent bridge, used by the `peritos` CLI with a per-agent token. */
   agentCommand: "POST /agent",
@@ -544,6 +557,7 @@ export type MessageAuthor = z.infer<typeof MessageAuthor>;
 export type Message = z.infer<typeof Message>;
 export type ApprovalKind = z.infer<typeof ApprovalKind>;
 export type Connector = z.infer<typeof Connector>;
+export type ConnectorTool = z.infer<typeof ConnectorTool>;
 export type SaveConnectorRequest = z.infer<typeof SaveConnectorRequest>;
 export type ApprovalStatus = z.infer<typeof ApprovalStatus>;
 export type Approval = z.infer<typeof Approval>;

@@ -270,6 +270,7 @@ export const en = {
     deferred: "Deferred — the perito waits.",
     toastLine: (reversible: boolean, steps: number, who: string) =>
       `${reversible ? "Reversible" : "Not reversible"} · ${steps} ${steps === 1 ? "step" : "steps"} · ${who}`,
+    rememberTool: (tool: string) => `Do not ask again for ${tool}`,
     kind: { merge: "Merge", deploy: "Publish", command: "Command", connector: "Connector", other: "Request" },
   },
   awaiting: {
@@ -389,6 +390,12 @@ export const en = {
     edit: (name: string) => `Edit ${name}`,
     remove: (name: string) => `Remove ${name}`,
     removeSure: "Remove?",
+    tools: (name: string) => `Show the tools of ${name}`,
+    toolsLoading: "Asking the service… The first time may take a while.",
+    toolsNone: "The service listed no tools.",
+    toolsHint: "Ticked tools are used without asking; the others wait for your seal at every call. Tick only tools that read.",
+    reads: "reads",
+    changes: "changes",
     removed: (name: string) => `${name} removed.`,
   },
   setup: {

@@ -3,8 +3,8 @@
  * secrets. Secret values go to the core and are never read back.
  */
 import { useEffect, useState, type FormEvent } from "react";
-import { Pencil, Plug, Plus, Trash2, X } from "lucide-react";
-import type { Connector, SaveConnectorRequest } from "@losperitos/protocol";
+import { ListChecks, Pencil, Plug, Plus, Trash2, X } from "lucide-react";
+import type { Connector, ConnectorTool, SaveConnectorRequest } from "@losperitos/protocol";
 import type { Ctx } from "./context";
 import { T } from "./strings";
 import { Corners, I, Segmented } from "./ui";
@@ -204,7 +204,54 @@ function ConnectorForm({
   );
 }
 
+/** Whether a tool name fits a pattern in which `*` stands for any run of characters. */
+const fits = (pattern: string, tool: string) =>
+  new RegExp("^" + pattern.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$").test(tool);
+
+/** The tools a connector's server offers, each with a tick for "may be used without asking". */
+function ConnectorTools({ ctx, connector, onSaved }: { ctx: Ctx; connector: Connector; onSaved(list: Connector[]): void }) {
+  const [tools, setTools] = useState<ConnectorTool[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let current = true;
+    ctx.actions.connectorTools(ctx.bureau.id, connector.id).then(
+      (list) => current && setTools(list),
+      (err: Error) => current && setError(err.message),
+    );
+    return () => {
+      current = false;
+    };
+  }, [ctx.bureau.id, connector.id, connector.command, connector.url, connector.args.join(" ")]);
+  const free = (tool: string) => connector.free.some((pattern) => fits(pattern, tool));
+  /** Ticking spells the list out by name, so a pattern never frees more than what is shown. */
+  const toggle = (tool: string) => {
+    const names = (tools ?? []).map((other) => other.name).filter((name) => (name === tool ? !free(name) : free(name)));
+    const { secretNames: _kept, ...rest } = connector;
+    ctx.actions.saveConnector(ctx.bureau.id, { ...rest, secrets: {}, free: names }).then(onSaved, (err: Error) => setError(err.message));
+  };
+  if (error) return <p className="err">{error}</p>;
+  if (!tools) return <p className="muted">{T.connectors.toolsLoading}</p>;
+  if (tools.length === 0) return <p className="muted">{T.connectors.toolsNone}</p>;
+  return (
+    <div className="connector-tools">
+      <p className="muted" style={{ fontSize: 12 }}>
+        {T.connectors.toolsHint}
+      </p>
+      {tools.map((tool) => (
+        <label key={tool.name} className="connector-tool">
+          <input type="checkbox" checked={free(tool.name)} onChange={() => toggle(tool.name)} />
+          <span className="mono">{tool.name}</span>
+          {tool.readOnly !== null && <span className="tag">{tool.readOnly ? T.connectors.reads : T.connectors.changes}</span>}
+          <span className="muted ellipsis">{tool.description}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 export function Connectors({ ctx }: { ctx: Ctx }) {
+  /** The connector whose tools are shown. */
+  const [listing, setListing] = useState<string | null>(null);
   const [list, setList] = useState<Connector[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** The connector being edited, `"new"` for a fresh one. */
@@ -239,7 +286,8 @@ export function Connectors({ ctx }: { ctx: Ctx }) {
         open === connector.id ? (
           <ConnectorForm key={connector.id} ctx={ctx} editing={connector} onDone={(next) => (next && setList(next), setOpen(null))} />
         ) : (
-          <div className="connector" key={connector.id}>
+          <div key={connector.id}>
+          <div className="connector">
             <I icon={Plug} />
             <div className="grow" style={{ minWidth: 0 }}>
               <strong>{connector.name}</strong> <span className="mono muted">{connector.id}</span>
@@ -249,6 +297,14 @@ export function Connectors({ ctx }: { ctx: Ctx }) {
                 {connector.secretNames.length > 0 && ` · ${T.connectors.secretCount(connector.secretNames.length)}`}
               </div>
             </div>
+            <button
+              className="btn btn-ghost"
+              aria-pressed={listing === connector.id}
+              aria-label={T.connectors.tools(connector.name)}
+              onClick={() => setListing(listing === connector.id ? null : connector.id)}
+            >
+              <I icon={ListChecks} size={14} />
+            </button>
             <button className="btn btn-ghost" aria-label={T.connectors.edit(connector.name)} onClick={() => setOpen(connector.id)}>
               <I icon={Pencil} size={14} />
             </button>
@@ -256,6 +312,8 @@ export function Connectors({ ctx }: { ctx: Ctx }) {
               <I icon={Trash2} size={14} />
               {removing === connector.id && T.connectors.removeSure}
             </button>
+          </div>
+          {listing === connector.id && <ConnectorTools ctx={ctx} connector={connector} onSaved={setList} />}
           </div>
         ),
       )}
