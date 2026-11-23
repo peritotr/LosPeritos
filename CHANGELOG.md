@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-11-23
 
 **Update notice**
 - The app asks GitHub once a day whether a newer release is out and says so
