@@ -15,6 +15,7 @@ import { MAX_AGENTS_PER_WORKSPACE, type AgentCommandInput, OpenTerminalRequest }
 import { AgentCommand, SaveConnectorRequest } from "@losperitos/protocol";
 import { Core, CoreError } from "./core.js";
 import { createServer } from "./server.js";
+import { CLIENT_METADATA_URL } from "./oauth.js";
 
 const sh = (cwd: string, ...args: string[]) => execFileSync(args[0]!, args.slice(1), { cwd, encoding: "utf8" });
 
@@ -1103,4 +1104,45 @@ test("the coordinator is a bureau of its own whose lead places work and opens no
   const lead = adapter.starts[0]!.env!.LOSPERITOS_AGENT_TOKEN!;
   assert.match((await core.agentCommand(lead, AgentCommand.parse({ command: "bureaus" }))).message, /Koordinatör \(the coordinator over all bureaus/);
   await core.close();
+});
+
+test("sign-in falls back to an app of the user's own, or to this app's public description, where a server takes no registration", async (t) => {
+  const provider = createHttp((req, res) => {
+    const origin = `http://127.0.0.1:${(provider.address() as AddressInfo).port}`;
+    const url = new URL(req.url!, origin);
+    const json = (status: number, value: unknown, headers: Record<string, string> = {}) => (res.writeHead(status, { "Content-Type": "application/json", ...headers }), res.end(JSON.stringify(value)));
+    const which = url.pathname.split("/")[1]!; // "cimd" or "byhand"
+    if (!url.pathname.startsWith("/.well-known/") && url.pathname.endsWith("/mcp")) return json(401, {}, { "WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/${which}/mcp"` });
+    if (url.pathname.startsWith("/.well-known/oauth-protected-resource/")) {
+      const name = url.pathname.split("/")[3]!;
+      return json(200, { resource: `${origin}/${name}/mcp`, authorization_servers: [`${origin}/${name}`] });
+    }
+    if (url.pathname.startsWith("/.well-known/oauth-authorization-server/")) {
+      const name = url.pathname.split("/")[3]!;
+      return json(200, { authorization_endpoint: `${origin}/${name}/authorize`, token_endpoint: `${origin}/${name}/token`, ...(name === "cimd" && { client_id_metadata_document_supported: true }) });
+    }
+    json(404, {});
+  });
+  await new Promise<void>((done) => provider.listen(0, "127.0.0.1", done));
+  const origin = `http://127.0.0.1:${(provider.address() as AddressInfo).port}`;
+  const { core, adapter, workspace } = setup({ repo: false });
+  t.after(async () => (await core.close(), provider.close()));
+  core.setBridge("http://127.0.0.1:7423", "cli.js");
+
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ id: "voice", name: "Voice", url: `${origin}/cimd/mcp` }));
+  const described = new URL((await core.beginConnectorSignIn(workspace.id, "voice")).url);
+  assert.equal(described.searchParams.get("client_id"), CLIENT_METADATA_URL);
+  assert.equal(described.searchParams.get("redirect_uri"), "http://127.0.0.1:7423/oauth/callback");
+  const document = JSON.parse(readFileSync(fileURLToPath(new URL("../../../docs/oauth-client.json", import.meta.url)), "utf8")) as { client_id: string; redirect_uris: string[] };
+  assert.equal(document.client_id, CLIENT_METADATA_URL, "the document names itself, as the scheme requires");
+  assert.ok(document.redirect_uris.includes("http://127.0.0.1:7423/oauth/callback"), "and lists the address the app usually listens on");
+
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ id: "ads", name: "Ads", url: `${origin}/byhand/mcp` }));
+  await assert.rejects(core.beginConnectorSignIn(workspace.id, "ads"), /OAUTH_CLIENT_ID/);
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ id: "ads", name: "Ads", url: `${origin}/byhand/mcp`, secrets: { OAUTH_CLIENT_ID: "app-42", "X-Team": "blue" } }));
+  assert.equal(new URL((await core.beginConnectorSignIn(workspace.id, "ads")).url).searchParams.get("client_id"), "app-42");
+  // The app's id is for signing in; it is not sent to the server with every call as the other secrets are.
+  core.sendMessage(workspace.id, { body: "go", toAgentId: null, taskId: null });
+  const given = adapter.starts.at(-1)!.connectors!.ads as { headers: Record<string, string> };
+  assert.deepEqual(given.headers, { "X-Team": "blue" });
 });

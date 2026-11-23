@@ -102,6 +102,7 @@ async function discover(serverUrl: string) {
     authorizationEndpoint: safe(text(meta.authorization_endpoint), "sign-in page"),
     tokenEndpoint: safe(text(meta.token_endpoint), "token address"),
     registrationEndpoint: text(meta.registration_endpoint),
+    takesMetadataDocument: meta.client_id_metadata_document_supported === true,
     scope: scope ?? (scopes.length ? scopes.join(" ") : null),
   };
 }
@@ -110,12 +111,40 @@ async function discover(serverUrl: string) {
  * Prepare a sign-in: find the authorization server, register this app with
  * it, and build the page the user's browser should open.
  */
-export async function beginSignIn(serverUrl: string, redirectUri: string, state: string): Promise<{ url: string; pending: PendingSignIn }> {
+export async function beginSignIn(
+  serverUrl: string,
+  redirectUri: string,
+  state: string,
+  /** An app the user registered with the provider themselves; it goes before every other way. */
+  own?: { clientId: string; clientSecret?: string },
+): Promise<{ url: string; pending: PendingSignIn }> {
   const found = await discover(serverUrl);
-  if (!found.registrationEndpoint) {
-    throw new Error("This server wants an app registered with it by hand, which is not supported yet.");
+  // Three ways to be known to the server, in this order: an app of the user's own, registering on the spot,
+  // or pointing at the public description of this app.
+  let client: Record<string, unknown> | null = null;
+  if (own?.clientId) {
+    client = { client_id: own.clientId, client_secret: own.clientSecret };
+  } else if (found.registrationEndpoint) {
+    client = await register(found.registrationEndpoint, redirectUri);
+  } else if (found.takesMetadataDocument) {
+    client = { client_id: CLIENT_METADATA_URL };
+  } else {
+    throw new Error("This server wants an app registered with it by hand: register one there and give its id as a secret named OAUTH_CLIENT_ID.");
   }
-  const registered = await fetch(safe(found.registrationEndpoint, "registration address"), {
+  const clientId = text(client?.client_id);
+  if (!clientId) throw new Error("The server would not register this app. If it lets you register one yourself, give its id as a secret named OAUTH_CLIENT_ID.");
+  return authorize(found, clientId, text(client?.client_secret), redirectUri, state);
+}
+
+/**
+ * Where this app describes itself to servers that take a "client ID metadata
+ * document" in place of a registration: a file of the public repository. It
+ * names the callback addresses the app listens on.
+ */
+export const CLIENT_METADATA_URL = "https://raw.githubusercontent.com/peritotr/LosPeritos/main/docs/oauth-client.json";
+
+async function register(endpoint: string, redirectUri: string): Promise<Record<string, unknown> | null> {
+  const registered = await fetch(safe(endpoint, "registration address"), {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
@@ -127,9 +156,10 @@ export async function beginSignIn(serverUrl: string, redirectUri: string, state:
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  const client = (registered.ok ? await registered.json().catch(() => null) : null) as Record<string, unknown> | null;
-  const clientId = text(client?.client_id);
-  if (!clientId) throw new Error("The server would not register this app.");
+  return (registered.ok ? await registered.json().catch(() => null) : null) as Record<string, unknown> | null;
+}
+
+function authorize(found: Awaited<ReturnType<typeof discover>>, clientId: string, clientSecret: string | null, redirectUri: string, state: string): { url: string; pending: PendingSignIn } {
   const verifier = randomBytes(48).toString("base64url");
   const url = new URL(found.authorizationEndpoint);
   url.searchParams.set("response_type", "code");
@@ -146,7 +176,7 @@ export async function beginSignIn(serverUrl: string, redirectUri: string, state:
       verifier,
       tokenEndpoint: found.tokenEndpoint,
       clientId,
-      clientSecret: text(client?.client_secret),
+      clientSecret,
       redirectUri,
       resource: found.resource,
     },

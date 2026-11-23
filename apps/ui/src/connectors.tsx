@@ -75,6 +75,15 @@ const PRESETS: Preset[] = [
     note: "kling",
   },
   {
+    id: "elevenlabs",
+    name: "ElevenLabs",
+    // ElevenLabs' own hosted server: speech, sound, images and video, signed in to in the browser.
+    // Its tool names are not published, so none is free.
+    url: "https://api.elevenlabs.io/v1/mcp",
+    free: [],
+    note: "elevenlabs",
+  },
+  {
     id: "stability",
     name: "Stability AI",
     // A community server (Stability publishes none), at the version whose tools were read. Every tool spends credits.

@@ -151,6 +151,15 @@ function leadPrompt(kind: WorkspaceKind): string {
   );
 }
 
+/**
+ * Secrets of an address connector are sent as headers, except these two: an
+ * app the user registered with the provider, used only to sign in.
+ */
+const OWN_CLIENT_ID = "OAUTH_CLIENT_ID";
+const OWN_CLIENT_SECRET = "OAUTH_CLIENT_SECRET";
+const headerSecrets = (secrets: Record<string, string>) =>
+  Object.fromEntries(Object.entries(secrets).filter(([name]) => name !== OWN_CLIENT_ID && name !== OWN_CLIENT_SECRET));
+
 /** The lead of the bureau that stands over the others: it places work, and does none. */
 const COORDINATOR_PROMPT =
   "You are the coordinator over the user's bureaus. Each bureau is one project with its own lead and team; you have no team and do no work yourself. " +
@@ -1118,7 +1127,13 @@ export class Core {
     if (!this.bridge) throw new CoreError("internal", "The core does not know its own address.");
     const state = randomBytes(32).toString("base64url");
     try {
-      const { url, pending } = await beginSignIn(connector.url, `${this.bridge.url}/oauth/callback`, state);
+      const own = connector.secrets[OWN_CLIENT_ID]?.trim();
+      const { url, pending } = await beginSignIn(
+        connector.url,
+        `${this.bridge.url}/oauth/callback`,
+        state,
+        own ? { clientId: own, clientSecret: connector.secrets[OWN_CLIENT_SECRET]?.trim() || undefined } : undefined,
+      );
       for (const [key, entry] of this.signIns) if (entry.until < Date.now()) this.signIns.delete(key);
       this.signIns.set(state, { workspaceId, connectorId, pending, until: Date.now() + SIGN_IN_WINDOW_MS });
       return { url };
@@ -1243,7 +1258,7 @@ export class Core {
     const connector = this.storedConnectors(state.workspace.id).find((c) => c.id === connectorId);
     if (!connector?.url || !connector.oauth) throw new CoreError("not_found", `No signed-in connector ${connectorId}`);
     if (!this.holds(connector.oauth)) throw new CoreError("unauthorized", `The sign-in to ${connector.name} has run out; the user has to sign in again in Settings.`);
-    return { url: connector.url, headers: { ...connector.secrets, Authorization: `Bearer ${connector.oauth.accessToken}` } };
+    return { url: connector.url, headers: { ...headerSecrets(connector.secrets), Authorization: `Bearer ${connector.oauth.accessToken}` } };
   }
 
   /**
@@ -1261,7 +1276,7 @@ export class Core {
               type: "http" as const,
               url: connector.url,
               headers: {
-                ...connector.secrets,
+                ...headerSecrets(connector.secrets),
                 ...(connector.oauth && this.holds(connector.oauth) && { Authorization: `Bearer ${connector.oauth.accessToken}` }),
               },
             }
