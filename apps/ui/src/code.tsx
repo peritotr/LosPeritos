@@ -29,7 +29,7 @@ function level(files: string[], under: string): { folders: string[]; here: strin
   return { folders: [...folders].sort(), here };
 }
 
-function Tree({ files, under, open, toggle, pick, chosen }: {
+export function Tree({ files, under, open, toggle, pick, chosen }: {
   files: string[];
   under: string;
   open: ReadonlySet<string>;

@@ -759,3 +759,9 @@ button.file-chip { font: inherit; cursor: pointer; }
 /* Sıra gecesi: the office's labels, desks' names and the seal desk's card step back; the stage is the canvas's. */
 .floor-stage .scene { transition: opacity 0.9s ease; }
 .floor-stage.sira .scene { opacity: 0; pointer-events: none; }
+
+/* A path the team wrote that leads somewhere, and the folder's own lists. */
+.path-link { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.path-link code { color: var(--color-accent); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+.path-link:hover code { text-decoration-style: solid; }
+.folder-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }

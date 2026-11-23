@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { NotifySettings, PhoneAccess, Terminal,
+import type { FolderFile, NotifySettings, PhoneAccess, Terminal,
   Agent,
   Approval,
   BudgetState,
@@ -32,6 +32,8 @@ export interface Shell {
   token: string;
   platform: string;
   pickFolder(): Promise<string | null>;
+  /** Show a file or folder in the system's file manager. Absent in a browser. */
+  reveal?(path: string): Promise<void>;
   /** A PNG (base64) of a rectangle of the window. Absent in a browser. */
   capture?(rect: { x: number; y: number; width: number; height: number }): Promise<string | null>;
   /** Present when the app can fetch a newer release and replace itself with it. */
@@ -316,6 +318,10 @@ export interface Actions {
   taskFile(taskId: string, path: string): Promise<TaskFile>;
   /** The bytes of a video, sound or PDF a task handed in. */
   taskMedia(taskId: string, path: string): Promise<Blob>;
+  /** Everything in the bureau's folder. */
+  folder(workspaceId: string): Promise<{ files: FolderFile[]; more: boolean }>;
+  /** The bytes of one file of the bureau's folder. */
+  folderRaw(workspaceId: string, path: string): Promise<Blob>;
   /** Pictures of the bureau's folder that a message's text points at. */
   messagePictures(messageId: string): Promise<string[]>;
   /** The bytes of a file attached to a message. */
@@ -495,6 +501,16 @@ export function useCore(): [State, Actions] {
     renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
     checkTools: () => post<ToolCheck[]>("/setup", undefined, "GET"),
     taskFile: (taskId, path) => post<TaskFile>(`/tasks/${taskId}/file?path=${encodeURIComponent(path)}`, undefined, "GET"),
+    folder: (workspaceId) => post(`/workspaces/${workspaceId}/folder`, undefined, "GET"),
+    folderRaw: async (workspaceId, path) => {
+      const response = await fetch(`${CORE_URL}/workspaces/${workspaceId}/folder/raw?path=${encodeURIComponent(path)}`, {
+        headers: { Authorization: `Bearer ${token.current}` },
+      }).catch(() => {
+        throw new ApiError("offline", "Cannot reach the local service.");
+      });
+      if (!response.ok) throw new ApiError("not_found", "The file is no longer there.");
+      return response.blob();
+    },
     messagePictures: async (messageId) => (await post<{ files: string[] }>(`/messages/${messageId}/pictures`, undefined, "GET")).files,
     attachment: async (workspaceId, name) => {
       const response = await fetch(`${CORE_URL}/workspaces/${workspaceId}/attachments/${encodeURIComponent(name)}`, {

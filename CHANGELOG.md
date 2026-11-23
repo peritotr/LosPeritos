@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+**Finding what the team made**
+- A Folder screen shows the bureau's whole folder, for every kind of bureau:
+  the files changed most recently first, then a tree. A file opens beside it;
+  a folder shows the pictures it holds. In the desktop app a file or the
+  folder can be shown in Finder.
+- A path the team writes in a message (`teslim/hafta-1.md`, `gorseller/`) is a
+  link when the bureau's folder holds something by that name: one click opens
+  it in the Folder screen. The same holds inside documents.
+- The team is told to name what it hands over by path, and to attach the file
+  to look at first.
+
 ## 0.8.0 — 2026-11-23
 
 **A lead that decides the routine**

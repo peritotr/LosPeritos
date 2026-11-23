@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld("losperitos", {
   platform: process.platform,
   /** Resolves to the chosen folder's path, or null if the dialog was cancelled. */
   pickFolder: () => ipcRenderer.invoke("losperitos:pick-folder"),
+  /** Show a file or folder in the system's file manager. */
+  reveal: (path) => ipcRenderer.invoke("losperitos:reveal", path),
   /** A PNG (base64) of a rectangle of the window, in CSS pixels; null if it could not be taken. */
   capture: (rect) => ipcRenderer.invoke("losperitos:capture", rect),
   /** Present when this app can fetch a newer release and replace itself with it. */

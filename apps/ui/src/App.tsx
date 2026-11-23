@@ -30,6 +30,8 @@ import { Chat } from "./Chat";
 import { UpdateNotice, useUpdates } from "./updates";
 import { Code } from "./code";
 import { Docs } from "./docs";
+import { FolderScreen } from "./folder";
+import { FolderProvider } from "./paths";
 import { Guides } from "./guides";
 import { SitePreview } from "./sitepreview";
 import { TerminalScreen } from "./terminal";
@@ -64,10 +66,11 @@ function store(key: string, value: string) {
   }
 }
 
-type NavScreen = "bench" | "files" | "code" | "terminal" | "preview" | "docs" | "guides" | "mail" | "awaiting" | "archive" | "ledger";
+type NavScreen = "bench" | "files" | "folder" | "code" | "terminal" | "preview" | "docs" | "guides" | "mail" | "awaiting" | "archive" | "ledger";
 const NAV: Array<[NavScreen, string, LucideIcon]> = [
   ["bench", T.nav.bench, LayoutGrid],
   ["files", T.nav.files, FilesIcon],
+  ["folder", T.nav.folder, FolderOpen],
   ["code", T.nav.code, GitBranch],
   ["terminal", T.nav.terminal, SquareTerminal],
   ["preview", T.nav.preview, Eye],
@@ -212,6 +215,7 @@ export function App() {
 
   return (
     <MotionConfig reducedMotion="user">
+      <FolderProvider ctx={ctx}>
       <div className={`lp shell ${showChat ? "with-chat" : ""}`} data-theme={theme}>
         <nav className="sidebar" aria-label="Primary">
           <div className="brand">
@@ -387,6 +391,8 @@ export function App() {
               <Docs {...ctx} />
             ) : screen.screen === "code" ? (
               <Code {...ctx} />
+            ) : screen.screen === "folder" ? (
+              <FolderScreen ctx={ctx} path={screen.path} />
             ) : screen.screen === "terminal" ? (
               <TerminalScreen {...ctx} />
             ) : screen.screen === "preview" ? (
@@ -446,6 +452,7 @@ export function App() {
           />
         )}
       </div>
+      </FolderProvider>
     </MotionConfig>
   );
 }

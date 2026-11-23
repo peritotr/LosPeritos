@@ -119,6 +119,7 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
       const name = (body as { name?: unknown } | undefined)?.name;
       return core.openCoordinator(typeof name === "string" && name.trim() ? name.trim().slice(0, 60) : undefined);
     },
+    "GET /workspaces/:workspaceId/folder": (p) => core.listFolder(p.workspaceId!),
     "GET /messages/:messageId/pictures": (p) => core.messagePictures(p.messageId!),
     "GET /phone": () => core.phone.status(),
     "POST /phone": (_p, body) => {
@@ -270,6 +271,16 @@ export function createServer(core: Core, token: string): Server {
         const file = core.attachmentAt(attached[1]!, decodeURIComponent(attached[2]!));
         // An attachment is shown, never run: a page or a script among them is sent as plain bytes to save.
         const type = /^(image\/(png|jpeg|gif|webp|avif)|video\/|audio\/|application\/pdf|text\/plain)/.test(file.mime) ? file.mime : "application/octet-stream";
+        res.writeHead(200, { "Content-Type": type, "Content-Length": file.size, "X-Content-Type-Options": "nosniff", ...cors });
+        createReadStream(file.full).on("error", () => res.destroy()).pipe(res);
+        return;
+      }
+      const inFolder = req.method === "GET" && /^\/workspaces\/([^/]+)\/folder\/raw$/.exec(path);
+      if (inFolder) {
+        const file = core.folderFileAt(inFolder[1]!, url.searchParams.get("path") ?? "");
+        if (file.size > MAX_MEDIA_BYTES) throw new CoreError("bad_request", "File is too large to show");
+        // Shown, never run: a page or a script from the folder is sent as plain bytes.
+        const type = /^(image\/(png|jpeg|gif|webp|avif)|video\/|audio\/|application\/pdf|text\/(plain|markdown|csv))/.test(file.mime) ? file.mime : "application/octet-stream";
         res.writeHead(200, { "Content-Type": type, "Content-Length": file.size, "X-Content-Type-Options": "nosniff", ...cors });
         createReadStream(file.full).on("error", () => res.destroy()).pipe(res);
         return;

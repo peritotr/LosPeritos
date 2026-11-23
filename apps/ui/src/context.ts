@@ -4,6 +4,8 @@ import type { Updates } from "./updates";
 
 export type Route =
   | { screen: "bench" | "files" | "code" | "docs" | "terminal" | "guides" | "mail" | "archive" | "ledger" | "settings" | "setup" }
+  /** `path` opens that file or folder of the bureau. */
+  | { screen: "folder"; path?: string }
   /** `url` opens that address in the frame. */
   | { screen: "preview"; url?: string }
   | { screen: "file"; id: string }

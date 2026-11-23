@@ -539,6 +539,10 @@ export const routes = {
   sendMessage: "POST /workspaces/:workspaceId/messages",
   /** Store a file so the next message can attach it. */
   uploadAttachment: "POST /workspaces/:workspaceId/attachments",
+  /** `{ files: [{ path, size, modifiedAt }], more }`: everything in the bureau's folder, git or not. */
+  folder: "GET /workspaces/:workspaceId/folder",
+  /** `?path=`: the bytes of one file of the bureau's folder, for showing it. */
+  folderRaw: "GET /workspaces/:workspaceId/folder/raw",
   /** `{ files }`: pictures of the bureau's folder that a message's text points at, by file or by folder. */
   messagePictures: "GET /messages/:messageId/pictures",
   /** `{ kind: "coffee" | "donut" }`: bring something to a perito's desk; an Agent. */
@@ -759,6 +763,12 @@ export type ConnectorTool = z.infer<typeof ConnectorTool>;
 export type Terminal = z.infer<typeof Terminal>;
 export type OpenTerminalRequest = z.infer<typeof OpenTerminalRequest>;
 export type NotifySettings = z.infer<typeof NotifySettings>;
+/** One file of a bureau's folder, as the Folder screen lists it. */
+export interface FolderFile {
+  path: string;
+  size: number;
+  modifiedAt: string;
+}
 export type PhoneAccess = z.infer<typeof PhoneAccess>;
 export type SavePageRequest = z.infer<typeof SavePageRequest>;
 export type SaveConnectorRequest = z.infer<typeof SaveConnectorRequest>;

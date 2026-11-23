@@ -1440,3 +1440,16 @@ test("with routine decisions left to the lead, it seals teammates' work, sends i
   await push;
   await core.close();
 });
+
+test("the bureau's folder can be listed whole, git or not, so that what was made can be found", async () => {
+  const { core, folder, workspace } = setup({ repo: false });
+  sh(folder, "mkdir", "-p", "teslim", "gorseller/hafta-1", ".gizli", "node_modules/x");
+  for (const name of ["teslim/hafta-1-yayina-hazir.md", "gorseller/hafta-1/h1-pzt.png", ".gizli/x.md", "node_modules/x/index.js", "is-plani.md"]) writeFileSync(join(folder, name), "x");
+  const listed = core.listFolder(workspace.id);
+  assert.deepEqual(listed.files.map((file) => file.path), ["gorseller/hafta-1/h1-pzt.png", "is-plani.md", "teslim/hafta-1-yayina-hazir.md"]);
+  assert.equal(listed.more, false);
+  assert.ok(listed.files.every((file) => file.size === 1 && !Number.isNaN(Date.parse(file.modifiedAt))));
+  assert.equal(core.folderFileAt(workspace.id, "teslim/hafta-1-yayina-hazir.md").mime, "text/markdown");
+  assert.throws(() => core.folderFileAt(workspace.id, "../outside.txt"), /./);
+  await core.close();
+});

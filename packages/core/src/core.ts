@@ -4,6 +4,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, readFileSync, r
 import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import type {
+  FolderFile,
   Agent,
   AgentAdapter,
   AgentCommand,
@@ -84,7 +85,8 @@ const BRIDGE_PROMPT =
   "- `peritos ask \"<question>\" --option A --option B --recommend A\` asks the user, naming the option you would pick; then stop and wait for the answer. " +
   "Add `--file <path>` (repeatable) to show files with the question: when the choice is between things to look at (logos, layouts, drafts), attach every one and name the options after them.\n" +
   "- The user sees only this app: your messages, questions and the files you attach. They do not see a tool's own widget or preview, and should not have to open a folder. " +
-  "So never write \"see the widget\" or \"it is in the folder\": put what you made in your working folder (download what a service generated) and show it with `--file`, on `peritos ask` or on `peritos send --to user \"<message>\" --file <path>`.\n" +
+  "So never write \"see the widget\" or \"it is in the folder\": put what you made in your working folder (download what a service generated) and show it with `--file`, on `peritos ask` or on `peritos send --to user \"<message>\" --file <path>`. " +
+  "When you hand work over, name every file by its path from the bureau's folder in backticks (`teslim/hafta-1.md`): in the app such a path is a link the user opens with a click. Attach the one file the user should look at first.\n" +
   "- `peritos approval --title \"<what>\" --kind deploy|command|other --detail \"<why>\" --step \"<step>\"` " +
   "requests the user's approval before anything that deploys, publishes, deletes data or cannot be undone; then stop and wait.\n" +
   "- `peritos send --to <agent name|lead|user> \"<message>\"` messages a teammate.\n" +
@@ -1433,6 +1435,42 @@ export class Core {
   }
 
   /** Store a file the user wants to attach; returns the name to send with the message. */
+  /**
+   * Everything in the bureau's folder: what the team made is there whether or
+   * not a task listed it, and the user should not need another app to find it.
+   * Hidden folders and installed packages are left out.
+   */
+  listFolder(workspaceId: string): { files: FolderFile[]; more: boolean } {
+    const root = this.state(workspaceId).workspace.path;
+    const files: FolderFile[] = [];
+    let more = false;
+    const walk = (dir: string) => {
+      let entries: import("node:fs").Dirent[];
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.isFile()) {
+          if (files.length >= MAX_TREE_FILES) return void (more = true);
+          const stat = statSync(full);
+          files.push({ path: relative(root, full).split(sep).join("/"), size: stat.size, modifiedAt: stat.mtime.toISOString() });
+        }
+      }
+    };
+    walk(root);
+    return { files: files.sort((a, b) => a.path.localeCompare(b.path)), more };
+  }
+
+  /** Where a file of the bureau's folder lies, for sending its bytes to the window. */
+  folderFileAt(workspaceId: string, path: string): { full: string; mime: string; size: number } {
+    return fileAt(this.state(workspaceId).workspace.path, path);
+  }
+
   /**
    * Pictures a message talks about without attaching them: "they are in
    * gorseller/logo/". Where the text names a picture or a folder of the

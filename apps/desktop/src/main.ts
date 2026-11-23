@@ -262,6 +262,11 @@ async function start(): Promise<void> {
     const area = { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) };
     return (await window.webContents.capturePage(area)).toPNG().toString("base64");
   });
+  // Show a file or a folder in Finder. Only something that exists is shown; nothing is opened or run.
+  ipcMain.handle("losperitos:reveal", (_event, path: string) => {
+    if (typeof path !== "string" || !path.startsWith("/") || !existsSync(path)) return;
+    shell.showItemInFolder(path);
+  });
   ipcMain.handle("losperitos:pick-folder", async () => {
     const result = await dialog.showOpenDialog(window!, { properties: ["openDirectory", "createDirectory"] });
     return result.canceled ? null : (result.filePaths[0] ?? null);

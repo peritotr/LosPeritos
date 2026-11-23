@@ -2,6 +2,7 @@
  * The files a task handed in, and a look inside them. Marketing and content
  * bureaus are read here rather than in a diff: their work is documents.
  */
+import { CodeSpan } from "./paths";
 import { Diagram } from "./diagram";
 import { useEffect, useState, type ReactNode } from "react";
 import { FileText, Film, Image as ImageIcon, Music, Table, X } from "lucide-react";
@@ -21,9 +22,10 @@ function inline(line: string): ReactNode[] {
   for (let match = pattern.exec(line); match; match = pattern.exec(line)) {
     if (match.index > last) out.push(line.slice(last, match.index));
     const key = match.index;
-    if (match[1] !== undefined) out.push(<code key={key}>{match[1]}</code>);
-    else if (match[2] !== undefined) out.push(<strong key={key}>{match[2]}</strong>);
-    else if (match[3] !== undefined) out.push(<em key={key}>{match[3]}</em>);
+    if (match[1] !== undefined) out.push(<CodeSpan key={key} text={match[1]} />);
+    // What is emphasised may itself hold code or a path: read it the same way.
+    else if (match[2] !== undefined) out.push(<strong key={key}>{inline(match[2])}</strong>);
+    else if (match[3] !== undefined) out.push(<em key={key}>{inline(match[3])}</em>);
     else out.push(<u key={key} title={match[5]}>{match[4]}</u>);
     last = match.index + match[0].length;
   }
