@@ -63,7 +63,7 @@ function Tree({ files, under, open, toggle, pick, chosen }: {
 }
 
 /** The project's files: a tree to walk, a box that narrows it by name, and a search inside the files. */
-function Files({ ctx, chosen, pick, tick }: { ctx: Ctx; chosen: string | null; pick(path: string, line?: number): void; tick: number }) {
+function Files({ ctx, repo, chosen, pick, tick }: { ctx: Ctx; repo: string | null; chosen: string | null; pick(path: string, line?: number): void; tick: number }) {
   const [files, setFiles] = useState<string[] | null>(null);
   const [more, setMore] = useState(false);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
@@ -72,14 +72,15 @@ function Files({ ctx, chosen, pick, tick }: { ctx: Ctx; chosen: string | null; p
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let current = true;
-    ctx.actions.repoFiles(ctx.bureau.id).then(
+    setHits(null);
+    ctx.actions.repoFiles(ctx.bureau.id, repo).then(
       (list) => current && (setFiles(list.files), setMore(list.more)),
       (err: Error) => current && setError(err.message),
     );
     return () => {
       current = false;
     };
-  }, [ctx.bureau.id, tick]);
+  }, [ctx.bureau.id, repo, tick]);
   const toggle = (folder: string) => {
     const next = new Set(open);
     if (!next.delete(folder)) next.add(folder);
@@ -89,7 +90,7 @@ function Files({ ctx, chosen, pick, tick }: { ctx: Ctx; chosen: string | null; p
     event.preventDefault();
     setError(null);
     if (words.trim().length < 2) return setHits(null);
-    ctx.actions.repoSearch(ctx.bureau.id, words).then(setHits, (err: Error) => setError(err.message));
+    ctx.actions.repoSearch(ctx.bureau.id, words, repo).then(setHits, (err: Error) => setError(err.message));
   };
   const named = words.trim() ? (files ?? []).filter((file) => file.toLowerCase().includes(words.trim().toLowerCase())).slice(0, 60) : null;
   return (
@@ -148,21 +149,21 @@ function Files({ ctx, chosen, pick, tick }: { ctx: Ctx; chosen: string | null; p
 }
 
 /** One file of the project, read-only; a line found by the search is marked. */
-function FileView({ ctx, path, line }: { ctx: Ctx; path: string; line?: number }) {
+function FileView({ ctx, repo, path, line }: { ctx: Ctx; repo: string | null; path: string; line?: number }) {
   const [file, setFile] = useState<TaskFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let current = true;
     setFile(null);
     setError(null);
-    ctx.actions.repoFile(ctx.bureau.id, path).then(
+    ctx.actions.repoFile(ctx.bureau.id, path, repo).then(
       (loaded) => current && setFile(loaded),
       (err: Error) => current && setError(err.message),
     );
     return () => {
       current = false;
     };
-  }, [ctx.bureau.id, path]);
+  }, [ctx.bureau.id, repo, path]);
   useEffect(() => {
     if (file && line) document.querySelector(".code-text .hit")?.scrollIntoView({ block: "center" });
   }, [file, line]);
@@ -196,6 +197,10 @@ function FileView({ ctx, path, line }: { ctx: Ctx; path: string; line?: number }
 }
 
 export function Code(ctx: Ctx) {
+  // A folder that holds several repositories shows one at a time.
+  const names = ctx.bureau.repos.map((item) => item.path).filter((name) => name !== ".");
+  const [named, setNamed] = useState<string | null>(null);
+  const which = names.length ? (named && names.includes(named) ? named : names[0]!) : null;
   const [repo, setRepo] = useState<RepoState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Chosen>({ kind: "working" });
@@ -208,14 +213,14 @@ export function Code(ctx: Ctx) {
   useEffect(() => {
     let current = true;
     setError(null);
-    ctx.actions.repo(ctx.bureau.id).then(
+    ctx.actions.repo(ctx.bureau.id, which).then(
       (state) => current && setRepo(state),
       (err: Error) => current && (setRepo(null), setError(err.message)),
     );
     return () => {
       current = false;
     };
-  }, [ctx.bureau.id, tick, closed]);
+  }, [ctx.bureau.id, which, tick, closed]);
 
   const commit = chosen.kind === "commit" ? chosen.hash : null;
   useEffect(() => {
@@ -223,17 +228,32 @@ export function Code(ctx: Ctx) {
     let current = true;
     setDiff(null);
     setDiffError(null);
-    ctx.actions.repoDiff(ctx.bureau.id, commit).then(
+    ctx.actions.repoDiff(ctx.bureau.id, commit, which).then(
       (text) => current && setDiff(text),
       (err: Error) => current && setDiffError(err.message),
     );
     return () => {
       current = false;
     };
-  }, [ctx.bureau.id, commit, chosen.kind, tick, closed]);
+  }, [ctx.bureau.id, which, commit, chosen.kind, tick, closed]);
 
   const head = (
     <PageHead kicker={T.code.kicker(ctx.bureau.name)} title={T.code.title}>
+      {names.length > 1 && (
+        <select
+          className="input"
+          style={{ width: "auto" }}
+          value={which ?? ""}
+          aria-label={T.code.repo}
+          onChange={(event) => (setNamed(event.target.value), setChosen({ kind: "working" }))}
+        >
+          {names.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      )}
       {repo && (
         <span className="tag">
           <I icon={GitBranch} size={12} /> {repo.branch}
@@ -311,6 +331,7 @@ export function Code(ctx: Ctx) {
 
           <Files
             ctx={ctx}
+            repo={which}
             tick={tick + closed}
             chosen={chosen.kind === "file" ? chosen.path : null}
             pick={(path, line) => setChosen({ kind: "file", path, line })}
@@ -345,7 +366,7 @@ export function Code(ctx: Ctx) {
             {chosen.kind === "file" ? chosen.path : picked ? `${picked.hash.slice(0, 7)} — ${picked.subject}` : T.code.working}
           </h5>
           {chosen.kind === "file" ? (
-            <FileView ctx={ctx} path={chosen.path} line={chosen.line} />
+            <FileView ctx={ctx} repo={which} path={chosen.path} line={chosen.line} />
           ) : diffError ? (
             <p className="err">{diffError}</p>
           ) : diff === null ? (

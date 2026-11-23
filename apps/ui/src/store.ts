@@ -89,6 +89,12 @@ async function call<T>(token: string, method: string, path: string, body?: unkno
   return json as T;
 }
 
+/** "?a=1&b=2" from the values that are set. */
+const query = (values: Record<string, string | null | undefined>) => {
+  const set = Object.entries(values).filter((entry): entry is [string, string] => !!entry[1]);
+  return set.length ? "?" + set.map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&") : "";
+};
+
 /** What the user fills in to open a file themselves. */
 export interface NewTask {
   title: string;
@@ -98,6 +104,8 @@ export interface NewTask {
   priority?: Task["priority"];
   dependsOn?: string[];
   labels?: string[];
+  /** The subfolder repository it works in, where the folder holds several. */
+  repo?: string;
   /** Queue it straight away; otherwise it is kept as a draft. */
   start?: boolean;
 }
@@ -301,12 +309,13 @@ export interface Actions {
   taskFile(taskId: string, path: string): Promise<TaskFile>;
   /** The bytes of a video, sound or PDF a task handed in. */
   taskMedia(taskId: string, path: string): Promise<Blob>;
-  repo(workspaceId: string): Promise<RepoState>;
+  /** `repo` names a subfolder repository where the folder holds several. */
+  repo(workspaceId: string, repo?: string | null): Promise<RepoState>;
   /** The patch of one commit, or of the uncommitted changes when `commit` is null. */
-  repoDiff(workspaceId: string, commit: string | null): Promise<string>;
-  repoFiles(workspaceId: string): Promise<{ files: string[]; more: boolean }>;
-  repoFile(workspaceId: string, path: string): Promise<TaskFile>;
-  repoSearch(workspaceId: string, query: string): Promise<Array<{ path: string; line: number; text: string }>>;
+  repoDiff(workspaceId: string, commit: string | null, repo?: string | null): Promise<string>;
+  repoFiles(workspaceId: string, repo?: string | null): Promise<{ files: string[]; more: boolean }>;
+  repoFile(workspaceId: string, path: string, repo?: string | null): Promise<TaskFile>;
+  repoSearch(workspaceId: string, query: string, repo?: string | null): Promise<Array<{ path: string; line: number; text: string }>>;
   connectors(workspaceId: string): Promise<Connector[]>;
   connectorTools(workspaceId: string, connectorId: string): Promise<ConnectorTool[]>;
   /** The provider's page to open in the browser to sign in to a connector. */
@@ -462,13 +471,13 @@ export function useCore(): [State, Actions] {
       }
       return response.blob();
     },
-    repo: (workspaceId) => post<RepoState>(`/workspaces/${workspaceId}/repo`, undefined, "GET"),
-    repoDiff: async (workspaceId, commit) =>
-      (await post<{ diff: string }>(`/workspaces/${workspaceId}/repo/diff${commit ? `?commit=${commit}` : ""}`, undefined, "GET")).diff,
-    repoFiles: (workspaceId) => post(`/workspaces/${workspaceId}/repo/files`, undefined, "GET"),
-    repoFile: (workspaceId, path) => post<TaskFile>(`/workspaces/${workspaceId}/repo/file?path=${encodeURIComponent(path)}`, undefined, "GET"),
-    repoSearch: async (workspaceId, query) =>
-      (await post<{ hits: Array<{ path: string; line: number; text: string }> }>(`/workspaces/${workspaceId}/repo/search?q=${encodeURIComponent(query)}`, undefined, "GET")).hits,
+    repo: (workspaceId, repo) => post<RepoState>(`/workspaces/${workspaceId}/repo${query({ repo })}`, undefined, "GET"),
+    repoDiff: async (workspaceId, commit, repo) =>
+      (await post<{ diff: string }>(`/workspaces/${workspaceId}/repo/diff${query({ commit, repo })}`, undefined, "GET")).diff,
+    repoFiles: (workspaceId, repo) => post(`/workspaces/${workspaceId}/repo/files${query({ repo })}`, undefined, "GET"),
+    repoFile: (workspaceId, path, repo) => post<TaskFile>(`/workspaces/${workspaceId}/repo/file${query({ path, repo })}`, undefined, "GET"),
+    repoSearch: async (workspaceId, words, repo) =>
+      (await post<{ hits: Array<{ path: string; line: number; text: string }> }>(`/workspaces/${workspaceId}/repo/search${query({ q: words, repo })}`, undefined, "GET")).hits,
     connectors: (workspaceId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, undefined, "GET"),
     connectorTools: async (workspaceId, connectorId) =>
       (await post<{ tools: ConnectorTool[] }>(`/workspaces/${workspaceId}/connectors/${connectorId}/tools`, undefined, "GET")).tools,

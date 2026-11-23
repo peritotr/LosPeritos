@@ -781,3 +781,45 @@ test("a connector that asks for a sign-in in the browser is signed in to, used, 
   server.close();
   provider.close();
 });
+
+test("in a folder that holds several repositories, a task works on a branch of the one it names", async () => {
+  const { core, adapter, folder, workspace, as } = setup({ repo: false });
+  for (const name of ["api", "web"]) {
+    const dir = join(folder, name);
+    sh(folder, "mkdir", name);
+    sh(dir, "git", "init", "-q", "-b", "main");
+    sh(dir, "git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", `init ${name}`);
+  }
+  // The lead is told about them when it next starts.
+  await core.stopAgent(core.listAgents(workspace.id)[0]!.id);
+  core.sendMessage(workspace.id, { body: "plan again", toAgentId: null, taskId: null });
+  const leadAt = adapter.starts.length - 1;
+  assert.match(adapter.starts[leadAt]!.systemPrompt!, /several git repositories: api, web/);
+  assert.deepEqual(core.listWorkspaces()[0]!.repos.map((repo) => repo.path), ["api", "web"]);
+
+  await assert.rejects(as(leadAt, { command: "task.create", title: "x", specialty: "developer", repo: "nope" }), /There are: api, web/);
+  await as(leadAt, { command: "task.create", title: "Add route", specialty: "developer", repo: "api" });
+  const [task] = core.listTasks(workspace.id);
+  assert.equal(task!.repo, "api");
+  assert.equal(task!.baseBranch, "main");
+  assert.match(sh(join(folder, "api"), "git", "branch", "--list", task!.branch!), /peritos\/task-1/);
+  assert.equal(sh(join(folder, "web"), "git", "branch", "--list", task!.branch!), "", "the other repository is untouched");
+
+  writeFileSync(join(task!.worktree!, "route.js"), "export {};\n");
+  sh(task!.worktree!, "git", "add", ".");
+  sh(task!.worktree!, "git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "route");
+  await as(leadAt + 1, { command: "task.done", report: { done: ["route"], tested: [], notVerified: [] } });
+  const [approval] = core.waiting().approvals;
+  assert.deepEqual(approval!.steps, [`Merge ${task!.branch} into main in api`, "Remove the task worktree"]);
+  assert.match(await core.taskDiff(task!.id), /route\.js/);
+  await core.decideApproval(approval!.id, "approved");
+  assert.ok(existsSync(join(folder, "api", "route.js")), "merged into the repository it named");
+  assert.equal(Buffer.from(core.taskFile(task!.id, "route.js").data, "base64").toString(), "export {};\n");
+
+  // The code panel reads the repository it is asked for.
+  assert.ok((await core.repo(workspace.id, "api")).commits.some((c) => c.subject === "init api"));
+  assert.ok((await core.repo(workspace.id, "web")).commits.every((c) => c.subject === "init web"));
+  assert.deepEqual((await core.repoFiles(workspace.id, "api")).files, ["route.js"]);
+  await assert.rejects(core.repo(workspace.id, "../elsewhere"), /No repository/);
+  await assert.rejects(core.repo(workspace.id), /not a git repository/);
+});

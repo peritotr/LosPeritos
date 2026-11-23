@@ -21,6 +21,9 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
   const [priority, setPriority] = useState<NonNullable<Task["priority"]>>("normal");
   const [after, setAfter] = useState("");
   const [labels, setLabels] = useState("");
+  // In a folder that holds several repositories, a file works in one of them.
+  const repos = ctx.bureau.repos.map((item) => item.path).filter((name) => name !== ".");
+  const [repo, setRepo] = useState("");
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   useEffect(() => {
     ctx.actions.estimate(ctx.bureau.id).then(setEstimate, () => setEstimate(null));
@@ -45,6 +48,7 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
         priority,
         dependsOn: after ? [after] : [],
         labels: [...new Set(labels.split(",").map((label) => label.trim().toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8),
+        ...(repo && { repo }),
         start,
       });
       onClose();
@@ -128,6 +132,19 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
           </select>
         </div>
       </div>
+      {repos.length > 0 && (
+        <div className="field">
+          <label htmlFor="nf-repo">{T.files.form.repo}</label>
+          <select id="nf-repo" className="input" value={repo} onChange={(event) => setRepo(event.target.value)}>
+            <option value="">{T.files.form.repoNone}</option>
+            {repos.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="field extra">
         <label htmlFor="nf-labels">{T.files.form.labels}</label>
         <input

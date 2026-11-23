@@ -124,7 +124,8 @@ devralabilir. Sonra OpenCode ve Gemini CLI.
 - Dosya ağacı ve dosyalarda arama: yapıldı (git'in yok saydığı dosyalar hariç).
 - Son commit'ten beri değişenler: yapıldı. "Kod" ekranı dalı, commit edilmemiş
   değişiklikleri, diğer dalları ve son commit'leri gösteriyor (yalnızca okur).
-- Tek klasörde birden çok depo (bugün yalnızca klasörün kendisi depo ise dal açılıyor).
+- Tek klasörde birden çok depo: yapıldı. Görev hangi alt klasördeki depoda
+  çalışacağını söyler ve dalını orada açar; iki depoya dokunan iş iki görev olur.
 
 ### 10. Belgeler (B)
 

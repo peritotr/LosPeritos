@@ -33,6 +33,7 @@ function build(argv: string[]): AgentCommandInput {
       priority: { type: "string" },
       after: { type: "string", multiple: true },
       label: { type: "string", multiple: true },
+      repo: { type: "string" },
       done: { type: "string", multiple: true },
       tested: { type: "string", multiple: true },
       "not-verified": { type: "string", multiple: true },
@@ -59,6 +60,7 @@ function build(argv: string[]): AgentCommandInput {
         priority: values.priority as "low" | "normal" | "high" | undefined,
         after: values.after?.map(Number),
         labels: values.label,
+        repo: values.repo,
       };
     case "task.list":
       return { command: "task.list" };

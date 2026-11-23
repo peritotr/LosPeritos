@@ -146,6 +146,11 @@ export const Task = z.object({
    * works in the workspace folder itself.
    */
   worktree: z.string().nullable(),
+  /**
+   * In a folder that holds several repositories: the one this task works in,
+   * by the name of its subfolder. Absent when the folder itself is the repository.
+   */
+  repo: z.string().optional(),
   report: TaskReport.nullable(),
   createdAt: timestamp,
   updatedAt: timestamp,
@@ -326,6 +331,8 @@ export const CreateTaskRequest = z.object({
   priority: TaskPriority.default("normal"),
   dependsOn: z.array(id).default([]),
   labels: TaskLabels.default([]),
+  /** The subfolder repository the task works in, where the folder holds several. */
+  repo: z.string().optional(),
   /** Queue it for the team straight away; otherwise it is kept as a draft. */
   start: z.boolean().default(true),
 });
@@ -424,6 +431,7 @@ export const routes = {
   /** Everything waiting on the user, across all workspaces. */
   waiting: "GET /waiting",
   /** A RepoState; 409 when the folder is not a git repository. */
+  /** Every repo route takes `?repo=<subfolder>` where the folder holds several repositories. */
   repo: "GET /workspaces/:workspaceId/repo",
   /** `{ diff }`: `?commit=<hash>` for one commit, without it the uncommitted changes. */
   repoDiff: "GET /workspaces/:workspaceId/repo/diff",
@@ -487,6 +495,8 @@ export const AgentCommand = z.discriminatedUnion("command", [
     /** Numbers of tasks that must be closed first. */
     after: z.array(z.number().int().positive()).default([]),
     labels: TaskLabels.default([]),
+    /** The subfolder repository the task works in, where the folder holds several. */
+    repo: z.string().optional(),
   }),
   z.object({ command: z.literal("task.list") }),
   /** Member only: hand the task in for review and merge. */

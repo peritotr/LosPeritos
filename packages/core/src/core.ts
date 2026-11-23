@@ -464,6 +464,7 @@ export class Core {
       priority: Task["priority"];
       dependsOn: string[];
       labels?: string[];
+      repo?: string;
       start: boolean;
     },
   ): Promise<Task> {
@@ -473,10 +474,50 @@ export class Core {
     return state.tasks.get(task.id)!;
   }
 
+  /** What the lead is told when the folder holds several repositories rather than being one. */
+  private reposPrompt(state: WorkspaceState): string {
+    const names = this.refreshRepos(state).filter((repo) => repo.path !== ".").map((repo) => repo.path);
+    if (names.length === 0) return "";
+    return (
+      `\nThis folder holds several git repositories: ${names.join(", ")}. ` +
+      "Add `--repo <name>` to `peritos task create` to say which one a task works in; it then gets its own branch there. " +
+      "A job that touches two repositories becomes two tasks, one for each. " +
+      "A task without --repo works in the folder itself, with no branch and nothing to merge.\n"
+    );
+  }
+
+  /** Look again for repositories in the folder and remember what is there. */
+  private refreshRepos(state: WorkspaceState): Workspace["repos"] {
+    const repos = findRepos(state.workspace.path);
+    if (JSON.stringify(repos) !== JSON.stringify(state.workspace.repos)) {
+      state.workspace = { ...state.workspace, repos };
+      state.store.writeDoc("workspace", state.workspace);
+      this.emit({ type: "workspace.updated", workspace: state.workspace });
+    }
+    return repos;
+  }
+
+  /** The folder git works in for a task, or for a repository named in a request. */
+  private repoDir(state: WorkspaceState, repo: string | null | undefined): string {
+    if (!repo) return state.workspace.path;
+    if (!this.refreshRepos(state).some((known) => known.path === repo && known.path !== ".")) {
+      throw new CoreError("not_found", `No repository "${repo}" in this folder.`);
+    }
+    return join(state.workspace.path, repo);
+  }
+
   private addTask(
     state: WorkspaceState,
-    fields: Pick<Task, "title" | "description" | "specialty" | "effort" | "priority" | "dependsOn" | "labels" | "status">,
+    fields: Pick<Task, "title" | "description" | "specialty" | "effort" | "priority" | "dependsOn" | "labels" | "status" | "repo">,
   ): Task {
+    if (fields.repo !== undefined) {
+      // Repositories may have been added since the folder was opened.
+      const repos = this.refreshRepos(state);
+      if (!repos.some((repo) => repo.path === fields.repo && repo.path !== ".")) {
+        const names = repos.filter((repo) => repo.path !== ".").map((repo) => repo.path);
+        throw new CoreError("bad_request", names.length ? `No repository "${fields.repo}" here. There are: ${names.join(", ")}` : "This folder does not hold several repositories; leave --repo out.");
+      }
+    } else delete (fields as { repo?: string }).repo;
     for (const dependency of fields.dependsOn ?? []) {
       if (!state.tasks.get(dependency)) throw new CoreError("bad_request", `No task ${dependency} to wait for.`);
     }
@@ -529,7 +570,7 @@ export class Core {
         await this.sessions.get(item.assigneeId)?.stop();
         this.setAgent(state, item.assigneeId, { taskId: null, status: "stopped", sessionId: null });
       }
-      await dropWorkplace(state.workspace.path, item);
+      await dropWorkplace(this.repoDir(state, item.repo), item);
       for (const approval of state.approvals.all()) {
         if (approval.taskId !== taskId || approval.status !== "pending") continue;
         const closed = state.approvals.put({ ...approval, status: "rejected", decidedAt: this.now().toISOString() });
@@ -675,16 +716,16 @@ export class Core {
     const { state, item } = this.find((s) => s.tasks, taskId, "task");
     if (!item.branch || !item.baseBranch) return "";
     try {
-      return await git.diff(state.workspace.path, item.baseBranch, item.branch);
+      return await git.diff(this.repoDir(state, item.repo), item.baseBranch, item.branch);
     } catch (err) {
       throw new CoreError("conflict", (err as Error).message);
     }
   }
 
   /** Branch, recent commits, other branches and uncommitted changes of the workspace's repository. */
-  async repo(workspaceId: string): Promise<RepoState> {
+  async repo(workspaceId: string, repo: string | null = null): Promise<RepoState> {
     const state = this.state(workspaceId);
-    const root = state.workspace.path;
+    const root = this.repoDir(state, repo);
     const branch = await git.currentBranch(root);
     if (!branch) throw new CoreError("conflict", "This folder is not a git repository.");
     try {
@@ -694,7 +735,7 @@ export class Core {
         branch,
         commits,
         changes,
-        branches: branches.map((b) => ({ ...b, taskId: tasks.find((task) => task.branch === b.name)?.id ?? null })),
+        branches: branches.map((b) => ({ ...b, taskId: tasks.find((task) => task.branch === b.name && (task.repo ?? null) === repo)?.id ?? null })),
       };
     } catch (err) {
       throw new CoreError("conflict", (err as Error).message);
@@ -702,21 +743,22 @@ export class Core {
   }
 
   /** The patch of one commit, or of the uncommitted changes when no commit is named. */
-  async repoDiff(workspaceId: string, commit: string | null): Promise<string> {
+  async repoDiff(workspaceId: string, commit: string | null, repo: string | null = null): Promise<string> {
     const state = this.state(workspaceId);
+    const root = this.repoDir(state, repo);
     if (commit !== null && !/^[0-9a-f]{7,40}$/.test(commit)) throw new CoreError("bad_request", "Not a commit hash.");
     try {
-      return commit ? await git.show(state.workspace.path, commit) : await git.workingDiff(state.workspace.path);
+      return commit ? await git.show(root, commit) : await git.workingDiff(root);
     } catch (err) {
       throw new CoreError("conflict", (err as Error).message);
     }
   }
 
   /** The repository's files, for the code panel's tree. */
-  async repoFiles(workspaceId: string): Promise<{ files: string[]; more: boolean }> {
+  async repoFiles(workspaceId: string, repo: string | null = null): Promise<{ files: string[]; more: boolean }> {
     const state = this.state(workspaceId);
     try {
-      const all = (await git.files(state.workspace.path)).filter((file) => !file.startsWith(".losperitos/"));
+      const all = (await git.files(this.repoDir(state, repo))).filter((file) => !file.startsWith(".losperitos/"));
       return { files: all.slice(0, MAX_TREE_FILES), more: all.length > MAX_TREE_FILES };
     } catch (err) {
       throw new CoreError("conflict", (err as Error).message);
@@ -724,8 +766,8 @@ export class Core {
   }
 
   /** One file of the project folder, to read in the code panel. */
-  repoFile(workspaceId: string, path: string): TaskFile {
-    const { full, mime, size } = fileAt(this.state(workspaceId).workspace.path, path);
+  repoFile(workspaceId: string, path: string, repo: string | null = null): TaskFile {
+    const { full, mime, size } = fileAt(this.repoDir(this.state(workspaceId), repo), path);
     if (size > MAX_PREVIEW_BYTES) throw new CoreError("bad_request", "File is too large to show");
     const data = readFileSync(full);
     // Source files have no type of their own here: anything without a zero byte is read as text.
@@ -733,12 +775,12 @@ export class Core {
     return { path, mime: text ? "text/plain" : mime, size, data: data.toString("base64") };
   }
 
-  async repoSearch(workspaceId: string, query: string): Promise<{ hits: Array<{ path: string; line: number; text: string }> }> {
+  async repoSearch(workspaceId: string, query: string, repo: string | null = null): Promise<{ hits: Array<{ path: string; line: number; text: string }> }> {
     const state = this.state(workspaceId);
     const words = query.trim();
     if (words.length < 2) return { hits: [] };
     try {
-      const hits = await git.search(state.workspace.path, words, 200);
+      const hits = await git.search(this.repoDir(state, repo), words, 200);
       return { hits: hits.filter((hit) => !hit.path.startsWith(".losperitos/")) };
     } catch (err) {
       throw new CoreError("conflict", (err as Error).message);
@@ -755,7 +797,7 @@ export class Core {
   /** Where one of a task's files is on disk, for sending its bytes as they are. */
   taskFileAt(taskId: string, path: string): { full: string; mime: string; size: number } {
     const { state, item } = this.find((s) => s.tasks, taskId, "task");
-    return fileAt(item.worktree && existsSync(item.worktree) ? item.worktree : state.workspace.path, path);
+    return fileAt(item.worktree && existsSync(item.worktree) ? item.worktree : this.repoDir(state, item.repo), path);
   }
 
   listMessages(workspaceId: string): Message[] {
@@ -1126,7 +1168,7 @@ export class Core {
       if (task.branch && task.baseBranch) {
         try {
           await git.merge(
-            state.workspace.path,
+            this.repoDir(state, task.repo),
             task.baseBranch,
             task.branch,
             `Merge task #${task.number}: ${task.title}`,
@@ -1234,6 +1276,7 @@ export class Core {
           priority: command.priority,
           dependsOn,
           labels: command.labels,
+          repo: command.repo,
           status: "queued",
         });
         await this.startQueued(state);
@@ -1260,7 +1303,7 @@ export class Core {
             if (!(await git.isClean(task.worktree))) {
               throw new CoreError("conflict", "Your worktree has uncommitted changes. Commit them, then run this again.");
             }
-            needsMerge = await git.hasCommitsAhead(state.workspace.path, task.baseBranch, task.branch);
+            needsMerge = await git.hasCommitsAhead(this.repoDir(state, task.repo), task.baseBranch, task.branch);
           } catch (err) {
             if (err instanceof CoreError) throw err;
             throw new CoreError("conflict", (err as Error).message);
@@ -1270,7 +1313,7 @@ export class Core {
         const draft = task.worktree && !task.branch ? filesUnder(task.worktree) : null;
         const files = new Set(draft ?? command.report.files ?? []);
         if (needsMerge) {
-          const changed = await git.changedFiles(state.workspace.path, task.baseBranch!, task.branch!).catch(() => []);
+          const changed = await git.changedFiles(this.repoDir(state, task.repo), task.baseBranch!, task.branch!).catch(() => []);
           for (const file of changed) files.add(file);
         }
         const needsSeal = needsMerge || !!draft?.length;
@@ -1307,7 +1350,7 @@ export class Core {
           ].join("\n"),
           steps: draft
             ? [...draft.map((file) => `${existsSync(join(state.workspace.path, file)) ? "Replace" : "Add"} ${file}`), "Remove the draft"]
-            : [`Merge ${task.branch} into ${task.baseBranch}`, "Remove the task worktree"],
+            : [`Merge ${task.branch} into ${task.baseBranch}${task.repo ? ` in ${task.repo}` : ""}`, "Remove the task worktree"],
           // Replacing a file outside git leaves no way back.
           reversible: !draft?.some((file) => existsSync(join(state.workspace.path, file))),
         });
@@ -1444,12 +1487,13 @@ export class Core {
         // A task gets its own branch and worktree when the folder is a git repo.
         let branch: string | null = null;
         let worktree: string | null = null;
-        const baseBranch = await git.currentBranch(state.workspace.path);
+        const repoDir = this.repoDir(state, task.repo);
+        const baseBranch = await git.currentBranch(repoDir);
         if (baseBranch) {
           branch = `peritos/task-${task.number}-${slug(task.title)}`;
           worktree = join(state.store.dir, "worktrees", `task-${task.number}`);
           try {
-            await git.addWorktree(state.workspace.path, worktree, branch);
+            await git.addWorktree(repoDir, worktree, branch);
           } catch (err) {
             this.addMessage(state, {
               author: { kind: "system" },
@@ -1497,7 +1541,7 @@ export class Core {
 
   /** Close a task: drop its worktree, free its agent, tell the lead, start what was waiting. */
   private async finishTask(state: WorkspaceState, task: Task): Promise<void> {
-    await dropWorkplace(state.workspace.path, task);
+    await dropWorkplace(this.repoDir(state, task.repo), task);
     const done = state.tasks.put({
       ...task,
       status: "done",
@@ -1701,7 +1745,7 @@ export class Core {
         trustMode: state.workspace.trustMode,
         systemPrompt:
           (agent.role === "lead"
-            ? leadPrompt(state.workspace.kind ?? "software")
+            ? leadPrompt(state.workspace.kind ?? "software") + this.reposPrompt(state)
             : memberPrompt(
                 state.workspace.kind ?? "software",
                 !task?.worktree

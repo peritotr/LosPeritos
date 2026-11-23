@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Several repositories in one folder**
+- When a folder holds several git repositories rather than being one, a task
+  can name the one it works in and gets its own branch there; the lead is told
+  which repositories there are, and the form for a new file offers them. The
+  Code screen shows one repository at a time.
+
 **Files in the code panel**
 - The Code screen has the project's files as a tree, a box that narrows it by
   name, and a search inside the files; a file opens read-only, at the line

@@ -85,12 +85,14 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "GET /workspaces/:workspaceId/estimate": (p) => core.estimate(p.workspaceId!),
     "GET /workspaces/:workspaceId/runs": (p) => core.listRuns(p.workspaceId!),
     "GET /waiting": () => core.waiting(),
-    "GET /workspaces/:workspaceId/repo": (p) => core.repo(p.workspaceId!),
-    "GET /workspaces/:workspaceId/repo/files": (p) => core.repoFiles(p.workspaceId!),
-    "GET /workspaces/:workspaceId/repo/file": (p, _body, query) => core.repoFile(p.workspaceId!, query.get("path") ?? ""),
-    "GET /workspaces/:workspaceId/repo/search": (p, _body, query) => core.repoSearch(p.workspaceId!, query.get("q") ?? ""),
+    "GET /workspaces/:workspaceId/repo": (p, _body, query) => core.repo(p.workspaceId!, query.get("repo")),
+    "GET /workspaces/:workspaceId/repo/files": (p, _body, query) => core.repoFiles(p.workspaceId!, query.get("repo")),
+    "GET /workspaces/:workspaceId/repo/file": (p, _body, query) =>
+      core.repoFile(p.workspaceId!, query.get("path") ?? "", query.get("repo")),
+    "GET /workspaces/:workspaceId/repo/search": (p, _body, query) =>
+      core.repoSearch(p.workspaceId!, query.get("q") ?? "", query.get("repo")),
     "GET /workspaces/:workspaceId/repo/diff": async (p, _body, query) => ({
-      diff: await core.repoDiff(p.workspaceId!, query.get("commit")),
+      diff: await core.repoDiff(p.workspaceId!, query.get("commit"), query.get("repo")),
     }),
     "GET /workspaces/:workspaceId/connectors": (p) => core.listConnectors(p.workspaceId!),
     "POST /workspaces/:workspaceId/connectors": (p, body) =>
