@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { Terminal,
+import type { PhoneAccess, Terminal,
   Agent,
   Approval,
   BudgetState,
@@ -317,6 +317,9 @@ export interface Actions {
   repoFiles(workspaceId: string, repo?: string | null): Promise<{ files: string[]; more: boolean }>;
   repoFile(workspaceId: string, path: string, repo?: string | null): Promise<TaskFile>;
   repoSearch(workspaceId: string, query: string, repo?: string | null): Promise<Array<{ path: string; line: number; text: string }>>;
+  /** Whether a phone on the same network can reach the bureau, and where. */
+  phone(): Promise<PhoneAccess>;
+  setPhone(enabled: boolean, renew?: boolean): Promise<PhoneAccess>;
   terminals(workspaceId: string): Promise<{ available: boolean; terminals: Terminal[] }>;
   openTerminal(workspaceId: string, taskId?: string): Promise<Terminal>;
   closeTerminal(terminalId: string): Promise<{ closed: boolean }>;
@@ -491,6 +494,8 @@ export function useCore(): [State, Actions] {
     repoFile: (workspaceId, path, repo) => post<TaskFile>(`/workspaces/${workspaceId}/repo/file${query({ path, repo })}`, undefined, "GET"),
     repoSearch: async (workspaceId, words, repo) =>
       (await post<{ hits: Array<{ path: string; line: number; text: string }> }>(`/workspaces/${workspaceId}/repo/search${query({ q: words, repo })}`, undefined, "GET")).hits,
+    phone: () => post<PhoneAccess>("/phone", undefined, "GET"),
+    setPhone: (enabled, renew) => post<PhoneAccess>("/phone", { enabled, renew }),
     terminals: (workspaceId) => post(`/workspaces/${workspaceId}/terminals`, undefined, "GET"),
     openTerminal: (workspaceId, taskId) => post<Terminal>(`/workspaces/${workspaceId}/terminals`, { taskId, cols: 100, rows: 30 }),
     closeTerminal: (terminalId) => post(`/terminals/${terminalId}/close`, {}),

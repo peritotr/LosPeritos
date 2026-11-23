@@ -52,6 +52,8 @@ export async function startCore(options: StartOptions): Promise<RunningCore> {
   });
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   core.setBridge(url, options.cliEntry);
+  // The phone's door reopens if it was left open; a failure there must not keep the app from starting.
+  await core.phone.apply().catch(() => undefined);
   return {
     core,
     server,

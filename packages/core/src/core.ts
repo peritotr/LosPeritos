@@ -35,6 +35,7 @@ import { MAX_AGENTS_PER_WORKSPACE, MAX_ATTACHMENT_BYTES, MAX_PREVIEW_BYTES, PROT
 import * as git from "@losperitos/git";
 import { listTools } from "./mcp-client.js";
 import { Terminals } from "./terminal.js";
+import { Phone, type PhoneConfig } from "./phone.js";
 import { beginSignIn, finishSignIn, refresh, type OAuthGrant, type PendingSignIn } from "./oauth.js";
 import { AppStore, WorkspaceStore, type Collection } from "@losperitos/storage";
 import type { Adapter, AgentSession, McpServer, SessionEvent } from "@losperitos/adapters";
@@ -851,6 +852,13 @@ export class Core {
   listApprovals(workspaceId: string): Approval[] {
     return this.state(workspaceId).approvals.all();
   }
+
+  /** The door for a phone on the same network; shut unless the user opens it. */
+  readonly phone = new Phone(
+    this,
+    () => this.app.readSecret<PhoneConfig | null>("phone", null),
+    (config) => this.app.writeSecret("phone", config),
+  );
 
   // ── Terminals ─────────────────────────────────────────────────────────────
 
@@ -1876,6 +1884,7 @@ export class Core {
     this.limitTimers.clear();
     this.stallTimers.clear();
     this.terminals.closeAll();
+    await this.phone.close();
     await Promise.all([...this.sessions.values()].map((session) => session.stop()));
   }
 

@@ -1,3 +1,4 @@
+import { PhoneSettings } from "./phone";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Ban,
@@ -886,6 +887,7 @@ export function Settings(ctx: Ctx) {
         </section>
 
         {!ctx.simple && <Connectors ctx={ctx} />}
+        <PhoneSettings ctx={ctx} />
 
         <section className="panel blueprint">
           <Corners />

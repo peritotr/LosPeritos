@@ -981,3 +981,48 @@ test("a lead can see the user's other bureaus and hand work to another bureau's 
   await as(0, { command: "send", to: "bureau:Launch", body: "allowed again" });
   await core.close();
 });
+
+test("the phone's door opens only when switched on, only with its key, and only onto questions, seals and messages", async () => {
+  const { core, workspace } = setup({ repo: false });
+  assert.deepEqual(core.phone.status(), { enabled: false, urls: [] });
+  const opened = await core.phone.set(true);
+  assert.equal(opened.enabled, true);
+  const port = Number(/:(\d+)\/m\//.exec(opened.urls[0] ?? `:${0}/m/`)?.[1]);
+  const key = (core as unknown as { app: { readSecret(name: string, fallback: null): { token: string; port: number } } }).app.readSecret("phone", null).token;
+  const base = `http://127.0.0.1:${port || (core as unknown as { phone: { port: number } }).phone.port}/m/${key}`;
+  const post = (path: string, value: unknown) => fetch(base + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
+
+  assert.match(await (await fetch(base)).text(), /<title>LosPeritos<\/title>/);
+  assert.equal((await fetch(base.replace(key, "wrong-key"))).status, 404);
+  assert.notEqual((await fetch(`${base}/terminals`)).status, 200, "the key opens nothing beyond the page's own actions");
+  assert.equal((await fetch(base.replace(`/m/${key}`, "/workspaces"))).status, 404, "the main API is not behind this door");
+
+  core.sendMessage(workspace.id, { body: "/ask", toAgentId: null, taskId: null });
+  core.sendMessage(workspace.id, { body: "/approve", toAgentId: null, taskId: null });
+  type View = { bureaus: Array<{ id: string; questions: Array<{ id: string; options: string[] }>; seals: Array<{ id: string }>; recent: unknown[] }> };
+  let view: View = { bureaus: [] };
+  for (let i = 0; i < 100; i++) {
+    view = (await (await fetch(`${base}/state`)).json()) as View;
+    if (view.bureaus[0]?.questions.length && view.bureaus[0].seals.length) break;
+    await tick();
+  }
+  const [bureau] = view.bureaus;
+  assert.equal(bureau!.questions.length, 1);
+  assert.equal(bureau!.seals.length, 1);
+
+  const answered = (await (await post("/answer", { id: bureau!.questions[0]!.id, answer: bureau!.questions[0]!.options[0] ?? "Yes" })).json()) as View;
+  assert.equal(answered.bureaus[0]!.questions.length, 0);
+  const sealed = (await (await post("/decide", { id: bureau!.seals[0]!.id, decision: "approved" })).json()) as View;
+  assert.equal(sealed.bureaus[0]!.seals.length, 0);
+  assert.equal(core.listApprovals(workspace.id)[0]!.status, "approved");
+  assert.equal((await post("/decide", { id: bureau!.seals[0]!.id, decision: "maybe" })).status, 400);
+  await post("/say", { bureau: workspace.id, body: "from the phone" });
+  assert.ok(core.listMessages(workspace.id).some((message) => message.author.kind === "user" && message.body === "from the phone"));
+
+  // A new key shuts out every address handed out before; switching off shuts the door.
+  await core.phone.set(true, true);
+  assert.equal((await fetch(base)).status, 404);
+  assert.deepEqual(await core.phone.set(false), { enabled: false, urls: [] });
+  await assert.rejects(fetch(base));
+  await core.close();
+});

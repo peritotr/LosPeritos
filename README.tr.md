@@ -100,6 +100,8 @@ Ekran görüntüleri İngilizce arayüzden alındı; arayüzün tamamı Türkçe
 | 📋 **Rapor** | Biten her dosya üç listeyle gelir: yapılanlar, test edilenler ve *doğrulanmayanlar*. |
 | 📚 **Dersler** | Peritolar kalıcı kurallar önerir; kabul ettiklerin o andan sonra her peritoya verilir. |
 | 💰 **Günlük bütçe** | Proje başına; %80'de uyarı, dolunca yeni iş yok. |
+| ⌨️ **Terminal ve önizleme** | Büro klasöründe gerçek kabuklar ve çalışan site; masaüstü, tablet ya da telefon genişliğinde. |
+| 📱 **Telefondan** | Aynı ağda: soruları yanıtla, mühürle, Baş Perito'ya yaz. Sen açana kadar kapalı. |
 | 🔁 **Takılmayan ekip** | Konuşmalar yeniden başlatmada sürer. Kullanım limitine takılan perito bekler ve kendiliğinden devam eder. |
 | 🌍 **İki dil** | Türkçe ve İngilizce, açık ve koyu tema. |
 

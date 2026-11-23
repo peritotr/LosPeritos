@@ -99,6 +99,8 @@ a file yourself, set its priority, make it wait for another, or cancel it.
 | 📋 **Reports** | Every finished file comes with three lists: done, tested, and *not verified*. |
 | 📚 **Lessons** | Peritos propose standing rules; the ones you accept are given to every perito from then on. |
 | 💰 **A daily budget** | Per project, with a warning at 80% and no new work once it is spent. |
+| ⌨️ **Terminal and preview** | Real shells in the bureau's folder, and the running site in a frame at desk, tablet or phone width. |
+| 📱 **From your phone** | On the same network: answer questions, seal, write to a lead. Off until you switch it on. |
 | 🔁 **Staying on the job** | Conversations survive a restart. A perito that hits your usage limit waits and carries on by itself. |
 | 🌍 **Two languages** | English and Turkish, light and dark. |
 

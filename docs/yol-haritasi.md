@@ -109,15 +109,18 @@ zaten var; yalnızca son bakıştan beri olanları derleyen bir özet gerekir.
 
 ### 7. Gerçek terminal (B)
 
-Bugün ajan çıktısı metin akışı. Seçenekler: (a) mevcut akışı zenginleştirmek
-(araç çağrıları, diff'ler, katlanabilir bloklar), ucuz ve çoğu kullanıcıya
-yeter; (b) her ajana gerçek terminal sekmesi, omurgada ajan sürücüsünün
-değişmesini ister. Önce (a).
+Zengin ajan çıktısı (a): yapıldı. Kullanıcının kendi terminali: yapıldı.
+"Terminal" ekranı büro klasöründe gerçek kabuklar açar (sekmeli); kabuklar
+pencereye değil çekirdeğe aittir, ekrandan çıkınca da sürer. Her ajana ayrı
+terminal sekmesi yapılmadı; ajan çıktısı hâlâ katlanabilir bloklarla görünüyor.
 
 ### 8. İkinci ajan aracı: Codex (O)
 
-Adaptör arayüzü hazır. Codex eklendiğinde bir araç limite takılınca diğeri
-devralabilir. Sonra OpenCode ve Gemini CLI.
+Yapıldı, deneysel. Büro bazında seçilir (Ayarlar → Ajan aracı). Codex durup
+sormadığı için hiçbir komut mühür beklemez; Codex heyetine bağlayıcı
+verilmez. Codex'in kaynak ve belgelerine göre yazıldı, sahte bir `codex`
+komutuyla test edildi; gerçek hesapla denenmedi. Bir araç limite takılınca
+diğerinin devralması, OpenCode ve Gemini CLI yapılmadı.
 
 ### 9. Kod ve Git paneli (O)
 
@@ -131,31 +134,38 @@ devralabilir. Sonra OpenCode ve Gemini CLI.
 
 - Proje sayfaları ve wiki (Markdown): yapıldı. "Belgeler" ekranı büro
   defterini (heyetin yazdığı sayfalar), klasördeki Markdown dosyalarını ve
-  dersleri bir arada gösteriyor. Sayfaları kullanıcı düzenleyemiyor, yalnızca siliyor.
+  dersleri bir arada gösteriyor. Sayfaları kullanıcı da yazıp düzenleyebiliyor.
 - Özellik planı sayfası: plan, görevleri, kararları tek yerde.
-- Diyagramlar; ajan çizer, sen onaylarsın.
+- Diyagramlar: yapıldı. Sayfadaki ```mermaid bloğu çizim olarak görünür; heyete çizebileceği söylendi.
 - Arşivdeki dersleri bu bölüme taşıma.
 
 ### 11. Önizleme (B)
 
-- Geliştirme sunucusunu uygulama içinde bir bölmede gösterme.
-- Ekrandan bir yeri işaretleyip "burayı düzelt" deme.
+- Geliştirme sunucusunu uygulama içinde gösterme: yapıldı ("Önizleme" ekranı;
+  masaüstü, tablet ve telefon genişliği; terminalin yazdığı adres tek tıkla açılır).
+- Ekrandan bir yeri işaretleyip "burayı düzelt" deme: yapılmadı; sayfa için
+  Baş Perito'ya not başlatılabiliyor.
 - iOS simülatörü ve Android emülatörü daha sonra.
 
 ### 12. Yayın (B)
 
-- Adım adım yayın rehberleri (web sitesi, Mac uygulaması, mağazalar).
-- Deploy'un mühürle onaylanması; Vercel gibi servislere bağlayıcılar.
+- Adım adım yayın rehberleri: yapıldı (web sitesi, Mac uygulaması, iPhone,
+  Android, npm paketi, yazı ya da kampanya). Rehber Baş Perito'ya iş olarak verilebilir.
+- Deploy'un mühürle onaylanması: var. Vercel gibi servislere bağlayıcılar: yapılmadı.
 
 ### 13. Telefondan erişim (B)
 
-Telefon tarayıcısından soru cevaplama ve mühürleme; bildirimler.
+Yapıldı. Ayarlardan açılır; aynı ağdaki telefonda soruları yanıtlamak,
+mühürlemek ve Baş Perito'ya yazmak için küçük bir sayfa sunar. Anahtar
+adresin içindedir ve şifrelenmeden gider: yalnızca güvenilen ağ için.
+Uygulama kapalıyken bildirim ve ev dışından erişim (Tailscale dışında) yok.
 
 ### 14. Çok projeli koordinatör (O)
 
-Tüm büroların üstünde tek sohbet: yapıldı. Yazışmalar panelinde "Tüm bürolar"
-görünümü her büronun mesajını, sorusunu ve mührünü tek akışta gösteriyor.
-Bürolar arasında iş dağıtan ayrı bir koordinatör ajan yok.
+Tüm büroların üstünde tek sohbet: yapıldı. Bürolar arası devir: yapıldı. Bir
+büronun başı diğer büroları görebilir (`peritos bureaus`) ve iş devredebilir
+(`peritos send --to bureau:<ad>`); altı devirden sonra kullanıcının o büroya
+yazması gerekir. Hepsinin üstünde ayrı bir koordinatör ajan yok.
 
 ### 15. İlk kullanım (K)
 
@@ -190,6 +200,7 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 
 ## Önerilen sıra
 
-Sıradaki: 16'nın ikinci adımının kalanı (hazır bağlayıcılar: görsel üretimi,
-Search Console, reklam hesapları) → 8 (Codex)
-→ 9 (kod ve Git paneli). Sonrası kullanıcı geri bildirimine göre.
+Hazır bağlayıcı şablonları (Higgsfield, Runway, Kling, Stability, Search
+Console, Google Ads, Meta Ads) ve Codex yazıldı ama gerçek hesaplarla
+denenmedi: sıradaki iş bunları gerçek hesaplarla doğrulamak. Sonrası kullanıcı
+geri bildirimine göre.

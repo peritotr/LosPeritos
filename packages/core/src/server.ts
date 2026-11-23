@@ -18,6 +18,7 @@ import {
   SaveConnectorRequest,
   SavePageRequest,
   OpenTerminalRequest,
+  SetPhoneRequest,
   TerminalInput,
   SendMessageRequest,
   UpdateAgentRequest,
@@ -102,6 +103,11 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "POST /workspaces/:workspaceId/pages": (p, body) => core.savePage(p.workspaceId!, parse(SavePageRequest, body)),
     "POST /pages/:pageId/remove": (p) => core.removePage(p.pageId!),
     "GET /workspaces/:workspaceId/docs": (p) => core.listDocs(p.workspaceId!),
+    "GET /phone": () => core.phone.status(),
+    "POST /phone": (_p, body) => {
+      const request = parse(SetPhoneRequest, body);
+      return core.phone.set(request.enabled, request.renew);
+    },
     "GET /workspaces/:workspaceId/terminals": (p) => core.listTerminals(p.workspaceId!),
     "POST /workspaces/:workspaceId/terminals": (p, body) => core.openTerminal(p.workspaceId!, parse(OpenTerminalRequest, body ?? {})),
     "POST /terminals/:terminalId/close": (p) => core.closeTerminal(p.terminalId!),

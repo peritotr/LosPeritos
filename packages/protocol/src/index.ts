@@ -271,6 +271,16 @@ export const TerminalInput = z.discriminatedUnion("type", [
   z.object({ type: z.literal("resize"), cols: z.number(), rows: z.number() }),
 ]);
 
+// ── Phone ───────────────────────────────────────────────────────────────────
+
+/** Whether the bureau can be reached from a phone on the same network, and at which addresses. */
+export const PhoneAccess = z.object({ enabled: z.boolean(), urls: z.array(z.string()) });
+export const SetPhoneRequest = z.object({
+  enabled: z.boolean(),
+  /** Make a new key: every address handed out before stops working. */
+  renew: z.boolean().optional(),
+});
+
 // ── Run & budget ────────────────────────────────────────────────────────────
 
 export const Run = z.object({
@@ -510,6 +520,8 @@ export const routes = {
   closeTerminal: "POST /terminals/:terminalId/close",
   /** WebSocket, `?token=`: `{type:"data"|"exit"}` out, TerminalInput in. */
   terminalSocket: "GET /terminals/:terminalId/socket",
+  phone: "GET /phone",
+  setPhone: "POST /phone",
   connectors: "GET /workspaces/:workspaceId/connectors",
   saveConnector: "POST /workspaces/:workspaceId/connectors",
   removeConnector: "POST /workspaces/:workspaceId/connectors/:connectorId/remove",
@@ -675,6 +687,7 @@ export type Connector = z.infer<typeof Connector>;
 export type ConnectorTool = z.infer<typeof ConnectorTool>;
 export type Terminal = z.infer<typeof Terminal>;
 export type OpenTerminalRequest = z.infer<typeof OpenTerminalRequest>;
+export type PhoneAccess = z.infer<typeof PhoneAccess>;
 export type SavePageRequest = z.infer<typeof SavePageRequest>;
 export type SaveConnectorRequest = z.infer<typeof SaveConnectorRequest>;
 export type ApprovalStatus = z.infer<typeof ApprovalStatus>;

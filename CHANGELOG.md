@@ -29,6 +29,16 @@
   in the working folder. Built from Codex's documentation and tested against
   a stand-in, not yet against a real account.
 
+**Between bureaus**
+- A lead can see your other bureaus and hand work to another bureau's lead;
+  the message shows in both conversations. After six hand-overs a bureau
+  takes no more until you have written there.
+
+**From your phone**
+- Settings can open a small page to phones on the same network, for answering
+  questions, sealing and writing to a lead. It has its own key and reaches
+  nothing else; it is off until you switch it on, and the key can be renewed.
+
 **Guides**
 - Publishing guides, step by step: a web site, a Mac app, an iPhone app, an
   Android app, an npm package, an article or campaign. Steps can be ticked

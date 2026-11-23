@@ -622,6 +622,16 @@ export const en = {
     text: "Show as text",
     drawing: "Show the drawing",
   },
+  phone: {
+    title: "From your phone",
+    toggle: "Let a phone on this network reach the bureau",
+    hint: "Opens a small page for answering questions, sealing and writing to a lead. It cannot open files, terminals, connectors or settings. The address is the key and travels unencrypted, so switch this on only on a network you trust; away from home, a private network such as Tailscale carries it safely.",
+    scan: "Scan this with the phone's camera, or open the address. Keep the page open, or add it to the home screen: it shows what is waiting and buzzes when something new arrives.",
+    code: "Code to scan with the phone",
+    renew: "Make a new address",
+    renewHint: "Every address handed out so far stops working.",
+    noNetwork: "This machine is not on a network a phone could reach it over.",
+  },
   mode: {
     label: "How much to show",
     simple: "Plain",

@@ -620,6 +620,16 @@ export const tr: Strings = {
     text: "Metin olarak göster",
     drawing: "Çizimi göster",
   },
+  phone: {
+    title: "Telefondan",
+    toggle: "Bu ağdaki bir telefon büroya ulaşabilsin",
+    hint: "Soruları yanıtlamak, mühürlemek ve Baş Perito'ya yazmak için küçük bir sayfa açar. Dosyaları, terminalleri, bağlayıcıları ya da ayarları açamaz. Adres anahtarın kendisidir ve şifrelenmeden gider; bunu yalnızca güvendiğin bir ağda aç. Ev dışında Tailscale gibi özel bir ağ onu güvenle taşır.",
+    scan: "Bunu telefonun kamerasıyla tara ya da adresi aç. Sayfayı açık tut ya da ana ekrana ekle: bekleyenleri gösterir, yeni bir şey gelince titreşir.",
+    code: "Telefonla taranacak kod",
+    renew: "Yeni adres oluştur",
+    renewHint: "Şimdiye kadar verilen bütün adresler çalışmaz olur.",
+    noNetwork: "Bu makine bir telefonun ulaşabileceği bir ağda değil.",
+  },
   mode: {
     label: "Görünüm düzeyi",
     simple: "Sade",
