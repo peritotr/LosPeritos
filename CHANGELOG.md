@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Language**
+- A teammate's own notes ("I'll start by reading…") are in your language too.
+  The app now tells each bureau which language it is shown in, and the team
+  is told outright, with its instructions and again with each task; a rule
+  to "follow the user" did not reach a teammate who never hears from you.
+
 **Seals that can be read**
 - A held tool call is named in words, not raw data: "Higgs: estimate_image_cost"
   rather than the tool's internal name and its arguments run together. The

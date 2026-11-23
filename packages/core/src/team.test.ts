@@ -1203,3 +1203,18 @@ test("a held call is shown readably, and a tool that came with the user's accoun
   await balance;
   await core.close();
 });
+
+test("once the app has said which language the user reads, the whole team is told outright", async () => {
+  const { core, adapter, workspace } = setup({ repo: false });
+  assert.doesNotMatch(adapter.starts[0]!.systemPrompt!, /The user reads/);
+  core.updateWorkspace(workspace.id, { language: "tr" });
+  core.updateWorkspace(workspace.id, { language: "tr" }); // Saying it again changes nothing.
+  await core.createTask(workspace.id, { title: "Logo taslağı", description: "Üç seçenek çiz.", specialty: "designer", effort: undefined, priority: undefined, dependsOn: [], start: true });
+  for (let i = 0; i < 50 && !adapter.sent.some((text) => text.startsWith("Your task #")); i++) await tick();
+  // A teammate never hears from the user, so it is told with its instructions and again with its task.
+  assert.match(adapter.starts.at(-1)!.systemPrompt!, /The user reads Turkish\. Write in Turkish/);
+  assert.match(adapter.sent.find((text) => text.startsWith("Your task #"))!, /\(Write in Turkish: your notes as you work/);
+  core.sendMessage(workspace.id, { body: "devam", toAgentId: null, taskId: null });
+  assert.match(adapter.starts.at(-1)!.systemPrompt!, /The user reads Turkish/, "the lead is told at its next start");
+  await core.close();
+});

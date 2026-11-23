@@ -35,6 +35,8 @@ export const Workspace = z.object({
    * this bureau) that may go ahead unasked, by their full name.
    */
   freeTools: z.array(z.string()).optional(),
+  /** The language the user reads, as the app is set to ("tr", "en"): the team writes in it. */
+  language: z.string().regex(/^[a-z]{2}$/).optional(),
   /** Set on the one bureau that does no work of its own: its lead hands jobs to the other bureaus. */
   coordinator: z.boolean().optional(),
   /** The agent tool this bureau's team runs on; Claude Code when absent. */
@@ -405,6 +407,7 @@ export const UpdateWorkspaceRequest = Workspace.pick({
   dispatchPaused: true,
   agentTool: true,
   freeTools: true,
+  language: true,
 }).partial();
 
 /** A task the user writes themselves, rather than the lead. */

@@ -156,6 +156,21 @@ function leadPrompt(kind: WorkspaceKind): string {
  * These instructions and the app's own notices are in English, which pulls an
  * agent towards answering in English. The user's language is the one to write in.
  */
+const LANGUAGE_NAMES: Record<string, string> = { tr: "Turkish", en: "English", de: "German", fr: "French", es: "Spanish" };
+/** The language the bureau's user reads, by name; null when the app has not said. */
+const languageOf = (workspace: Workspace) => (workspace.language ? (LANGUAGE_NAMES[workspace.language] ?? null) : null);
+/** Said outright where it is known: a rule to "follow the user" is not enough for a teammate who never hears from the user. */
+const languagePrompt = (workspace: Workspace) => {
+  const name = languageOf(workspace);
+  return (
+    LANGUAGE_PROMPT +
+    (name
+      ? `The user reads ${name}. Write in ${name}: every message, and also the short notes you write while you work ("I'll start by reading…" is written in ${name} too). ` +
+        `Only if the user writes to you in another language do you answer in that one.\n`
+      : "")
+  );
+};
+
 const LANGUAGE_PROMPT =
   "\n\nLanguage: write in the language the user writes in. These instructions and the notices the app sends you are in English; " +
   "that says nothing about the language to answer in. If the user writes Turkish, everything the user will read is in Turkish: " +
@@ -523,13 +538,16 @@ export class Core {
 
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused" | "agentTool" | "freeTools">>,
+    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused" | "agentTool" | "freeTools" | "language">>,
   ): Workspace {
     const state = this.state(workspaceId);
     if (patch.agentTool && !this.adapters.has(patch.agentTool)) throw new CoreError("bad_request", `No agent tool "${patch.agentTool}" here.`);
     const before = this.toolOf(state.workspace);
+    const languageBefore = state.workspace.language;
     state.workspace = { ...state.workspace, ...patch };
     state.store.writeDoc("workspace", state.workspace);
+    // The team is told the language when it sits down: a change reaches it at its next start.
+    if (patch.language && patch.language !== languageBefore) this.refreshSessions(workspaceId);
     const tool = this.toolOf(state.workspace);
     if (tool !== before) {
       // Another tool cannot pick up this one's conversations: the team starts afresh on it, tasks and notebook intact.
@@ -1541,7 +1559,10 @@ export class Core {
         }
         // What is actually there is more reliable than what the agent remembered to list.
         const draft = task.worktree && !task.branch ? filesUnder(task.worktree) : null;
-        const files = new Set(draft ?? command.report.files ?? []);
+        // An agent sometimes names a file by its full path; the report keeps it as it lies in the working folder.
+        const base = task.worktree ?? state.workspace.path;
+        const named = (command.report.files ?? []).map((file) => (file.startsWith(base + sep) ? relative(base, file) : file));
+        const files = new Set(draft ?? named);
         if (needsMerge) {
           const changed = await git.changedFiles(this.repoDir(state, task.repo), task.baseBranch!, task.branch!).catch(() => []);
           for (const file of changed) files.add(file);
@@ -1876,7 +1897,8 @@ export class Core {
         this.deliver(
           state,
           assigned,
-          `Your task #${task.number}: ${task.title}\n\n${task.description}`.trim(),
+          `Your task #${task.number}: ${task.title}\n\n${task.description}`.trim() +
+            (languageOf(state.workspace) ? `\n\n(Write in ${languageOf(state.workspace)}: your notes as you work, your messages and your report.)` : ""),
         );
       }
     });
@@ -2105,7 +2127,7 @@ export class Core {
                   : task.branch
                     ? { on: "branch" }
                     : { on: "draft", project: state.workspace.path },
-              )) + this.lessonsPrompt(state) + (agent.adapter === "codex" ? CODEX_PROMPT : this.connectorsPrompt(state)) + LANGUAGE_PROMPT,
+              )) + this.lessonsPrompt(state) + (agent.adapter === "codex" ? CODEX_PROMPT : this.connectorsPrompt(state)) + languagePrompt(state.workspace),
         // Codex cannot hold a call back for the user's seal, so its team is not handed the connectors.
         connectors: agent.adapter === "codex" ? {} : this.mcpServers(state, token),
         sessionId,

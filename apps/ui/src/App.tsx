@@ -38,7 +38,7 @@ import { Archive, Awaiting, BudgetBar, Ledger, SealToast, Settings, Setup } from
 import { Bench, Correspondence, FileDetail, Files, PeritoDetail } from "./screens-work";
 import { shell, useCore } from "./store";
 import { Tour, tourSeen, useTour } from "./onboarding";
-import { T } from "./strings";
+import { T, language } from "./strings";
 import { I, fileRef, kindOf, money, perito } from "./ui";
 
 type Theme = "light" | "dark";
@@ -117,6 +117,11 @@ export function App() {
     setThemeState(next);
     store(THEME_KEY, next);
   };
+  // The team writes in the language the app is shown in: tell each bureau, once, and again if it changes.
+  const spoken = bureau?.language;
+  useEffect(() => {
+    if (bureau && spoken !== language) void actions.updateWorkspace(bureau.id, { language }).catch(() => undefined);
+  }, [bureau?.id, spoken]);
   const pickBureau = (id: string) => {
     setBureauId(id);
     store(BUREAU_KEY, id);
