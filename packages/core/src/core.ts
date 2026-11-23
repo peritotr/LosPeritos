@@ -80,7 +80,10 @@ interface WorkspaceState {
 
 const BRIDGE_PROMPT =
   "You talk to the team and the user through the `peritos` command in your shell:\n" +
-  "- `peritos ask \"<question>\" --option A --option B --recommend A\` asks the user, naming the option you would pick; then stop and wait for the answer.\n" +
+  "- `peritos ask \"<question>\" --option A --option B --recommend A\` asks the user, naming the option you would pick; then stop and wait for the answer. " +
+  "Add `--file <path>` (repeatable) to show files with the question: when the choice is between things to look at (logos, layouts, drafts), attach every one and name the options after them.\n" +
+  "- The user sees only this app: your messages, questions and the files you attach. They do not see a tool's own widget or preview, and should not have to open a folder. " +
+  "So never write \"see the widget\" or \"it is in the folder\": put what you made in your working folder (download what a service generated) and show it with `--file`, on `peritos ask` or on `peritos send --to user \"<message>\" --file <path>`.\n" +
   "- `peritos approval --title \"<what>\" --kind deploy|command|other --detail \"<why>\" --step \"<step>\"` " +
   "requests the user's approval before anything that deploys, publishes, deletes data or cannot be undone; then stop and wait.\n" +
   "- `peritos send --to <agent name|lead|user> \"<message>\"` messages a teammate.\n" +
@@ -1347,6 +1350,38 @@ export class Core {
   }
 
   /** Store a file the user wants to attach; returns the name to send with the message. */
+  /** Where an attachment lies, for sending its bytes to the window. */
+  attachmentAt(workspaceId: string, name: string): { full: string; mime: string; size: number } {
+    const state = this.state(workspaceId);
+    if (basename(name) !== name) throw new CoreError("bad_request", `No attachment named "${name}"`);
+    return fileAt(this.attachmentsDir(state), name);
+  }
+
+  /**
+   * Files an agent wants the user to see with a message: copied beside the
+   * user's own attachments, so they stay as they were when shown. Only files
+   * of the bureau's folder or the agent's working folder can be shown.
+   */
+  private showFiles(state: WorkspaceState, agent: Agent, files: string[]): string[] {
+    if (files.length === 0) return [];
+    const task = agent.taskId ? state.tasks.get(agent.taskId) : undefined;
+    const cwd = task?.worktree && existsSync(task.worktree) ? task.worktree : state.workspace.path;
+    const allowed = [state.workspace.path, cwd, join(this.options.dataDir, "drafts", state.workspace.id)].map((dir) => (existsSync(dir) ? realpathSync(dir) : dir));
+    const folder = this.attachmentsDir(state);
+    mkdirSync(folder, { recursive: true });
+    return files.map((file) => {
+      const full = resolve(cwd, file);
+      if (!existsSync(full) || !statSync(full).isFile()) throw new CoreError("bad_request", `No file ${file} to show. Give a path inside your working folder.`);
+      const real = realpathSync(full);
+      if (!allowed.some((dir) => real === dir || real.startsWith(dir + sep))) throw new CoreError("bad_request", `${file} is outside the bureau's folder; copy it into your working folder first.`);
+      if (statSync(real).size > MAX_ATTACHMENT_BYTES) throw new CoreError("bad_request", `${file} is too large to show (at most ${MAX_ATTACHMENT_BYTES / 1024 / 1024} MB).`);
+      const safe = basename(real).replace(/[^\w.-]+/g, "_").replace(/^\.+/, "").slice(-80) || "file";
+      const stored = `${randomBytes(4).toString("hex")}-${safe}`;
+      copyFileSync(real, join(folder, stored));
+      return stored;
+    });
+  }
+
   uploadAttachment(workspaceId: string, name: string, base64: string): { name: string } {
     const state = this.state(workspaceId);
     const data = Buffer.from(base64, "base64");
@@ -1675,18 +1710,20 @@ export class Core {
           throw new CoreError("not_found", `No agent named "${command.to}". Agents: ${names}`);
         }
         if (target) this.requireBudget(state);
+        const shown = this.showFiles(state, agent, command.files);
         this.addMessage(state, {
           author: { kind: "agent", agentId: agent.id },
           toAgentId: target?.id ?? null,
           taskId: agent.taskId,
           body: command.body,
           question: null,
+          ...(shown.length && { attachments: shown }),
         });
         if (target) this.deliver(state, target, `Message from ${agent.name}: ${command.body}`);
         return say("Sent.");
       }
       case "ask":
-        this.raiseQuestion(state, agent.id, command.body, command.options, command.recommended);
+        this.raiseQuestion(state, agent.id, command.body, command.options, command.recommended, this.showFiles(state, agent, command.files));
         return say("Question sent to the user. Stop here; the answer arrives as your next message.");
       case "approval":
         this.raiseApproval(state, agent.id, command);
@@ -1948,6 +1985,7 @@ export class Core {
     body: string,
     options: string[],
     recommended?: string,
+    attachments: string[] = [],
   ): void {
     const agent = state.agents.get(agentId);
     void this.notifier.nudge("question");
@@ -1958,6 +1996,7 @@ export class Core {
       body,
       // A recommendation only counts if it is one of the options on offer.
       question: { options, recommended: recommended && options.includes(recommended) ? recommended : null, answer: null },
+      ...(attachments.length && { attachments }),
     });
     this.setAgent(state, agentId, { status: "asking" });
   }

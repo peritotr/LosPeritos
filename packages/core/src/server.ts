@@ -262,6 +262,15 @@ export function createServer(core: Core, token: string): Server {
         return;
       }
       if (!tokenMatches(bearer, token)) throw new CoreError("unauthorized", "Missing or wrong token");
+      const attached = req.method === "GET" && /^\/workspaces\/([^/]+)\/attachments\/([^/]+)$/.exec(path);
+      if (attached) {
+        const file = core.attachmentAt(attached[1]!, decodeURIComponent(attached[2]!));
+        // An attachment is shown, never run: a page or a script among them is sent as plain bytes to save.
+        const type = /^(image\/(png|jpeg|gif|webp|avif)|video\/|audio\/|application\/pdf|text\/plain)/.test(file.mime) ? file.mime : "application/octet-stream";
+        res.writeHead(200, { "Content-Type": type, "Content-Length": file.size, "X-Content-Type-Options": "nosniff", ...cors });
+        createReadStream(file.full).on("error", () => res.destroy()).pipe(res);
+        return;
+      }
       const raw = req.method === "GET" && /^\/tasks\/([^/]+)\/raw$/.exec(path);
       if (raw) {
         const file = core.taskFileAt(raw[1]!, url.searchParams.get("path") ?? "");

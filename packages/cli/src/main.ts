@@ -79,9 +79,9 @@ function build(argv: string[]): AgentCommandInput {
         },
       };
     case "send":
-      return { command: "send", to: values.to ?? "", body: text };
+      return { command: "send", to: values.to ?? "", body: text, files: values.file };
     case "ask":
-      return { command: "ask", body: text, options: values.option, recommended: values.recommend };
+      return { command: "ask", body: text, options: values.option, recommended: values.recommend, files: values.file };
     case "approval":
       return {
         command: "approval",

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**Seeing what you are asked about**
+- A perito can show you files with a question or a message: pictures appear
+  as pictures under the question, in the conversation and on the Waiting
+  screen, and a click enlarges one. The team is told that you see only this
+  app, so it attaches what it made instead of pointing at a tool's widget or
+  a folder.
+
 **Language**
 - A teammate's own notes ("I'll start by reading…") are in your language too.
   The app now tells each bureau which language it is shown in, and the team

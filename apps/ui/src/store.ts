@@ -314,6 +314,8 @@ export interface Actions {
   taskFile(taskId: string, path: string): Promise<TaskFile>;
   /** The bytes of a video, sound or PDF a task handed in. */
   taskMedia(taskId: string, path: string): Promise<Blob>;
+  /** The bytes of a file attached to a message. */
+  attachment(workspaceId: string, name: string): Promise<Blob>;
   /** `repo` names a subfolder repository where the folder holds several. */
   repo(workspaceId: string, repo?: string | null): Promise<RepoState>;
   /** The patch of one commit, or of the uncommitted changes when `commit` is null. */
@@ -488,6 +490,15 @@ export function useCore(): [State, Actions] {
     renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
     checkTools: () => post<ToolCheck[]>("/setup", undefined, "GET"),
     taskFile: (taskId, path) => post<TaskFile>(`/tasks/${taskId}/file?path=${encodeURIComponent(path)}`, undefined, "GET"),
+    attachment: async (workspaceId, name) => {
+      const response = await fetch(`${CORE_URL}/workspaces/${workspaceId}/attachments/${encodeURIComponent(name)}`, {
+        headers: { Authorization: `Bearer ${token.current}` },
+      }).catch(() => {
+        throw new ApiError("offline", "Cannot reach the local service.");
+      });
+      if (!response.ok) throw new ApiError("not_found", "The file is no longer there.");
+      return response.blob();
+    },
     taskMedia: async (taskId, path) => {
       const response = await fetch(`${CORE_URL}/tasks/${taskId}/raw?path=${encodeURIComponent(path)}`, {
         headers: { Authorization: `Bearer ${token.current}` },

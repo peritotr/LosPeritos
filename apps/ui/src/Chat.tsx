@@ -1,3 +1,4 @@
+import { Attachments } from "./attachments";
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
 import { Check, Paperclip, Send, Stamp as StampIcon, X } from "lucide-react";
 import type { Agent, Approval, Message } from "@losperitos/protocol";
@@ -219,16 +220,7 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
                 ) : (
                   <div className="msg-body">{message ? (message.author.kind === "system" ? fromCore(message.body) : message.body) : sealText(approval!).title}</div>
                 )}
-                {message?.attachments?.length ? (
-                  <div className="msg-files">
-                    {message.attachments.map((file) => (
-                      <span key={file} className="file-chip">
-                        <I icon={Paperclip} size={12} />
-                        {file.replace(/^[0-9a-f]{8}-/, "")}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
+                {message?.attachments?.length ? <Attachments ctx={ctx} workspaceId={message.workspaceId} names={message.attachments} /> : null}
                 {message?.question && <QuestionReply ctx={ctx} message={message} onError={setError} />}
                 {approval && <SealReply ctx={ctx} approval={approval} onError={setError} />}
               </div>

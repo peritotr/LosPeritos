@@ -1218,3 +1218,29 @@ test("once the app has said which language the user reads, the whole team is tol
   assert.match(adapter.starts.at(-1)!.systemPrompt!, /The user reads Turkish/, "the lead is told at its next start");
   await core.close();
 });
+
+test("an agent can show the user files with a question or a message, and only files of its own folders", async () => {
+  const { core, folder, workspace, as } = setup({ repo: false });
+  sh(folder, "mkdir", "-p", "gorseller/logo");
+  writeFileSync(join(folder, "gorseller/logo/rota-m.png"), Buffer.from("89504e470d0a1a0a", "hex"));
+  writeFileSync(join(folder, "gorseller/logo/rozet.svg"), "<svg xmlns='http://www.w3.org/2000/svg'/>");
+
+  await as(0, { command: "ask", body: "Hangi logo?", options: ["Rota-M", "Rozet"], files: ["gorseller/logo/rota-m.png", "gorseller/logo/rozet.svg"] });
+  const question = core.listMessages(workspace.id).at(-1)!;
+  assert.equal(question.attachments!.length, 2);
+  assert.match(question.attachments![0]!, /^[0-9a-f]{8}-rota-m\.png$/);
+  const shown = core.attachmentAt(workspace.id, question.attachments![0]!);
+  assert.equal(shown.mime, "image/png");
+  // What was shown stays as it was, whatever happens to the file afterwards.
+  writeFileSync(join(folder, "gorseller/logo/rota-m.png"), "changed");
+  assert.equal(statSync(shown.full).size, 8);
+
+  core.answerQuestion(question.id, "Rota-M");
+  await as(0, { command: "send", to: "user", body: "Seçilen logo ekte.", files: ["gorseller/logo/rota-m.png"] });
+  assert.equal(core.listMessages(workspace.id).at(-1)!.attachments!.length, 1);
+
+  await assert.rejects(as(0, { command: "ask", body: "x", files: ["missing.png"] }), /No file missing\.png to show/);
+  await assert.rejects(as(0, { command: "ask", body: "x", files: ["/etc/hosts"] }), /outside the bureau's folder/);
+  assert.throws(() => core.attachmentAt(workspace.id, "../workspace.json"), /No attachment/);
+  await core.close();
+});

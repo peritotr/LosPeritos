@@ -194,7 +194,7 @@ export const Message = z.object({
       answer: z.string().nullable(),
     })
     .nullable(),
-  /** Files the user attached, as names inside the workspace's attachments folder. */
+  /** Files that go with the message (the user's, or an agent's to show the user), as names inside the workspace's attachments folder. */
   attachments: z.array(z.string()).optional(),
   createdAt: timestamp,
 });
@@ -512,6 +512,8 @@ export const routes = {
   sendMessage: "POST /workspaces/:workspaceId/messages",
   /** Store a file so the next message can attach it. */
   uploadAttachment: "POST /workspaces/:workspaceId/attachments",
+  /** The bytes of one attachment, for showing it. */
+  attachment: "GET /workspaces/:workspaceId/attachments/:name",
   answerQuestion: "POST /messages/:messageId/answer",
   approvals: "GET /workspaces/:workspaceId/approvals",
   decideApproval: "POST /approvals/:approvalId/decision",
@@ -618,7 +620,7 @@ export const AgentCommand = z.discriminatedUnion("command", [
   z.object({ command: z.literal("task.done"), report: TaskReport }),
   /** `to` is an agent name, "lead" or "user". */
   /** `to` is a teammate, `lead`, `user`, or for a lead `bureau:<name>`: the lead of another bureau. */
-  z.object({ command: z.literal("send"), to: z.string().min(1), body: z.string().min(1) }),
+  z.object({ command: z.literal("send"), to: z.string().min(1), body: z.string().min(1), files: z.array(z.string()).max(12).default([]) }),
   /** The user's other bureaus and what each is busy with. */
   z.object({ command: z.literal("bureaus") }),
   z.object({
@@ -627,6 +629,8 @@ export const AgentCommand = z.discriminatedUnion("command", [
     options: z.array(z.string()).default([]),
     /** One of the options: the agent's own suggestion. */
     recommended: z.string().optional(),
+    /** Files to show the user with the question (pictures to choose between, a draft to judge), as paths in the agent's folder. */
+    files: z.array(z.string()).max(12).default([]),
   }),
   z.object({
     command: z.literal("approval"),
