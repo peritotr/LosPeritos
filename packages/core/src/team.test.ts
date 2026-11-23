@@ -517,7 +517,9 @@ test("a connector reaches the team, keeps its secrets, and seals every call not 
 
   // A tool of a server the bureau does not know is treated as any other command.
   void core.requestPermission(tokenOf(1), "mcp__other__get_rows", {});
-  assert.equal(core.waiting().approvals[0]!.kind, "command");
+  // A server that is not this bureau's connector is still asked about, by name.
+  assert.equal(core.waiting().approvals[0]!.kind, "connector");
+  assert.equal(core.waiting().approvals[0]!.title, "other: get_rows");
 
   save({ id: "ads", name: "Ads", url: "https://example.com/mcp", secrets: { Authorization: "Bearer t", Gone: "" } });
   assert.deepEqual(core.listConnectors(workspace.id).map((c) => c.id), ["search-console", "ads"]);
@@ -1164,5 +1166,40 @@ test("a tool call shown by a hook goes through unless it publishes, deploys or d
   await core.decideApproval(seal!.id, "rejected");
   assert.equal(await held, "rejected");
   await assert.rejects(async () => core.screenToolCall("made-up", "Bash", { command: "git push" }), /Unknown agent token/);
+  await core.close();
+});
+
+test("a held call is shown readably, and a tool that came with the user's account can be remembered", async () => {
+  const { core, workspace, tokenOf } = setup({ repo: false });
+  const token = tokenOf(0);
+  const seals = () => core.listApprovals(workspace.id).filter((approval) => approval.status === "pending");
+
+  const search = core.requestPermission(token, "WebSearch", { query: "Monk Adventure Instagram brand" });
+  await tick();
+  assert.equal(seals()[0]!.title, "WebSearch: Monk Adventure Instagram brand");
+  assert.equal(seals()[0]!.detail, "Monk Adventure Instagram brand", "no raw JSON where one line says it");
+  await core.decideApproval(seals()[0]!.id, "rejected");
+  assert.equal(await search, "rejected");
+
+  // A server from the user's own account: named plainly, its arguments laid out, and it can be remembered.
+  const estimate = core.requestPermission(token, "mcp__claude_ai_Higgs__estimate_image_cost", { params: { model: "gpt_image_2_6", aspect_ratio: "1:1" } });
+  await tick();
+  const seal = seals()[0]!;
+  assert.equal(seal.kind, "connector");
+  assert.equal(seal.title, "Higgs: estimate_image_cost");
+  assert.match(seal.detail, /"model": "gpt_image_2_6"/);
+  assert.deepEqual(seal.call, { connectorId: "claude_ai_Higgs", tool: "estimate_image_cost" });
+  await core.decideApproval(seal.id, "approved", true);
+  assert.equal(await estimate, "approved");
+  assert.deepEqual(core.listWorkspaces()[0]!.freeTools, ["mcp__claude_ai_Higgs__estimate_image_cost"]);
+  assert.equal(await core.requestPermission(token, "mcp__claude_ai_Higgs__estimate_image_cost", {}), "approved", "remembered: it goes ahead unasked");
+
+  const balance = core.requestPermission(token, "mcp__claude_ai_Higgs__balance", {});
+  await tick();
+  assert.equal(seals()[0]!.title, "Higgs: balance");
+  assert.equal(seals()[0]!.detail, "", "a call without arguments shows none");
+  core.updateWorkspace(workspace.id, { freeTools: [] });
+  await core.decideApproval(seals()[0]!.id, "approved");
+  await balance;
   await core.close();
 });

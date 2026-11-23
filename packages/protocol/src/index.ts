@@ -30,6 +30,11 @@ export const Workspace = z.object({
   dailyBudgetUsd: z.number().nonnegative().nullable(),
   /** While set, queued tasks are not handed out; work already started carries on. */
   dispatchPaused: z.boolean().optional(),
+  /**
+   * Tools of servers that come with the user's own account (not connectors of
+   * this bureau) that may go ahead unasked, by their full name.
+   */
+  freeTools: z.array(z.string()).optional(),
   /** Set on the one bureau that does no work of its own: its lead hands jobs to the other bureaus. */
   coordinator: z.boolean().optional(),
   /** The agent tool this bureau's team runs on; Claude Code when absent. */
@@ -399,6 +404,7 @@ export const UpdateWorkspaceRequest = Workspace.pick({
   dailyBudgetUsd: true,
   dispatchPaused: true,
   agentTool: true,
+  freeTools: true,
 }).partial();
 
 /** A task the user writes themselves, rather than the lead. */

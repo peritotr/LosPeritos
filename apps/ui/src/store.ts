@@ -291,7 +291,7 @@ export interface Actions {
   openCoordinator(name: string): Promise<Workspace>;
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "kind" | "dispatchPaused" | "agentTool">>,
+    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "kind" | "dispatchPaused" | "agentTool" | "freeTools">>,
   ): Promise<void>;
   createTask(workspaceId: string, task: NewTask): Promise<void>;
   updateTask(taskId: string, patch: Partial<NewTask> & { status?: "draft" | "queued" | "cancelled" }): Promise<void>;

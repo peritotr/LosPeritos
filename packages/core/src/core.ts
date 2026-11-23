@@ -523,7 +523,7 @@ export class Core {
 
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused" | "agentTool">>,
+    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused" | "agentTool" | "freeTools">>,
   ): Workspace {
     const state = this.state(workspaceId);
     if (patch.agentTool && !this.adapters.has(patch.agentTool)) throw new CoreError("bad_request", `No agent tool "${patch.agentTool}" here.`);
@@ -1380,10 +1380,16 @@ export class Core {
       // Only this tool, by its exact name: nothing wider than what was looked at.
       const stored = this.storedConnectors(state.workspace.id);
       const { connectorId, tool } = item.call;
-      this.storeConnectors(
-        state.workspace.id,
-        stored.map((c) => (c.id === connectorId && !c.free.includes(tool) ? { ...c, free: [...c.free, tool] } : c)),
-      );
+      if (stored.some((c) => c.id === connectorId)) {
+        this.storeConnectors(
+          state.workspace.id,
+          stored.map((c) => (c.id === connectorId && !c.free.includes(tool) ? { ...c, free: [...c.free, tool] } : c)),
+        );
+      } else {
+        // Not a connector of this bureau: the tool is remembered with the bureau itself.
+        const full = `mcp__${connectorId}__${tool}`;
+        if (!state.workspace.freeTools?.includes(full)) this.updateWorkspace(state.workspace.id, { freeTools: [...(state.workspace.freeTools ?? []), full] });
+      }
     }
     const task = item.taskId ? state.tasks.get(item.taskId) : undefined;
     if (item.kind === "merge" && task && decision === "approved") {
@@ -1728,12 +1734,34 @@ export class Core {
       });
       return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
     }
-    const command = typeof input.command === "string" ? input.command : JSON.stringify(input);
+    const shown = (value: unknown) => {
+      const text = JSON.stringify(value, null, 2);
+      return text.length > 4000 ? text.slice(0, 3999) + "…" : text;
+    };
+    // A server that came with the user's own account (Claude Code loads those too), not one of this bureau's connectors.
+    const [, server, outside] = /^mcp__(.+?)__(.+)$/.exec(tool) ?? [];
+    if (server && outside) {
+      if (state.workspace.freeTools?.includes(tool)) return Promise.resolve("approved");
+      const name = server.replace(/^claude_ai_/, "").replace(/_/g, " ");
+      const approval = this.raiseApproval(state, agentId, {
+        kind: "connector",
+        title: `${name}: ${outside}`,
+        detail: Object.keys(input).length ? shown(input) : "",
+        steps: [],
+        reversible: false,
+        call: { connectorId: server, tool: outside },
+      });
+      return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
+    }
+    // What the call is about, in a line: the command, the search, the address, the file.
+    const main = ["command", "query", "url", "file_path", "path", "pattern", "prompt"].map((key) => input[key]).find((value) => typeof value === "string" && value.trim()) as string | undefined;
+    const command = main ?? (Object.keys(input).length ? JSON.stringify(input) : "");
     const why = typeof input.description === "string" ? input.description : "";
+    const rest = Object.keys(input).filter((key) => key !== "description").length > 1 || !main;
     const approval = this.raiseApproval(state, agentId, {
       kind: "command",
-      title: `${tool}: ${command.length > 80 ? command.slice(0, 79) + "…" : command}`,
-      detail: [why, command].filter(Boolean).join("\n\n"),
+      title: command ? `${tool}: ${command.length > 80 ? command.slice(0, 79) + "…" : command}` : tool,
+      detail: [why, main && !rest ? main : Object.keys(input).length ? shown(input) : ""].filter(Boolean).join("\n\n"),
       steps: [],
       // Nobody has checked whether this command can be undone, so do not claim it can.
       reversible: false,

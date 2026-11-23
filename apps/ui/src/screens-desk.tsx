@@ -110,7 +110,7 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
         <dt>{T.seal.bureau}</dt>
         <dd style={{ textAlign: "left" }}>{names.bureau(approval.workspaceId)?.name}</dd>
       </dl>
-      {approval.detail && <p className="detail-text">{sealText(approval).detail}</p>}
+      {approval.detail && <p className={`detail-text ${/^\s*[{[]/.test(approval.detail) ? "is-data" : ""}`}>{sealText(approval).detail}</p>}
       {approval.steps.length > 0 && (
         <div>
           <div className="kicker" style={{ marginBottom: 8 }}>

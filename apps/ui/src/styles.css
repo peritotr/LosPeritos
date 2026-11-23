@@ -707,3 +707,8 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 /* The files under a seal: read before sealing. */
 .seal-files { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .seal-files .preview-body { max-height: 46vh; overflow: auto; }
+
+/* A seal's words are whatever the agent or a tool wrote: long names and JSON break rather than run out of the card. */
+.seal-card h3, .seal-card .detail-text, .seal-card dd, .reply-card, .msg-body, .toast h4 { overflow-wrap: anywhere; min-width: 0; }
+.seal-card .top > :first-child { min-width: 0; }
+.seal-card .detail-text.is-data { font-family: var(--lp-mono); font-size: 12px; padding: 10px; background: var(--lp-faint); color: var(--color-text); max-height: 240px; overflow: auto; }

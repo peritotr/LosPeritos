@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+**Seals that can be read**
+- A held tool call is named in words, not raw data: "Higgs: estimate_image_cost"
+  rather than the tool's internal name and its arguments run together. The
+  arguments are laid out underneath, and a call that one line describes (a
+  search, an address, a command) shows just that line.
+- Tools of servers connected to your own Claude account are asked about as
+  connector calls, and "do not ask again" works for them; Settings lists the
+  ones you have let through, to take back.
+- Long names no longer run out of the seal's card.
+
 ## 0.6.3 — 2026-11-23
 
 - What is under a seal can be read before sealing: the seal's detail lists the

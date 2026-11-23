@@ -430,6 +430,30 @@ export function Connectors({ ctx }: { ctx: Ctx }) {
           </div>
         ),
       )}
+      {(ctx.bureau.freeTools?.length ?? 0) > 0 && (
+        <div className="field">
+          <label>{T.connectors.accountFree}</label>
+          <div className="row wrap">
+            {ctx.bureau.freeTools!.map((tool) => (
+              <span key={tool} className="tag mono" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                {tool.replace(/^mcp__(claude_ai_)?/, "").replace("__", ": ")}
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: 0 }}
+                  aria-label={T.connectors.askAgain(tool)}
+                  title={T.connectors.askAgain(tool)}
+                  onClick={() => void ctx.actions.updateWorkspace(ctx.bureau.id, { freeTools: ctx.bureau.freeTools!.filter((other) => other !== tool) })}
+                >
+                  <I icon={X} size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <p className="muted" style={{ fontSize: 12 }}>
+            {T.connectors.accountFreeHint}
+          </p>
+        </div>
+      )}
       {open === "new" || open?.startsWith("preset:") ? (
         <ConnectorForm
           key={open}
