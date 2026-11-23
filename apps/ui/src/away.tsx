@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, CircleDashed, Inbox, X } from "lucide-react";
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
-import { T } from "./strings";
+import { T, fromCore } from "./strings";
 import { I, TASK_STATUS, clock, fileRef, sealText } from "./ui";
 
 /**
@@ -142,7 +142,7 @@ export function AwayCard({ ctx }: { ctx: Ctx }) {
           {questions.map((question) => (
             <button key={question.id} className="away-row" onClick={() => ctx.go({ screen: "awaiting", id: question.id })}>
               <span className="mono">{T.awaiting.tagQuestion}</span>
-              <span className="ellipsis">{question.body}</span>
+              <span className="ellipsis">{fromCore(question.body)}</span>
             </button>
           ))}
         </>

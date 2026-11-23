@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**A team that does not go quiet**
+- A team member that stops with its task still open is reminded once to
+  report or to ask. If it stops again, the user is asked in its name, with
+  what it last said, so the task shows among the things waiting.
+- Members are told to ask for what they need when something outside their
+  control stops them, rather than end with a message.
+
 **The Lead Perito**
 - The lead at the head of every bureau floor is now the figure of Alpaslan
   Yılmaz, drawn from the portrait in the README. The pictures in the README

@@ -45,6 +45,11 @@ export interface CoreOptions {
   /** Adapter the lead agent of every workspace runs on. */
   leadAdapter: AgentAdapter;
   now?: () => Date;
+  /**
+   * How long a team member may sit idle on an open task before it is asked
+   * what happened. Twenty seconds unless set.
+   */
+  stallMs?: number;
 }
 
 interface WorkspaceState {
@@ -67,7 +72,9 @@ const BRIDGE_PROMPT =
   "requests the user's approval before anything that deploys, publishes, deletes data or cannot be undone; then stop and wait.\n" +
   "- `peritos send --to <agent name|lead|user> \"<message>\"` messages a teammate.\n" +
   "- `peritos lesson \"<rule>\"` proposes a lasting rule for this project.\n" +
-  "- `peritos task list` shows all tasks.\n";
+  "- `peritos task list` shows all tasks.\n" +
+  "If something you cannot fix stops you (a missing key or access, an account without credit, a call that was refused), " +
+  "do not end with a message about it: ask the user for what you need with `peritos ask`, then stop and wait.\n";
 
 /** What sets one kind of workspace apart: who is on the team and what it hands in. */
 const KINDS: Record<WorkspaceKind, { team: string; specialties: string; lead: string; member: string; checked: string }> = {
@@ -249,6 +256,10 @@ export class Core {
   private readonly heldCalls = new Map<string, (decision: "approved" | "rejected") => void>();
   /** Timers that wake agents whose usage limit is due to reset. */
   private readonly limitTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Timers that look in on a team member who went idle with its task still open. */
+  private readonly stallTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Tasks whose member has already been reminded once to report or ask. */
+  private readonly reminded = new Set<string>();
   /** Sessions that have been started on a resumed conversation and not yet said anything. */
   private readonly resuming = new Set<string>();
   /** Agents whose process should end once their current turn has been accounted for. */
@@ -1313,12 +1324,63 @@ export class Core {
   }
 
   async close(): Promise<void> {
-    for (const timer of this.limitTimers.values()) clearTimeout(timer);
+    for (const timer of [...this.limitTimers.values(), ...this.stallTimers.values()]) clearTimeout(timer);
     this.limitTimers.clear();
+    this.stallTimers.clear();
     await Promise.all([...this.sessions.values()].map((session) => session.stop()));
   }
 
   // ── Agent sessions ────────────────────────────────────────────────────────
+
+  /** A member's turn ended: look in a little later, in case it stopped without saying why. */
+  private watchStall(state: WorkspaceState, agentId: string): void {
+    clearTimeout(this.stallTimers.get(agentId));
+    const timer = setTimeout(() => {
+      this.stallTimers.delete(agentId);
+      try {
+        this.onStall(state, agentId);
+      } catch {
+        // Looking in is a courtesy; it must never take the core down.
+      }
+    }, this.options.stallMs ?? 20_000);
+    timer.unref?.();
+    this.stallTimers.set(agentId, timer);
+  }
+
+  /**
+   * A member that is idle on a task it has neither reported nor asked about
+   * is reminded once. If it stops again, the user is asked in its name, so the
+   * task shows among the things waiting rather than looking busy forever.
+   */
+  private onStall(state: WorkspaceState, agentId: string): void {
+    const agent = state.agents.get(agentId);
+    const task = agent?.taskId ? state.tasks.get(agent.taskId) : undefined;
+    if (!agent || !task || agent.status !== "idle" || task.status !== "in_progress") return;
+    const spent = this.budget(state.workspace.id).level === "exhausted";
+    if (!this.reminded.has(task.id) && !spent) {
+      this.reminded.add(task.id);
+      this.deliver(
+        state,
+        agent,
+        `Your turn ended but task #${task.number} is still open. If the work is finished, report it now with ` +
+          "`peritos task done`. If something stops you, ask the user for what you need with `peritos ask` and say " +
+          "plainly what is missing. Do not start the work over.",
+      );
+      return;
+    }
+    const last = state.messages
+      .all()
+      .filter((message) => message.author.kind === "agent" && message.author.agentId === agentId && message.taskId === task.id)
+      .at(-1)?.body;
+    this.raiseQuestion(
+      state,
+      agentId,
+      `Task #${task.number} stopped without a report.` +
+        (last ? ` Last said:\n${last.length > 600 ? last.slice(0, 599) + "…" : last}` : "") +
+        (spent ? "\nToday's budget is spent." : ""),
+      [],
+    );
+  }
 
   private addMessage(
     state: WorkspaceState,
@@ -1480,6 +1542,7 @@ export class Core {
           this.setAgent(state, agentId, { status: "idle", lastOutput: agent.lastOutput });
         }
         if (this.stopAfterTurn.delete(agentId)) void this.sessions.get(agentId)?.stop();
+        else if (agent.role === "member" && agent.taskId) this.watchStall(state, agentId);
         break;
       }
       case "error":

@@ -192,7 +192,7 @@ function QuestionCard({ ctx, message }: { ctx: Ctx; message: Message }) {
         <div className="kicker" style={{ marginBottom: 8 }}>
           {T.awaiting.question(questionRef(message, ctx.state.messages))}
         </div>
-        <h3>{message.body}</h3>
+        <h3 style={{ whiteSpace: "pre-wrap" }}>{fromCore(message.body)}</h3>
       </div>
       <p className="muted" style={{ fontSize: 13 }}>
         {T.awaiting.from(who, file ? `${fileRef(file)} ${file.title}` : null)}
@@ -288,7 +288,7 @@ export function Awaiting({ ctx, selectedId }: { ctx: Ctx; selectedId?: string })
   const selected = all.find((item) => item.id === picked) ?? pending[0];
 
   const row = (item: Item, done: boolean) => {
-    const title = item.kind === "seal" ? sealText(item.approval).title : item.message.body;
+    const title = item.kind === "seal" ? sealText(item.approval).title : fromCore(item.message.body);
     const agentId =
       item.kind === "seal" ? item.approval.agentId : item.message.author.kind === "agent" ? item.message.author.agentId : null;
     const file = names.file(item.kind === "seal" ? item.approval.taskId : item.message.taskId);
@@ -497,7 +497,7 @@ export function Archive(ctx: Ctx) {
                 {ref}
               </span>
               <div>
-                <p>{message.author.kind === "system" ? fromCore(message.body) : message.body}</p>
+                <p>{fromCore(message.body)}</p>
                 <p style={{ color: "var(--st-act)" }}>→ {message.question!.answer}</p>
                 <p className="muted" style={{ fontSize: 12 }}>
                   {names.who(message.author.kind === "agent" ? message.author.agentId : null)}

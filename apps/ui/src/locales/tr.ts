@@ -429,6 +429,9 @@ export const tr: Strings = {
     toggleTheme: "Temayı değiştir",
   },
   core: [
+    [/^Task #(\d+) stopped without a report\. Last said:$/, "#$1 numaralı dosya rapor verilmeden durdu. Son söylediği:"],
+    [/^Task #(\d+) stopped without a report\.$/, "#$1 numaralı dosya rapor verilmeden durdu."],
+    [/^Today's budget is spent\.$/, "Bugünkü bütçe doldu."],
     [/^Merge task #(\d+): (.*)$/, "#$1 numaralı dosyayı birleştir: $2"],
     [/^Accept task #(\d+): (.*)$/, "#$1 numaralı dosyanın taslağını kabul et: $2"],
     [/^Merge (\S+) into (\S+)$/, "$1 dalını $2 dalına birleştir"],

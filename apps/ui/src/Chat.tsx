@@ -145,7 +145,7 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
                 </div>
                 {message?.author.kind === "agent" ? (
                   <div className="msg-body msg-md">
-                    <Markdown source={message.body} breaks />
+                    <Markdown source={fromCore(message.body)} breaks />
                   </div>
                 ) : (
                   <div className="msg-body">{message ? (message.author.kind === "system" ? fromCore(message.body) : message.body) : sealText(approval!).title}</div>

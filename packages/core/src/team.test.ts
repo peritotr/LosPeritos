@@ -519,3 +519,34 @@ test("a connector reaches the team, keeps its secrets, and seals every call not 
   assert.deepEqual(core.removeConnector(workspace.id, "search-console").map((c) => c.id), ["ads"]);
   assert.deepEqual(core.listConnectors(workspace.id)[0]!.secretNames, ["Authorization"]);
 });
+
+test("a member that stops without a report is reminded once, then the user is asked in its name", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "lp-data-"));
+  const folder = realpathSync(mkdtempSync(join(tmpdir(), "lp-ws-")));
+  const adapter = new FakeAdapter();
+  const core = new Core({ dataDir, adapters: [adapter], leadAdapter: "fake", stallMs: 30 });
+  const workspace = core.openWorkspace(folder);
+  core.sendMessage(workspace.id, { body: "plan", toAgentId: null, taskId: null });
+  const token = () => adapter.starts[0]!.env!.LOSPERITOS_AGENT_TOKEN!;
+  await core.agentCommand(token(), AgentCommand.parse({ command: "task.create", title: "Make the picture", specialty: "designer" }));
+  const member = () => core.listAgents(workspace.id).find((agent) => agent.role === "member")!;
+  const said = () => core.listMessages(workspace.id).map((message) => message.body);
+
+  // Its first turn ends with the task open: after a pause it is reminded, not reported to the user.
+  await new Promise((done) => setTimeout(done, 60));
+  assert.ok(said().some((body) => /^Echo: Your turn ended but task #1 is still open/.test(body)), "the reminder reached it");
+  assert.equal(core.waiting().questions.length, 0);
+
+  // It stops again: now the user hears of it, with what the member last said.
+  await new Promise((done) => setTimeout(done, 80));
+  const [question] = core.waiting().questions;
+  assert.match(question!.body, /^Task #1 stopped without a report\. Last said:\nEcho: Your turn ended/);
+  assert.equal(member().status, "asking");
+  assert.equal(core.getTask(member().taskId!).status, "in_progress");
+
+  // The answer goes to the member, and it is not asked about again while it works.
+  core.answerQuestion(question!.id, "Credit added, try again", false);
+  await tick();
+  assert.ok(said().some((body) => body.includes("Credit added, try again")));
+  await core.close();
+});

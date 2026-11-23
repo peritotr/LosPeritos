@@ -185,7 +185,7 @@ export class FakeAdapter implements Adapter {
         finishOnNextMessage = false;
         await type("Continuing…", "Finishing up…");
         await handIn();
-      } else if (url && (text.startsWith("Message from") || text.startsWith("Task #"))) {
+      } else if (url && (text.startsWith("Message from") || text.startsWith("Task #") || text.startsWith("Your turn ended"))) {
         emit({ type: "text", text: "Noted." });
       } else {
         emit({ type: "text", text: `Echo: ${text}` });
