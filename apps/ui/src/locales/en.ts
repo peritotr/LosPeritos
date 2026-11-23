@@ -421,7 +421,7 @@ export const en = {
       stability: "A community server, not Stability's own. Every tool spends credits.",
       searchConsole: "A community server; it needs uv installed. Create a service account in Google Cloud, add its address as a user of your property in Search Console, and give the path of its JSON key file as GSC_CREDENTIALS_PATH.",
       googleAds: "Google's own server; it needs pipx and Python 3.11 or newer. Give the path of a credentials file with the Google Ads scope, your Cloud project and, for a manager account, its customer id. The Cloud project has to be approved for the Google Ads API.",
-      metaAds: "Meta's own server. Sign in with Facebook Login for Business; if Meta refuses this app, register an app of your own with Meta (callback http://127.0.0.1:7423/oauth/callback) and add its id as a secret named OAUTH_CLIENT_ID, or add a secret named Authorization with the value \"Bearer <your access token>\". It can create ads and switch them on, which spends money: keep every tool behind your seal.",
+      metaAds: "Meta's own server. Meta does not let this app register itself, so first register an app of your own with Meta (callback http://127.0.0.1:7423/oauth/callback) and add its id as a secret named OAUTH_CLIENT_ID, then sign in; or add a secret named Authorization with the value \"Bearer <your access token>\". It can create ads and switch them on, which spends money: keep every tool behind your seal.",
     },
     signInHint: "If the address asks for a sign-in in the browser, save it and then use \"Sign in\"; your password does not pass through this app.",
     tools: (name: string) => `Show the tools of ${name}`,

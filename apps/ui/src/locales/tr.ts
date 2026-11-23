@@ -419,7 +419,7 @@ export const tr: Strings = {
       stability: "Topluluk sunucusu, Stability'nin kendi sunucusu değil. Her araç kredi harcar.",
       searchConsole: "Topluluk sunucusu; uv kurulu olmalı. Google Cloud'da bir servis hesabı oluştur, adresini Search Console'da mülküne kullanıcı olarak ekle ve JSON anahtar dosyasının yolunu GSC_CREDENTIALS_PATH olarak ver.",
       googleAds: "Google'ın kendi sunucusu; pipx ve Python 3.11 ya da üstü gerekir. Google Ads kapsamlı bir kimlik dosyasının yolunu, Cloud projeni ve yönetici hesabı kullanıyorsan müşteri kimliğini ver. Cloud projesinin Google Ads API için onaylı olması gerekir.",
-      metaAds: "Meta'nın kendi sunucusu. Facebook Login for Business ile giriş yap; Meta bu uygulamayı reddederse Meta'da kendi uygulamanı kaydet (geri dönüş adresi http://127.0.0.1:7423/oauth/callback) ve kimliğini OAUTH_CLIENT_ID adında gizli değer olarak ekle; ya da Authorization adında, değeri \"Bearer <erişim anahtarın>\" olan bir gizli değer ekle. Reklam oluşturup açabilir, bu da para harcar: her aracı mühür arkasında tut.",
+      metaAds: "Meta'nın kendi sunucusu. Meta bu uygulamanın kendini kaydetmesine izin vermiyor; önce Meta'da kendi uygulamanı kaydet (geri dönüş adresi http://127.0.0.1:7423/oauth/callback) ve kimliğini OAUTH_CLIENT_ID adında gizli değer olarak ekle, sonra giriş yap; ya da Authorization adında, değeri \"Bearer <erişim anahtarın>\" olan bir gizli değer ekle. Reklam oluşturup açabilir, bu da para harcar: her aracı mühür arkasında tut.",
     },
     signInHint: "Adres tarayıcıdan giriş istiyorsa kaydettikten sonra \"Giriş yap\" ile bağlanırsın; şifren bu uygulamadan geçmez.",
     tools: (name) => `${name} araçlarını göster`,
