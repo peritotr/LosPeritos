@@ -287,7 +287,7 @@ export interface Actions {
   openWorkspace(path: string, kind?: WorkspaceKind): Promise<Workspace>;
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "kind" | "dispatchPaused">>,
+    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "kind" | "dispatchPaused" | "agentTool">>,
   ): Promise<void>;
   createTask(workspaceId: string, task: NewTask): Promise<void>;
   updateTask(taskId: string, patch: Partial<NewTask> & { status?: "draft" | "queued" | "cancelled" }): Promise<void>;

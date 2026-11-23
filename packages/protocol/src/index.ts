@@ -30,6 +30,8 @@ export const Workspace = z.object({
   dailyBudgetUsd: z.number().nonnegative().nullable(),
   /** While set, queued tasks are not handed out; work already started carries on. */
   dispatchPaused: z.boolean().optional(),
+  /** The agent tool this bureau's team runs on; Claude Code when absent. */
+  agentTool: z.enum(["claude-code", "codex"]).optional(),
   createdAt: timestamp,
 });
 
@@ -365,6 +367,7 @@ export const UpdateWorkspaceRequest = Workspace.pick({
   kind: true,
   dailyBudgetUsd: true,
   dispatchPaused: true,
+  agentTool: true,
 }).partial();
 
 /** A task the user writes themselves, rather than the lead. */

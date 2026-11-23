@@ -350,6 +350,11 @@ export const en = {
     trust: "Trust mode",
     full: "Full",
     restricted: "Restricted",
+    agentTool: "Agent tool",
+    codex: "Codex (experimental)",
+    agentToolHint: "The team of this bureau runs on Claude Code. Changing the tool starts the team's conversations afresh; dossiers and the notebook stay.",
+    codexHint:
+      "The team runs on your own Codex, which must be installed and signed in (codex login). Codex does not stop to ask: no command waits for your seal, only its own sandbox keeps it inside the working folder. Connectors are not given to a Codex team, and spending is counted in tokens, not dollars. This has been built from Codex's documentation and not yet tried against a real account.",
     fullHint:
       "Peritos edit files and run ordinary commands without asking. Merges, and commands that publish, deploy, delete or reach other machines, wait for your seal.",
     restrictedHint: "Peritos can read the folder freely, and ask for your seal before every edit and every command.",

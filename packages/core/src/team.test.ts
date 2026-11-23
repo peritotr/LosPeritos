@@ -922,3 +922,34 @@ test("a terminal is a real shell in the bureau's folder that outlives the screen
   await core.close();
   server.close();
 });
+
+test("a bureau can be moved to another agent tool; its team starts afresh there, without connectors", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "lp-data-"));
+  const folder = realpathSync(mkdtempSync(join(tmpdir(), "lp-ws-")));
+  const claude = new FakeAdapter();
+  const codex = new FakeAdapter();
+  Object.assign(claude, { id: "claude-code", check: async () => ({ tool: "claude", required: true, found: true, version: "1", installHint: null }) });
+  Object.assign(codex, { id: "codex", check: async () => ({ tool: "codex", required: false, found: false, version: null, installHint: "Install Codex" }) });
+  const core = new Core({ dataDir, adapters: [claude, codex], leadAdapter: "claude-code" });
+  assert.deepEqual((await core.setup()).map((check) => [check.tool, check.required]), [["git", true], ["claude", true], ["codex", false]]);
+
+  const workspace = core.openWorkspace(folder);
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ id: "rows", name: "Rows", command: "node", args: ["rows.js"] }));
+  core.sendMessage(workspace.id, { body: "plan", toAgentId: null, taskId: null });
+  assert.equal(claude.starts.length, 1);
+  assert.ok(claude.starts[0]!.connectors!.rows);
+  const first = core.listAgents(workspace.id)[0]!;
+  assert.equal(first.adapter, "claude-code");
+
+  assert.equal(core.updateWorkspace(workspace.id, { agentTool: "codex" }).agentTool, "codex");
+  const moved = core.listAgents(workspace.id)[0]!;
+  assert.equal(moved.adapter, "codex");
+  assert.equal(moved.sessionId, null, "the other tool's conversation is not carried over");
+  core.sendMessage(workspace.id, { body: "again", toAgentId: null, taskId: null });
+  assert.equal(codex.starts.length, 1);
+  assert.equal(codex.starts[0]!.resume, false);
+  assert.deepEqual(codex.starts[0]!.connectors, {}, "a tool that cannot wait for a seal is not given connectors");
+  assert.match(codex.starts[0]!.systemPrompt!, /Nothing stops you before a command/);
+  assert.throws(() => core.updateWorkspace(workspace.id, { agentTool: "fake" as "codex" }), /./);
+  await core.close();
+});

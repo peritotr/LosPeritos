@@ -848,6 +848,23 @@ export function Settings(ctx: Ctx) {
           </div>
           {!ctx.simple && (
           <div className="field">
+            <label>{T.settings.agentTool}</label>
+            <Segmented<"claude-code" | "codex">
+              label={T.settings.agentTool}
+              value={bureau.agentTool ?? "claude-code"}
+              onChange={(agentTool) => actions.updateWorkspace(bureau.id, { agentTool }).catch((err: Error) => ctx.note(err.message))}
+              options={[
+                { value: "claude-code", label: "Claude Code" },
+                { value: "codex", label: T.settings.codex },
+              ]}
+            />
+            <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+              {(bureau.agentTool ?? "claude-code") === "codex" ? T.settings.codexHint : T.settings.agentToolHint}
+            </p>
+          </div>
+          )}
+          {!ctx.simple && (
+          <div className="field">
             <label>{T.settings.trust}</label>
             <Segmented
               label={T.settings.trust}

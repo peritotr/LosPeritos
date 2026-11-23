@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { ClaudeCodeAdapter, FakeAdapter } from "@losperitos/adapters";
+import { join } from "node:path";
+import { ClaudeCodeAdapter, CodexAdapter, FakeAdapter } from "@losperitos/adapters";
 import { AppStore } from "@losperitos/storage";
 import { Core } from "./core.js";
 import { createServer } from "./server.js";
@@ -38,7 +39,7 @@ export async function startCore(options: StartOptions): Promise<RunningCore> {
   }
   const core = new Core({
     dataDir: options.dataDir,
-    adapters: [new FakeAdapter(0.04, 700), new ClaudeCodeAdapter()],
+    adapters: [new FakeAdapter(0.04, 700), new ClaudeCodeAdapter(), new CodexAdapter("codex", join(options.dataDir, "codex-threads.json"))],
     leadAdapter: options.fake ? "fake" : "claude-code",
   });
   const server = createServer(core, token);

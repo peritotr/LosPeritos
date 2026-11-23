@@ -15,10 +15,10 @@ import type { Adapter, AgentSession, SessionEvent, StartOptions } from "./types.
  * a Unix time after a bar, or a clock time after "reset(s) (at)".
  */
 export function parseLimit(message: string, now = new Date()): { resetAt: string | null } | undefined {
-  if (!/usage limit|hit your limit|limit reached|out of (extra )?usage/i.test(message)) return undefined;
+  if (!/usage limit|hit your limit|limit reached|out of (extra )?usage|out of credits|quota exceeded|spend (cap|limit)/i.test(message)) return undefined;
   const epoch = /\|(\d{10})\b/.exec(message);
   if (epoch) return { resetAt: new Date(Number(epoch[1]) * 1000).toISOString() };
-  const clock = /reset(?:s)?(?: at)?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i.exec(message);
+  const clock = /(?:reset(?:s)?(?: at)?|try again at)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i.exec(message);
   if (clock) {
     let hour = Number(clock[1]);
     const half = clock[3]?.toLowerCase();

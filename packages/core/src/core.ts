@@ -197,6 +197,14 @@ function matchesTool(pattern: string, tool: string): boolean {
 const GUESS_USD = { small: 0.1, normal: 0.4, large: 1.5 };
 
 /** Small tasks run on a cheap model, large ones on the biggest; the rest on the tool's default. */
+/**
+ * Codex never stops to ask before a command, so the rule that Claude Code
+ * enforces with a seal is, for a Codex team, only an instruction.
+ */
+const CODEX_PROMPT =
+  "\n\nNothing stops you before a command, so hold yourself to this: never push, merge, deploy, publish, delete outside your working folder " +
+  "or reach another machine on your own. When the work needs one of those, request it with `peritos approval` and stop.";
+
 const MODEL_FOR: Record<"small" | "normal" | "large", string | undefined> = {
   small: "haiku",
   normal: undefined,
@@ -405,6 +413,11 @@ export class Core {
     for (const listener of this.listeners) listener(envelope);
   }
 
+  /** The agent tool a bureau's team runs on. A demo core runs everything on the scripted one. */
+  private toolOf(workspace: Workspace): AgentAdapter {
+    return this.options.leadAdapter === "fake" ? "fake" : (workspace.agentTool ?? this.options.leadAdapter);
+  }
+
   // ── Setup ─────────────────────────────────────────────────────────────────
 
   async setup(): Promise<ToolCheck[]> {
@@ -420,7 +433,9 @@ export class Core {
       );
     });
     const lead = this.adapters.get(this.options.leadAdapter)!;
-    return Promise.all([git, lead.check()]);
+    // A second tool is offered when it is there to be chosen; it is never required.
+    const others = [...this.adapters.values()].filter((adapter) => adapter !== lead && adapter.id !== "fake" && this.options.leadAdapter !== "fake");
+    return Promise.all([git, lead.check(), ...others.map((adapter) => adapter.check())]);
   }
 
   // ── Workspaces ────────────────────────────────────────────────────────────
@@ -449,11 +464,22 @@ export class Core {
 
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused">>,
+    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused" | "agentTool">>,
   ): Workspace {
     const state = this.state(workspaceId);
+    if (patch.agentTool && !this.adapters.has(patch.agentTool)) throw new CoreError("bad_request", `No agent tool "${patch.agentTool}" here.`);
+    const before = this.toolOf(state.workspace);
     state.workspace = { ...state.workspace, ...patch };
     state.store.writeDoc("workspace", state.workspace);
+    const tool = this.toolOf(state.workspace);
+    if (tool !== before) {
+      // Another tool cannot pick up this one's conversations: the team starts afresh on it, tasks and notebook intact.
+      for (const agent of state.agents.all()) {
+        const session = this.sessions.get(agent.id);
+        if (session) void session.stop();
+        this.setAgent(state, agent.id, { adapter: tool, sessionId: null });
+      }
+    }
     this.emit({ type: "workspace.updated", workspace: state.workspace });
     this.emit({ type: "budget.updated", budget: this.budget(workspaceId) });
     // Lifting a pause, or raising the budget, may let waiting tasks start.
@@ -661,7 +687,7 @@ export class Core {
     };
     // No process survives a restart, so nobody can still be mid-turn.
     for (const agent of state.agents.all()) {
-      const adapter = agent.role === "lead" ? this.options.leadAdapter : agent.adapter;
+      const adapter = this.toolOf(workspace);
       const status = agent.status === "working" ? "idle" : agent.status;
       if (adapter !== agent.adapter || status !== agent.status) {
         state.agents.put({ ...agent, adapter, status });
@@ -678,7 +704,7 @@ export class Core {
         name: "Lead",
         role: "lead",
         specialty: null,
-        adapter: this.options.leadAdapter,
+        adapter: this.toolOf(workspace),
         status: "idle",
         taskId: null,
         lastOutput: null,
@@ -1619,7 +1645,7 @@ export class Core {
             name,
             role: "member",
             specialty,
-            adapter: this.options.leadAdapter,
+            adapter: this.toolOf(state.workspace),
             status: "idle",
             taskId: null,
             lastOutput: null,
@@ -1896,8 +1922,9 @@ export class Core {
                   : task.branch
                     ? { on: "branch" }
                     : { on: "draft", project: state.workspace.path },
-              )) + this.lessonsPrompt(state) + this.connectorsPrompt(state),
-        connectors: this.mcpServers(state, token),
+              )) + this.lessonsPrompt(state) + (agent.adapter === "codex" ? CODEX_PROMPT : this.connectorsPrompt(state)),
+        // Codex cannot hold a call back for the user's seal, so its team is not handed the connectors.
+        connectors: agent.adapter === "codex" ? {} : this.mcpServers(state, token),
         sessionId,
         resume,
         model: agent.role === "member" ? MODEL_FOR[task?.effort ?? "normal"] : undefined,

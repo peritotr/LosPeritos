@@ -12,6 +12,23 @@
   or phone width. An address the terminal prints is offered with one click,
   and a note about the page can be started to the lead from there.
 
+**Documents**
+- A ```mermaid block in a page, a project document or a message is drawn as a
+  diagram, with its text one click away. The team is told it may draw.
+
+**Connectors**
+- Templates for Higgsfield, Runway and Kling (signed in to in the browser),
+  Stability AI, Search Console, Google Ads and Meta Ads. They were written
+  from each service's published description and have not been tried with a
+  real account.
+
+**Codex (experimental)**
+- A bureau can run its team on your own Codex instead of Claude Code
+  (Settings → Agent tool). Codex does not stop to ask, so no command waits for
+  a seal and connectors are not given to a Codex team; its sandbox keeps it
+  in the working folder. Built from Codex's documentation and tested against
+  a stand-in, not yet against a real account.
+
 **Guides**
 - Publishing guides, step by step: a web site, a Mac app, an iPhone app, an
   Android app, an npm package, an article or campaign. Steps can be ticked
