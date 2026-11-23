@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**A plain view**
+- New installs open in a plain view: the side bar shows the bench, the files
+  and what awaits you; the archive, the ledger, connectors, trust mode and
+  the finer controls of the files are tucked away. "Show everything" brings
+  them back, and Settings switches between the two. Nothing is switched off,
+  and those who used the app before keep the full view.
+
 **Drafts that hold**
 - A member working in a draft cannot edit the project folder with its file
   tools: the folder is read-only to it, and drafts are kept apart from the

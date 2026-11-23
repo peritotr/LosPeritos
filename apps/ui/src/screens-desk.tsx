@@ -845,6 +845,7 @@ export function Settings(ctx: Ctx) {
               {T.kinds.note}
             </p>
           </div>
+          {!ctx.simple && (
           <div className="field">
             <label>{T.settings.trust}</label>
             <Segmented
@@ -863,9 +864,10 @@ export function Settings(ctx: Ctx) {
               {T.settings.trustNote}
             </p>
           </div>
+          )}
         </section>
 
-        <Connectors ctx={ctx} />
+        {!ctx.simple && <Connectors ctx={ctx} />}
 
         <section className="panel blueprint">
           <Corners />
@@ -874,7 +876,7 @@ export function Settings(ctx: Ctx) {
           <a onClick={() => ctx.go({ screen: "setup" })}>{T.settings.openSetup}</a>
         </section>
 
-        <section className="panel blueprint">
+        <section className="panel blueprint" hidden={ctx.simple}>
           <Corners />
           <h4>{T.settings.connections}</h4>
           <div className="field">
@@ -897,6 +899,21 @@ export function Settings(ctx: Ctx) {
           <button className="btn btn-secondary" style={{ alignSelf: "flex-start" }} onClick={showTour}>
             {T.tour.again}
           </button>
+          <div className="field">
+            <label>{T.mode.label}</label>
+            <Segmented<"simple" | "advanced">
+              label={T.mode.label}
+              value={ctx.simple ? "simple" : "advanced"}
+              onChange={(mode) => ctx.setSimple(mode === "simple")}
+              options={[
+                { value: "simple", label: T.mode.simple },
+                { value: "advanced", label: T.mode.advanced },
+              ]}
+            />
+            <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              {ctx.simple ? T.mode.simpleHint : T.mode.advancedHint}
+            </p>
+          </div>
           <div className="field">
             <label>{T.settings.theme}</label>
             <Segmented

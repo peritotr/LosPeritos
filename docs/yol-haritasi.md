@@ -178,7 +178,7 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
   kaba maliyet tahmini ve önerileri toplu kabul 0.2.0 ile geldi.
 - 7(a) (zengin ajan çıktısı): yapıldı. Araç çağrıları katlanabilir blok olarak
   görünüyor. Gerçek terminal sekmesi (7b) yapılmadı.
-- 15 (ilk kullanım): tur ve ilk iş kartları yapıldı; sade / gelişmiş mod yapılmadı.
+- 15 (ilk kullanım): tur, ilk iş kartları ve sade / gelişmiş görünüm yapıldı.
 - 16 (büro türleri): birinci adım ve ikinci adımın bağlayıcı altyapısı yapıldı.
 
 ## Önerilen sıra

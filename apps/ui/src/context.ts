@@ -26,6 +26,9 @@ export interface Ctx {
   defer(approvalId: string): void;
   theme: "light" | "dark";
   setTheme(theme: "light" | "dark"): void;
+  /** The plain view: fewer screens and controls, for someone new to the app. */
+  simple: boolean;
+  setSimple(simple: boolean): void;
 }
 
 export const pendingApprovals = (approvals: Approval[]) => approvals.filter((a) => a.status === "pending");

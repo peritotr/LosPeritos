@@ -332,28 +332,32 @@ export function Files(ctx: Ctx) {
           <I icon={Plus} />
           {T.files.newFile}
         </button>
-        {kindOf(ctx.bureau) === "software" && (
+        {!ctx.simple && kindOf(ctx.bureau) === "software" && (
           <button className="btn btn-secondary" onClick={() => setTool(tool === "issues" ? null : "issues")}>
             {T.files.importIssues}
           </button>
         )}
-        <button
-          className="btn btn-secondary"
-          aria-pressed={paused}
-          onClick={() => void ctx.actions.updateWorkspace(ctx.bureau.id, { dispatchPaused: !paused })}
-        >
-          <I icon={paused ? Play : Pause} />
-          {paused ? T.files.resume : T.files.pause}
-        </button>
-        <Segmented<"list" | "board">
-          label={T.files.view}
-          value={view}
-          onChange={setView}
-          options={[
-            { value: "list", label: T.files.list, icon: List },
-            { value: "board", label: T.files.board, icon: Columns3 },
-          ]}
-        />
+        {(!ctx.simple || paused) && (
+          <button
+            className="btn btn-secondary"
+            aria-pressed={paused}
+            onClick={() => void ctx.actions.updateWorkspace(ctx.bureau.id, { dispatchPaused: !paused })}
+          >
+            <I icon={paused ? Play : Pause} />
+            {paused ? T.files.resume : T.files.pause}
+          </button>
+        )}
+        {!ctx.simple && (
+          <Segmented<"list" | "board">
+            label={T.files.view}
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "list", label: T.files.list, icon: List },
+              { value: "board", label: T.files.board, icon: Columns3 },
+            ]}
+          />
+        )}
       </PageHead>
 
       {paused && (
@@ -365,7 +369,7 @@ export function Files(ctx: Ctx) {
       {tool === "new" && <NewFileForm ctx={ctx} onClose={() => setTool(null)} />}
       {tool === "issues" && <IssueImport ctx={ctx} onClose={() => setTool(null)} />}
 
-      {labels.length > 0 && (
+      {!ctx.simple && labels.length > 0 && (
         <div className="row wrap label-filter" role="group" aria-label={T.files.form.labels}>
           {labels.map((name) => (
             <button key={name} className="tag" aria-pressed={label === name} onClick={() => setLabel(label === name ? null : name)}>

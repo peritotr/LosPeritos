@@ -396,6 +396,14 @@ export const tr: Strings = {
     changes: "değiştirir",
     removed: (name) => `${name} kaldırıldı.`,
   },
+  mode: {
+    label: "Görünüm düzeyi",
+    simple: "Sade",
+    advanced: "Gelişmiş",
+    showAll: "Tümünü göster",
+    simpleHint: "Yalnızca iş vermek, izlemek ve mühürlemek için gerekenler görünür. Arşiv, Mesai Defteri, bağlayıcılar ve ince ayarlar gizlenir; hiçbir şey kapanmaz.",
+    advancedHint: "Bütün ekranlar ve ayarlar görünür.",
+  },
   setup: {
     kicker: "İLK AÇILIŞ",
     kickerLater: "KURULUM",

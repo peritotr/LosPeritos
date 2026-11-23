@@ -55,7 +55,7 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
   };
 
   return (
-    <form className="panel blueprint file-form" onSubmit={save(true)}>
+    <form className={`panel blueprint file-form ${ctx.simple ? "plain" : ""}`} onSubmit={save(true)}>
       <Corners />
       <div className="field">
         <label htmlFor="nf-title">{T.files.form.title}</label>
@@ -91,7 +91,7 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
             ))}
           </select>
         </div>
-        <div className="field">
+        <div className="field extra">
           <label htmlFor="nf-effort">{T.files.form.effort}</label>
           <select id="nf-effort" className="input" value={effort} onChange={(event) => setEffort(event.target.value as typeof effort)}>
             {(["small", "normal", "large"] as const).map((key) => (
@@ -101,7 +101,7 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
             ))}
           </select>
         </div>
-        <div className="field">
+        <div className="field extra">
           <label htmlFor="nf-priority">{T.files.form.priority}</label>
           <select
             id="nf-priority"
@@ -116,7 +116,7 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
             ))}
           </select>
         </div>
-        <div className="field grow">
+        <div className="field grow extra">
           <label htmlFor="nf-after">{T.files.form.after}</label>
           <select id="nf-after" className="input" value={after} onChange={(event) => setAfter(event.target.value)}>
             <option value="">{T.files.form.afterNone}</option>
@@ -128,7 +128,7 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
           </select>
         </div>
       </div>
-      <div className="field">
+      <div className="field extra">
         <label htmlFor="nf-labels">{T.files.form.labels}</label>
         <input
           id="nf-labels"

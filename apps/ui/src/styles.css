@@ -623,3 +623,8 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .connector-tools { padding: 4px 0 12px 26px; max-height: 320px; overflow: auto; }
 .connector-tool { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; cursor: pointer; min-width: 0; }
 .connector-tool .mono { flex: none; }
+
+/* ── The plain view ─────────────────────────────────────────────────────── */
+.file-form.plain .extra { display: none; }
+.nav-more { color: var(--lp-muted); font-size: 13px; }
+.panel[hidden] { display: none; }

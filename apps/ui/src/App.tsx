@@ -22,6 +22,7 @@ import {
   Wifi,
   WifiOff,
   Wrench,
+  ChevronsDown,
   type LucideIcon,
 } from "lucide-react";
 import { Chat } from "./Chat";
@@ -29,7 +30,7 @@ import { openQuestions, pendingApprovals, type Ctx, type Route } from "./context
 import { Archive, Awaiting, BudgetBar, Ledger, SealToast, Settings, Setup } from "./screens-desk";
 import { Bench, Correspondence, FileDetail, Files, PeritoDetail } from "./screens-work";
 import { shell, useCore } from "./store";
-import { Tour, useTour } from "./onboarding";
+import { Tour, tourSeen, useTour } from "./onboarding";
 import { T } from "./strings";
 import { I, fileRef, kindOf, money, perito } from "./ui";
 
@@ -37,6 +38,9 @@ type Theme = "light" | "dark";
 const THEME_KEY = "losperitos.theme";
 const BUREAU_KEY = "losperitos.bureau";
 const CHAT_KEY = "losperitos.chat";
+const MODE_KEY = "losperitos.mode";
+/** Screens the plain view leaves out of the side bar. */
+const ADVANCED_ONLY: ReadonlySet<string> = new Set(["mail", "archive", "ledger"]);
 
 function stored(key: string): string | null {
   try {
@@ -70,6 +74,16 @@ export function App() {
   const [theme, setThemeState] = useState<Theme>(
     () => (stored(THEME_KEY) as Theme | null) ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"),
   );
+  // Someone who was here before this choice existed keeps everything they had.
+  const [simple, setSimpleState] = useState(() => {
+    const mode = stored(MODE_KEY) ?? (tourSeen() ? "advanced" : "simple");
+    store(MODE_KEY, mode);
+    return mode === "simple";
+  });
+  const setSimple = (next: boolean) => {
+    setSimpleState(next);
+    store(MODE_KEY, next ? "simple" : "advanced");
+  };
   const [note, setNote] = useState<string | null>(null);
   const [deferred, setDeferred] = useState<ReadonlySet<string>>(new Set());
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
@@ -158,6 +172,8 @@ export function App() {
         defer: (id) => setDeferred((prev) => new Set(prev).add(id)),
         theme,
         setTheme,
+        simple,
+        setSimple,
       }
     : null;
 
@@ -209,7 +225,7 @@ export function App() {
           </button>
 
           <div className="side-label">{T.nav.panel}</div>
-          {NAV.map(([id, label, icon]) => (
+          {NAV.filter(([id]) => !simple || !ADVANCED_ONLY.has(id)).map(([id, label, icon]) => (
             <button
               key={id}
               className="nav-row"
@@ -222,6 +238,12 @@ export function App() {
               {id === "awaiting" && totalWaiting > 0 && <span className="count">{totalWaiting}</span>}
             </button>
           ))}
+          {simple && (
+            <button className="nav-row nav-more" onClick={() => setSimple(false)}>
+              <I icon={ChevronsDown} size={16} />
+              {T.mode.showAll}
+            </button>
+          )}
           <span className="grow" />
           <button
             className="nav-row"

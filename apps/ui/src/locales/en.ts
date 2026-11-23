@@ -398,6 +398,14 @@ export const en = {
     changes: "changes",
     removed: (name: string) => `${name} removed.`,
   },
+  mode: {
+    label: "How much to show",
+    simple: "Plain",
+    advanced: "Everything",
+    showAll: "Show everything",
+    simpleHint: "Only what it takes to hand out work, follow it and seal it. The archive, the ledger, connectors and fine settings are tucked away; nothing is switched off.",
+    advancedHint: "Every screen and setting is shown.",
+  },
   setup: {
     kicker: "FIRST RUN",
     kickerLater: "SETUP",
