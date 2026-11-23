@@ -22,6 +22,8 @@ import {
   Square,
   Stamp as StampIcon,
   Terminal,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import type { Agent, Task } from "@losperitos/protocol";
 import { TerminalOutput } from "./activity";
@@ -58,6 +60,17 @@ const MAX_SEATS = 8;
 /** The lively floor with characters, furniture and the dogs (the default), or emblems only. */
 type FloorStyle = "emblems" | "characters";
 const FLOOR_STYLE_KEY = "losperitos.floorStyle";
+const FLOOR_ZOOM_KEY = "losperitos.floorZoom";
+/** How large the floor may be drawn; beyond 1 it scrolls inside its frame. */
+const FLOOR_ZOOMS = [1, 1.5, 2, 3];
+function readFloorZoom(): number {
+  try {
+    const stored = Number(localStorage.getItem(FLOOR_ZOOM_KEY));
+    return FLOOR_ZOOMS.includes(stored) ? stored : 1;
+  } catch {
+    return 1;
+  }
+}
 function readFloorStyle(): FloorStyle {
   try {
     return localStorage.getItem(FLOOR_STYLE_KEY) === "emblems" ? "emblems" : "characters";
@@ -87,6 +100,16 @@ export function Bench(ctx: Ctx) {
   const demo = agents.some((agent) => agent.adapter === "fake");
   const atWork = agents.filter((agent) => agent.status === "working").length;
   const [floorStyle, setFloorStyle] = useState<FloorStyle>(readFloorStyle);
+  const [zoom, setZoomState] = useState(readFloorZoom);
+  const setZoom = (step: number) => {
+    const next = FLOOR_ZOOMS[Math.max(0, Math.min(FLOOR_ZOOMS.length - 1, FLOOR_ZOOMS.indexOf(zoom) + step))]!;
+    setZoomState(next);
+    try {
+      localStorage.setItem(FLOOR_ZOOM_KEY, String(next));
+    } catch {
+      // Private mode: the choice lasts for this window only.
+    }
+  };
   const floor = buildFloor({
     agents,
     tasks,
@@ -174,6 +197,15 @@ export function Bench(ctx: Ctx) {
           <span className="mono muted" style={{ fontSize: 12 }}>
             {T.bench.floorLive(atWork)}
           </span>
+          <div className="floor-zoom" role="group" aria-label={T.bench.zoom}>
+            <button className="btn btn-ghost btn-icon" aria-label={T.bench.zoomOut} disabled={zoom === FLOOR_ZOOMS[0]} onClick={() => setZoom(-1)}>
+              <I icon={ZoomOut} size={14} />
+            </button>
+            <span className="mono muted">{Math.round(zoom * 100)}%</span>
+            <button className="btn btn-ghost btn-icon" aria-label={T.bench.zoomIn} disabled={zoom === FLOOR_ZOOMS.at(-1)} onClick={() => setZoom(1)}>
+              <I icon={ZoomIn} size={14} />
+            </button>
+          </div>
           <Segmented<FloorStyle>
             label={T.bench.floorStyle}
             value={floorStyle}
@@ -191,7 +223,8 @@ export function Bench(ctx: Ctx) {
             ]}
           />
         </div>
-        <div className="floor-stage">
+        <div className="floor-scroll">
+        <div className="floor-stage" style={zoom === 1 ? undefined : { width: `${zoom * 100}%`, maxWidth: 1000 * zoom }}>
           {floorStyle === "characters" && <SpriteLayer model={floor} />}
         <SvgFloor
           model={floor}
@@ -199,6 +232,7 @@ export function Bench(ctx: Ctx) {
           onFlightDone={actions.flightDone}
           onStampDone={actions.stampDone}
         />
+        </div>
         </div>
       </section>
 

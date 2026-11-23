@@ -1,7 +1,7 @@
 // Builds the "office" floor skin from the Pixel Office asset pack by 2dPig (CC0),
 // plus the office dogs drawn in pets.mjs.
 // The pack ships one still drawing per character, so this cuts each one out and
-// derives two extra frames from it (a breath and a small hop) to animate with.
+// derives the other frames from it: a breath, a small hop, and two steps of a walk.
 //   node scripts/skins/build-office.mjs
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -22,7 +22,9 @@ const CHARACTERS = [
 ];
 const CELL = { w: 20, h: 26 };
 const FEET_ROWS = 3;
-const FRAMES = ["stand", "breathe", "hop"];
+const LEG_ROWS = 4;
+// The last two are a walk: one leg lifted, then the other.
+const FRAMES = ["stand", "breathe", "hop", "stepLeft", "stepRight"];
 
 const clips = {
   idle: { row: 0, frames: [0, 1], secondsPerFrame: 0.9 },
@@ -32,6 +34,8 @@ const clips = {
   error: { row: 0, frames: [0], secondsPerFrame: 1 },
   off_duty: null,
 };
+// On the move between desks: left step, both feet down, right step, both feet down.
+const walk = { row: 0, frames: [3, 0, 4, 0], secondsPerFrame: 0.13 };
 
 /**
  * One still figure of `w` × `h` pixels becomes a sheet of three frames.
@@ -47,15 +51,18 @@ function writeSheet(src, { w, h }, pixel) {
       // breathe: everything above the feet sinks a pixel; hop: the whole figure rises one.
       const dy = frame === "breathe" && !feet ? 1 : frame === "hop" ? -1 : 0;
       if (frame === "breathe" && y === h - FEET_ROWS - 1) continue; // the row the body sinks into
+      const leg = y >= h - LEG_ROWS;
       for (let x = 0; x < w; x++) {
         const colour = pixel(x, y);
         if (!colour) continue;
-        out.set(colour, ((top + y + dy) * CELL.w * FRAMES.length + f * CELL.w + left + x) * 4);
+        // A step lifts one leg by two pixels; the rest of the figure stays where it is.
+        const lifted = leg && ((frame === "stepLeft" && x < w / 2) || (frame === "stepRight" && x >= w / 2));
+        out.set(colour, ((top + y + dy - (lifted ? 2 : 0)) * CELL.w * FRAMES.length + f * CELL.w + left + x) * 4);
       }
     }
   });
   writePng(dir + src, CELL.w * FRAMES.length, CELL.h, out);
-  return { src, frameWidth: CELL.w, frameHeight: CELL.h, clips };
+  return { src, frameWidth: CELL.w, frameHeight: CELL.h, clips, walk };
 }
 
 const characters = CHARACTERS.map((box, index) =>

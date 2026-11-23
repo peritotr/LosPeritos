@@ -46,6 +46,9 @@ To install a pack:
 }
 ```
 
+A sheet may also carry `"walk"`, a clip played while the figure is on the move
+between desks; without it the figure plays its `asking` clip as it goes.
+
 `row` and `frames` count from 0 on a grid of `frameWidth` × `frameHeight`
 cells. Every pose needs a clip or `null` (not drawn). The frame numbers above
 are an example; read them off the sheet you install. List several sheets under

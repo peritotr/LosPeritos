@@ -180,7 +180,7 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 - 1 (sohbet her ekranda), 2 ("Sen yokken" özeti), 5 (takılmayan ekip): yapıldı.
   5. maddede limit sonrası devam gerçek bir limitle denenemedi; yalnızca
   otomatik testle doğrulandı.
-- 3 (büro katı cilası): yakınlaştırma ve gerçek yürüme kareleri hariç yapıldı.
+- 3 (büro katı cilası): yapıldı; yakınlaştırma ve yürüme kareleri sonradan eklendi.
 - 4 (kararlar ve gerçek güvenlik) ve 6 (görev yönetimi): yapıldı; etiketler,
   kaba maliyet tahmini ve önerileri toplu kabul 0.2.0 ile geldi.
 - 7(a) (zengin ajan çıktısı): yapıldı. Araç çağrıları katlanabilir blok olarak

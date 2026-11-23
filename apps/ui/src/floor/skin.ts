@@ -24,6 +24,8 @@ export interface CharacterSheet {
   frameHeight: number;
   /** A pose mapped to null is not drawn (the perito has left the desk). */
   clips: Record<Pose, Clip | null>;
+  /** Played while the figure is on the move; without it a skin's figures glide. */
+  walk?: Clip;
 }
 
 export interface FloorSkin {
@@ -68,8 +70,8 @@ interface SkinFile {
   license: string;
   source?: string;
   scale?: number;
-  characters: Array<{ src: string; frameWidth: number; frameHeight: number; clips: Record<Pose, Clip | null> }>;
-  lead?: { src: string; frameWidth: number; frameHeight: number; clips: Record<Pose, Clip | null> };
+  characters: Array<{ src: string; frameWidth: number; frameHeight: number; clips: Record<Pose, Clip | null>; walk?: Clip }>;
+  lead?: { src: string; frameWidth: number; frameHeight: number; clips: Record<Pose, Clip | null>; walk?: Clip };
   /** Optional. `items` maps a prop name to [x, y, width, height] on `sheet`. */
   props?: { sheet: string; items: Record<string, [number, number, number, number]> };
   pets?: Record<string, Omit<PetSheet, "image"> & { src: string }>;

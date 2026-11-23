@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**The floor**
+- Peritos walk between their desk and yours: a figure on the move lifts one
+  leg, then the other, rather than gliding.
+- The floor can be drawn larger, up to three times, and scrolls inside its
+  frame; the choice is remembered.
+
 **One conversation over every bureau**
 - With more than one bureau open, the correspondence panel can show them all
   at once: each message carries its bureau's name, questions and seals are

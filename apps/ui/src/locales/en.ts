@@ -98,6 +98,9 @@ export const en = {
     floorStyle: "Floor style",
     styleEmblems: "Emblems",
     styleCharacters: "Characters",
+    zoom: "Zoom",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
     floorLive: (n: number) => `${n} at work`,
     floorLabel: (peritos: number, waiting: number) =>
       `Bureau floor: ${peritos} peritos, ${waiting} waiting for your seal`,

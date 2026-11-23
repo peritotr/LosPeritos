@@ -49,6 +49,16 @@
           "secondsPerFrame": 1
         },
         "off_duty": null
+      },
+      "walk": {
+        "row": 0,
+        "frames": [
+          3,
+          0,
+          4,
+          0
+        ],
+        "secondsPerFrame": 0.13
       }
     },
     {
@@ -96,6 +106,16 @@
           "secondsPerFrame": 1
         },
         "off_duty": null
+      },
+      "walk": {
+        "row": 0,
+        "frames": [
+          3,
+          0,
+          4,
+          0
+        ],
+        "secondsPerFrame": 0.13
       }
     },
     {
@@ -143,6 +163,16 @@
           "secondsPerFrame": 1
         },
         "off_duty": null
+      },
+      "walk": {
+        "row": 0,
+        "frames": [
+          3,
+          0,
+          4,
+          0
+        ],
+        "secondsPerFrame": 0.13
       }
     },
     {
@@ -190,6 +220,16 @@
           "secondsPerFrame": 1
         },
         "off_duty": null
+      },
+      "walk": {
+        "row": 0,
+        "frames": [
+          3,
+          0,
+          4,
+          0
+        ],
+        "secondsPerFrame": 0.13
       }
     },
     {
@@ -237,6 +277,16 @@
           "secondsPerFrame": 1
         },
         "off_duty": null
+      },
+      "walk": {
+        "row": 0,
+        "frames": [
+          3,
+          0,
+          4,
+          0
+        ],
+        "secondsPerFrame": 0.13
       }
     }
   ],
@@ -285,6 +335,16 @@
         "secondsPerFrame": 1
       },
       "off_duty": null
+    },
+    "walk": {
+      "row": 0,
+      "frames": [
+        3,
+        0,
+        4,
+        0
+      ],
+      "secondsPerFrame": 0.13
     }
   },
   "pets": {

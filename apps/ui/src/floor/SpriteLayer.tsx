@@ -225,7 +225,7 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
       // Whoever is on their feet, nearest last so they overlap correctly.
       afoot.sort((a, b) => a.at.y - b.at.y);
       for (const { actor, sheet, at, moving } of afoot) {
-        const clip = (moving ? sheet.clips.asking : sheet.clips.awaiting_seal) ?? sheet.clips.idle;
+        const clip = (moving ? (sheet.walk ?? sheet.clips.asking) : sheet.clips.awaiting_seal) ?? sheet.clips.idle;
         if (!clip) continue;
         figure(sheet, clip, seconds, at.x, at.y);
         if (NEEDS_YOU.includes(actor.pose)) sign(actor.pose, at.x, at.y - sheet.frameHeight * scale - scale, dark);
