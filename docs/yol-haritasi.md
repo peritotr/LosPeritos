@@ -46,8 +46,11 @@ yalıtımı talimata dayanıyor, teknik olarak zorlanmıyor.
   okuyabildiği bir dosyada durur. Sormadan kullanılabilir diye işaretlenmeyen
   her araç çağrısı mühür bekler. Gerçek Claude ile deneme servisi üzerinde
   doğrulandı (`scripts/e2e-connector.mjs`).
-- Hazır bağlayıcılar: görsel ve video üretimi, Search Console, Google Ads,
-  Meta Ads. Her biri hesap ve anahtar ister; sırayla eklenecek.
+- Hazır bağlayıcılar: görsel ve video üretimi için Replicate şablonu eklendi
+  (resmi `replicate-mcp` paketi; gerçek hesapla deneme
+  `scripts/e2e-replicate.mjs`, henüz çalıştırılmadı). Sırada Search Console,
+  Google Ads, Meta Ads; her biri hesap ve anahtar ister. fal yalnızca OAuth
+  ile bağlandığı için önce OAuth desteği gerekir.
 - Para harcayan çağrılar için bütçe sınırı (reklam bağlayıcılarıyla birlikte).
 - Video, ses ve PDF önizleme: yapıldı (256 MB'a kadar).
 

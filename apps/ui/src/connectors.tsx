@@ -9,6 +9,35 @@ import type { Ctx } from "./context";
 import { T } from "./strings";
 import { Corners, I, Segmented } from "./ui";
 
+/**
+ * Services with a known way in. Choosing one fills the form; the user still
+ * gives the secret and saves. `free` lists the tools that only read.
+ */
+interface Preset {
+  id: string;
+  name: string;
+  line: string;
+  secret: string;
+  free: string[];
+  /** Where the user gets the secret. */
+  keyUrl: string;
+}
+
+const PRESETS: Preset[] = [
+  {
+    id: "replicate",
+    name: "Replicate",
+    // Replicate's own package, at the version whose tools were read for the list below.
+    line: "npx -y replicate-mcp@0.9.0",
+    secret: "REPLICATE_API_TOKEN",
+    free: [
+      "search_models", "list_models", "get_models", "get_models_*", "list_models_*",
+      "list_collections", "get_collections", "list_hardware", "get_predictions", "list_predictions",
+    ],
+    keyUrl: "replicate.com/account/api-tokens",
+  },
+];
+
 /** "Search Console" → "search-console": the name the tools will carry. */
 const slug = (name: string) =>
   name
@@ -25,16 +54,26 @@ const words = (line: string) =>
 
 const quote = (word: string) => (/\s/.test(word) ? `"${word}"` : word);
 
-function ConnectorForm({ ctx, editing, onDone }: { ctx: Ctx; editing: Connector | null; onDone(list: Connector[] | null): void }) {
-  const [name, setName] = useState(editing?.name ?? "");
-  const [id, setId] = useState(editing?.id ?? "");
+function ConnectorForm({
+  ctx,
+  editing,
+  preset,
+  onDone,
+}: {
+  ctx: Ctx;
+  editing: Connector | null;
+  preset?: Preset;
+  onDone(list: Connector[] | null): void;
+}) {
+  const [name, setName] = useState(editing?.name ?? preset?.name ?? "");
+  const [id, setId] = useState(editing?.id ?? preset?.id ?? "");
   const [how, setHow] = useState<"command" | "url">(editing?.url ? "url" : "command");
-  const [line, setLine] = useState(editing?.command ? [editing.command, ...editing.args].map(quote).join(" ") : "");
+  const [line, setLine] = useState(editing?.command ? [editing.command, ...editing.args].map(quote).join(" ") : (preset?.line ?? ""));
   const [url, setUrl] = useState(editing?.url ?? "");
-  const [free, setFree] = useState(editing?.free.join(", ") ?? "");
+  const [free, setFree] = useState((editing?.free ?? preset?.free ?? []).join(", "));
   /** Secrets already kept, minus those the user is taking away. */
   const [kept, setKept] = useState(editing?.secretNames ?? []);
-  const [added, setAdded] = useState<Array<{ name: string; value: string }>>([]);
+  const [added, setAdded] = useState<Array<{ name: string; value: string }>>(preset ? [{ name: preset.secret, value: "" }] : []);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const key = editing?.id ?? (id || slug(name));
@@ -141,6 +180,7 @@ function ConnectorForm({ ctx, editing, onDone }: { ctx: Ctx; editing: Connector 
           {T.connectors.secretAdd}
         </button>
         <p className="muted" style={{ fontSize: 12 }}>
+          {preset && `${T.connectors.keyFrom(preset.keyUrl)} `}
           {T.connectors.secretsHint}
         </p>
       </div>
@@ -219,13 +259,27 @@ export function Connectors({ ctx }: { ctx: Ctx }) {
           </div>
         ),
       )}
-      {open === "new" ? (
-        <ConnectorForm ctx={ctx} editing={null} onDone={(next) => (next && setList(next), setOpen(null))} />
+      {open === "new" || open?.startsWith("preset:") ? (
+        <ConnectorForm
+          key={open}
+          ctx={ctx}
+          editing={null}
+          preset={PRESETS.find((preset) => `preset:${preset.id}` === open)}
+          onDone={(next) => (next && setList(next), setOpen(null))}
+        />
       ) : (
-        <button className="btn btn-secondary" style={{ alignSelf: "flex-start" }} onClick={() => setOpen("new")}>
-          <I icon={Plus} size={14} />
-          {T.connectors.add}
-        </button>
+        <div className="row wrap">
+          <button className="btn btn-secondary" onClick={() => setOpen("new")}>
+            <I icon={Plus} size={14} />
+            {T.connectors.add}
+          </button>
+          {PRESETS.filter((preset) => !list?.some((connector) => connector.id === preset.id)).map((preset) => (
+            <button key={preset.id} className="btn btn-ghost" onClick={() => setOpen(`preset:${preset.id}`)}>
+              <I icon={Plug} size={14} />
+              {T.connectors.preset(preset.name)}
+            </button>
+          ))}
+        </div>
       )}
     </section>
   );

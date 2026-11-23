@@ -359,6 +359,8 @@ export const en = {
       "Outside services the bureau may use (MCP servers). Every call you have not marked as free waits for your seal. Applies to peritos seated from now on.",
     none: "No connectors yet.",
     add: "Add a connector",
+    preset: (name: string) => `${name} template`,
+    keyFrom: (where: string) => `Get the key at ${where}.`,
     name: "Name",
     namePlaceholder: "e.g. Search Console",
     id: "Id",

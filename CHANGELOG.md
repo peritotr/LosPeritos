@@ -13,6 +13,10 @@
   folder, and are not shown again.
 - Every call to a connector waits for a seal unless the tool has been marked
   as free to use; agents are told which services they can reach.
+- A Replicate template fills the form for image and video generation with
+  Replicate's own MCP package: looking models up is free to use, every call
+  that makes something waits for a seal. Agents save what a service made into
+  their working folder, so it arrives as a file of the task.
 
 - Messages from the team are shown as formatted text in the chat, not with raw
   Markdown marks.

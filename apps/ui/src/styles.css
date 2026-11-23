@@ -618,5 +618,5 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .connector-form { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px solid var(--lp-faint); }
 .secret-row { margin-bottom: 6px; font-size: 13px; }
 .secret-row .input { min-width: 0; }
-.secret-row .input:first-child { flex: 0 1 190px; }
+.secret-row .input:first-child { flex: 0 1 42%; }
 .secret-row .input[type="password"] { flex: 1; }

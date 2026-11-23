@@ -357,6 +357,8 @@ export const tr: Strings = {
       "Büronun kullanabileceği dış servisler (MCP sunucuları). Sormadan kullanılabilir diye işaretlemediğin her çağrı mührünü bekler. Bundan sonra masaya oturan peritolar için geçerlidir.",
     none: "Henüz bağlayıcı yok.",
     add: "Bağlayıcı ekle",
+    preset: (name) => `${name} şablonu`,
+    keyFrom: (where) => `Anahtarı ${where} adresinden alırsın.`,
     name: "Ad",
     namePlaceholder: "örn. Search Console",
     id: "Kimlik",

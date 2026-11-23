@@ -779,7 +779,10 @@ export class Core {
       connectors.map((connector) => `- ${connector.name} (id: ${connector.id})`).join("\n") +
       "\nA call that changes, publishes or spends something outside this computer waits for the user's seal, " +
       "which can take a long time. If a call is refused, do not try to reach the same end another way: " +
-      "say what was refused in your report.\n"
+      "say what was refused in your report.\n" +
+      "When a service answers with the address of a file it made (an image, a video, a sound), download the file " +
+      "into your working folder with curl, give it a plain name, and list it with --file when you report: " +
+      "an address alone is not a deliverable and may stop working.\n"
     );
   }
 
