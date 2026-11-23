@@ -101,8 +101,34 @@ a file yourself, set its priority, make it wait for another, or cancel it.
 | 💰 **A daily budget** | Per project, with a warning at 80% and no new work once it is spent. |
 | ⌨️ **Terminal and preview** | Real shells in the bureau's folder, and the running site in a frame at desk, tablet or phone width. |
 | 📱 **From your phone** | On the same network: answer questions, seal, write to a lead. Off until you switch it on. |
+| 🤝 **A lead you can trust with the routine** | Leave routine seals to the lead: it reviews teammates' reversible work and seals it or sends it back. Publishing, spending and anything that cannot be undone stay yours. |
 | 🔁 **Staying on the job** | Conversations survive a restart. A perito that hits your usage limit waits and carries on by itself. |
 | 🌍 **Two languages** | English and Turkish, light and dark. |
+
+## The floor has a life of its own
+
+None of this ships a line of code. All of it is in the app.
+
+<table>
+<tr>
+<td width="50%">
+
+**Sıra gecesi.** One switch and the whole bureau drops what it is doing: everyone leaves their desk for the carpet, the dogs lie down beside it, evening falls, and a short tune (made in the app, in a hicaz scale, with a düm and a tek) plays. No new work is handed out until the night is over.
+
+<img src="docs/sira-gecesi.png" alt="Sıra gecesi: the peritos gathered round a carpet in evening light, music notes rising, both dogs lying beside them." width="420">
+
+</td>
+<td width="50%">
+
+**Berlin sees to faulty work.** When a perito's work ends in an error, or you send a dossier back, Berlin the French bulldog trots over and bites. You can also send Berlin to anyone's desk yourself. Luna, the setter, stays out of it.
+
+**Coffee and doughnuts.** Bring a perito a coffee or a doughnut from its card. It is counted, it floats over their head with a heart, and it is mentioned with the next message they get. It costs nothing and starts nothing.
+
+<img src="docs/berlin.png" alt="Berlin the bulldog on the way to a perito's desk, while another perito gets a coffee and a third a doughnut." width="420">
+
+</td>
+</tr>
+</table>
 
 ## Requirements
 

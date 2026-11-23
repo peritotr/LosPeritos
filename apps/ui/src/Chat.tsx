@@ -385,7 +385,16 @@ function SealReply({ ctx, approval, onError }: { ctx: Ctx; approval: Approval; o
     return (
       <div className="msg-actions muted">
         <I icon={Check} />
-        {approval.status === "approved" ? T.mail.sealed : approval.lapsed ? T.mail.lapsed : T.mail.declined}
+        {approval.decidedBy === "lead"
+          ? approval.status === "approved"
+            ? T.mail.sealedByLead
+            : T.mail.declinedByLead
+          : approval.status === "approved"
+            ? T.mail.sealed
+            : approval.lapsed
+              ? T.mail.lapsed
+              : T.mail.declined}
+        {approval.decidedBy === "lead" && approval.note ? `: ${approval.note}` : ""}
       </div>
     );
   }

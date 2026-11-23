@@ -201,6 +201,8 @@ export const en = {
     noTests: "No test runs are recorded for this file. What the perito says it tested is in the report.",
   },
   mail: {
+    sealedByLead: "Sealed by the lead",
+    declinedByLead: "Sent back by the lead",
     otherBureau: (name: string) => `${name} bureau`,
     title: "Correspondence",
     kicker: (bureau: string) => `SHEET 03 · ${bureau}`,
@@ -267,6 +269,11 @@ export const en = {
     none: "—",
   },
   seal: {
+    withLead: "This seal is with the lead: you have left routine decisions to it. You can still decide it yourself without waiting.",
+    leadNote: "The lead's note",
+    leadPassed: "The lead left this one to you",
+    sealedByLead: "Sealed by the lead.",
+    declinedByLead: (who: string) => `Sent back by the lead. ${who} is fixing it.`,
     sealed: "SEALED",
     declined: "DECLINED",
     awaiting: "AWAITING",
@@ -308,6 +315,8 @@ export const en = {
     kind: { merge: "Merge", deploy: "Publish", command: "Command", connector: "Connector", other: "Request" },
   },
   awaiting: {
+    tagWithLead: "With the lead",
+    tagSealedByLead: "Sealed by the lead",
     title: "Awaiting you",
     kicker: "ALL BUREAUS",
     count: (n: number) => `${n} awaiting`,
@@ -360,6 +369,12 @@ export const en = {
     estimate: "Amounts are estimates at API list prices, read from the agent tool's own reports.",
   },
   settings: {
+    delegation: "Who seals",
+    delegationNone: "I seal everything",
+    delegationRoutine: "Leave routine to the lead",
+    delegationNoneHint: "Every seal and every question comes to you.",
+    delegationRoutineHint:
+      "The lead reviews teammates' work that can be undone and seals it or sends it back; look-ups that change nothing go ahead unasked; small, reversible choices are made without asking you. Anything that publishes, deploys, spends money or credits, deletes or cannot be undone, and any acceptance that would overwrite an existing file, still comes to you. The lead passes up a seal it is unsure of; every decision it makes shows on the Waiting screen with its note.",
     title: "Settings",
     kicker: (bureau: string) => `SHEET 07 · ${bureau}`,
     bureau: "Bureau",

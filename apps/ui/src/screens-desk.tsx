@@ -160,6 +160,14 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
         <dt>{T.seal.bureau}</dt>
         <dd style={{ textAlign: "left" }}>{names.bureau(approval.workspaceId)?.name}</dd>
       </dl>
+      {/* Whose seal this is, when the lead has a hand in it. */}
+      {approval.status === "pending" && approval.delegated && <p className="seal-lead">{T.seal.withLead}</p>}
+      {approval.note && (
+        <div className="seal-why">
+          <div className="kicker">{approval.decidedBy === "lead" ? T.seal.leadNote : T.seal.leadPassed}</div>
+          <p>{approval.note}</p>
+        </div>
+      )}
       {/* A held tool call: say in words what such a call does, and what the perito had just said it was about. */}
       {(() => {
         const tool = approval.tool ?? (approval.kind === "command" || approval.kind === "connector" ? /^([\w-]+): /.exec(approval.title)?.[1] : undefined);
@@ -249,7 +257,15 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
       ) : (
         <p className="row" style={{ gap: 8 }}>
           <I icon={Check} />
-          {approval.status === "approved" ? T.seal.sealedBy(who) : approval.lapsed ? T.seal.lapsed : T.seal.declinedBy(who)}
+          {approval.decidedBy === "lead"
+            ? approval.status === "approved"
+              ? T.seal.sealedByLead
+              : T.seal.declinedByLead(who)
+            : approval.status === "approved"
+              ? T.seal.sealedBy(who)
+              : approval.lapsed
+                ? T.seal.lapsed
+                : T.seal.declinedBy(who)}
         </p>
       )}
     </article>
@@ -390,12 +406,16 @@ export function Awaiting({ ctx, selectedId }: { ctx: Ctx; selectedId?: string })
     const tag = done
       ? item.kind === "seal"
         ? item.approval.status === "approved"
-          ? T.awaiting.tagSealed
+          ? item.approval.decidedBy === "lead"
+            ? T.awaiting.tagSealedByLead
+            : T.awaiting.tagSealed
           : T.awaiting.tagDeclined
         : T.awaiting.tagAnswered
       : item.kind === "question"
         ? T.awaiting.tagQuestion
-        : ctx.deferred.has(item.id)
+        : item.kind === "seal" && item.approval.delegated
+          ? T.awaiting.tagWithLead
+          : ctx.deferred.has(item.id)
           ? T.awaiting.tagDeferred
           : T.awaiting.tagSeal;
     return (
@@ -930,6 +950,21 @@ export function Settings(ctx: Ctx) {
             </p>
             <p className="muted" style={{ fontSize: 12 }}>
               {T.kinds.note}
+            </p>
+          </div>
+          <div className="field">
+            <label>{T.settings.delegation}</label>
+            <Segmented<"none" | "routine">
+              label={T.settings.delegation}
+              value={bureau.delegation ?? "none"}
+              onChange={(delegation) => actions.updateWorkspace(bureau.id, { delegation }).catch((err: Error) => ctx.note(err.message))}
+              options={[
+                { value: "none", label: T.settings.delegationNone },
+                { value: "routine", label: T.settings.delegationRoutine },
+              ]}
+            />
+            <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+              {(bureau.delegation ?? "none") === "routine" ? T.settings.delegationRoutineHint : T.settings.delegationNoneHint}
             </p>
           </div>
           {!ctx.simple && (

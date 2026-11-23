@@ -35,6 +35,13 @@ export const Workspace = z.object({
    * this bureau) that may go ahead unasked, by their full name.
    */
   freeTools: z.array(z.string()).optional(),
+  /**
+   * How much the user leaves to the lead. "routine": the lead seals teammates'
+   * work that can be undone, look-ups go ahead unasked, and the lead settles
+   * small reversible choices itself. Anything that publishes, spends, deletes
+   * or cannot be undone still waits for the user.
+   */
+  delegation: z.enum(["none", "routine"]).optional(),
   /** The language the user reads, as the app is set to ("tr", "en"): the team writes in it. */
   language: z.string().regex(/^[a-z]{2}$/).optional(),
   /** Set on the one bureau that does no work of its own: its lead hands jobs to the other bureaus. */
@@ -219,6 +226,12 @@ export const Approval = z.object({
   detail: z.string(),
   steps: z.array(z.string()),
   reversible: z.boolean(),
+  /** Waiting on the lead, to whom the user has left routine seals; the user can still decide it. */
+  delegated: z.boolean().optional(),
+  /** Who decided: absent means the user. */
+  decidedBy: z.enum(["user", "lead"]).optional(),
+  /** What the lead wrote with its decision, or why it passed the seal back to the user. */
+  note: z.string().optional(),
   /** For a held tool call: what the agent wrote just before making it, as the nearest thing to its reason. */
   why: z.string().optional(),
   /** For a held tool call: the tool by its own name ("WebSearch", "Bash"), so the app can say what such a call does. */
@@ -421,6 +434,7 @@ export const UpdateWorkspaceRequest = Workspace.pick({
   agentTool: true,
   freeTools: true,
   language: true,
+  delegation: true,
 }).partial();
 
 /** A task the user writes themselves, rather than the lead. */
@@ -638,6 +652,8 @@ export const AgentCommand = z.discriminatedUnion("command", [
   /** `to` is an agent name, "lead" or "user". */
   /** `to` is a teammate, `lead`, `user`, or for a lead `bureau:<name>`: the lead of another bureau. */
   z.object({ command: z.literal("send"), to: z.string().min(1), body: z.string().min(1), files: z.array(z.string()).max(12).default([]) }),
+  /** The lead's word on a seal the user has left to it: approve, send back, or pass it up to the user. */
+  z.object({ command: z.literal("seal"), task: z.number().int().positive(), decision: z.enum(["approve", "reject", "escalate"]), reason: z.string().trim().min(1).max(2000) }),
   /** The user's other bureaus and what each is busy with. */
   z.object({ command: z.literal("bureaus") }),
   z.object({

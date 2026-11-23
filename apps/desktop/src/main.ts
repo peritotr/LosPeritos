@@ -224,6 +224,9 @@ async function runSmoke(target: BrowserWindow): Promise<void> {
   app.quit();
 }
 
+// The demo keeps its own window state and its own lock, apart from the real app's: a demo or a
+// screenshot run can then be started while the app is open, and leaves the app's settings alone.
+if (fake || process.env.LP_USER_DATA) app.setPath("userData", process.env.LP_USER_DATA ?? join(app.getPath("appData"), "LosPeritos Demo"));
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {

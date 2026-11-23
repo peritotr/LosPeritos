@@ -102,8 +102,34 @@ Ekran görüntüleri İngilizce arayüzden alındı; arayüzün tamamı Türkçe
 | 💰 **Günlük bütçe** | Proje başına; %80'de uyarı, dolunca yeni iş yok. |
 | ⌨️ **Terminal ve önizleme** | Büro klasöründe gerçek kabuklar ve çalışan site; masaüstü, tablet ya da telefon genişliğinde. |
 | 📱 **Telefondan** | Aynı ağda: soruları yanıtla, mühürle, Baş Perito'ya yaz. Sen açana kadar kapalı. |
+| 🤝 **Rutini devredebileceğin bir Baş Perito** | Rutin mühürleri Baş Perito'ya bırak: ekip üyelerinin geri alınabilir işlerini inceler, mühürler ya da geri gönderir. Yayın, harcama ve geri alınamayan her şey sende kalır. |
 | 🔁 **Takılmayan ekip** | Konuşmalar yeniden başlatmada sürer. Kullanım limitine takılan perito bekler ve kendiliğinden devam eder. |
 | 🌍 **İki dil** | Türkçe ve İngilizce, açık ve koyu tema. |
+
+## Büro katının kendi hayatı var
+
+Bunların hiçbiri tek satır kod yazmıyor. Hepsi uygulamanın içinde.
+
+<table>
+<tr>
+<td width="50%">
+
+**Sıra gecesi.** Tek düğme, bütün büro işi bırakır: herkes masasından kalkıp halının başına geçer, köpekler yanına uzanır, akşam çöker ve kısa bir ezgi çalar (uygulamanın kendi yaptığı, hicaz dizisinde, bir düm bir tek). Gece bitene kadar yeni iş dağıtılmaz.
+
+<img src="docs/sira-gecesi.png" alt="Sıra gecesi: peritolar akşam ışığında halının etrafında toplanmış, notalar yükseliyor, iki köpek yanlarında yatıyor." width="420">
+
+</td>
+<td width="50%">
+
+**Hatalı işe Berlin bakar.** Bir peritonun işi hatayla biterse ya da bir dosyayı geri gönderirsen, Fransız bulldog Berlin koşup ısırır. İstersen Berlin'i kendi elinle de herhangi bir masaya gönderebilirsin. Setter Luna bu işlere karışmaz.
+
+**Kahve ve donut.** Bir peritoya kartından kahve ya da donut götür. Sayılır, başının üstünde bir kalple süzülür ve alacağı bir sonraki mesajda anılır. Hiçbir şeye mal olmaz, hiçbir işi başlatmaz.
+
+<img src="docs/berlin.png" alt="Bulldog Berlin bir peritonun masasına doğru yolda; başka bir peritoya kahve, bir diğerine donut gelmiş." width="420">
+
+</td>
+</tr>
+</table>
 
 ## Gereksinimler
 

@@ -199,6 +199,8 @@ export const tr: Strings = {
     noTests: "Bu dosya için kayıtlı test çalıştırması yok. Peritonun test ettiğini söyledikleri raporda yer alır.",
   },
   mail: {
+    sealedByLead: "Baş Perito mühürledi",
+    declinedByLead: "Baş Perito geri gönderdi",
     otherBureau: (name) => `${name} bürosu`,
     title: "Yazışmalar",
     kicker: (bureau) => `PAFTA 03 · ${bureau}`,
@@ -265,6 +267,11 @@ export const tr: Strings = {
     none: "—",
   },
   seal: {
+    withLead: "Bu mühür Baş Perito'da: rutin kararları ona devrettin. İstersen beklemeden sen de karar verebilirsin.",
+    leadNote: "Baş Perito'nun notu",
+    leadPassed: "Baş Perito bu kararı sana bıraktı",
+    sealedByLead: "Baş Perito mühürledi.",
+    declinedByLead: (who) => `Baş Perito geri gönderdi. ${who} düzeltiyor.`,
     sealed: "MÜHÜRLENDİ",
     declined: "REDDEDİLDİ",
     awaiting: "BEKLİYOR",
@@ -306,6 +313,8 @@ export const tr: Strings = {
     kind: { merge: "Birleştirme", deploy: "Yayın", command: "Komut", connector: "Bağlayıcı", other: "İstek" },
   },
   awaiting: {
+    tagWithLead: "Baş Perito'da",
+    tagSealedByLead: "Baş Perito mühürledi",
     title: "Bekleyenler",
     kicker: "TÜM BÜROLAR",
     count: (n) => `${n} bekliyor`,
@@ -358,6 +367,12 @@ export const tr: Strings = {
     estimate: "Tutarlar, ajan aracının kendi raporlarından okunan, API liste fiyatlarıyla yapılmış tahminlerdir.",
   },
   settings: {
+    delegation: "Mühür yetkisi",
+    delegationNone: "Hepsini ben mühürlerim",
+    delegationRoutine: "Rutini Baş Perito'ya devret",
+    delegationNoneHint: "Her mühür ve her soru sana gelir.",
+    delegationRoutineHint:
+      "Baş Perito, ekip üyelerinin geri alınabilir işlerini kendisi inceleyip mühürler ya da geri gönderir; arama ve okuma gibi yalnızca bakan çağrılar sorulmadan geçer; küçük ve geri alınabilir seçimleri sana sormadan yapar. Yayınlayan, dağıtan, para ya da kredi harcayan, silen ya da geri alınamayan her şey ve var olan bir dosyanın üzerine yazan kabuller yine sana gelir. Baş Perito emin olmadığı mührü sana bırakır; her kararı notuyla birlikte Bekleyenler'de görünür.",
     title: "Ayarlar",
     kicker: (bureau) => `PAFTA 07 · ${bureau}`,
     bureau: "Büro",

@@ -42,6 +42,7 @@ export interface Ctx {
   setSimple(simple: boolean): void;
 }
 
-export const pendingApprovals = (approvals: Approval[]) => approvals.filter((a) => a.status === "pending");
+/** Seals waiting for the user. One the lead has been left to decide is not among them, though the user may still decide it. */
+export const pendingApprovals = (approvals: Approval[]) => approvals.filter((a) => a.status === "pending" && !a.delegated);
 export const openQuestions = (messages: Message[]) =>
   messages.filter((m) => m.question && m.question.answer === null);

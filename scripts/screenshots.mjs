@@ -4,6 +4,10 @@
 //   docs/floor.png             the bureau floor in motion (an animated PNG)
 //   docs/screenshot-*.png      still screens, light and dark
 //   docs/social-preview.png    1280×640 card for the repository's social preview
+//   docs/sira-gecesi.png       the sıra gecesi gathering (an animated PNG)
+//   docs/berlin.png            Berlin's errand, with a coffee on the way (an animated PNG)
+//
+// `node scripts/screenshots.mjs --floor-life` redoes only the last two.
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -59,6 +63,27 @@ const steps = [
   { run: click("Files"), waitMs: 1500, file: join(docs, "screenshot-files.png") },
   { run: click("The Bench") + "; " + settings({ theme: "dark" }), waitMs: 4000, file: join(docs, "screenshot-dark.png") },
 ];
+// The floor's own life: the night, and the dog. Sound is off: nobody wants a tune from a build script.
+const NIGHT = 14;
+const ERRAND = 18;
+const night = (index) => join(work, `night-${String(index).padStart(2, "0")}.png`);
+const errand = (index) => join(work, `errand-${String(index).padStart(2, "0")}.png`);
+const press = (label) => `[...document.querySelectorAll("button")].filter((b) => b.getAttribute("aria-label") === ${JSON.stringify(label)})`;
+const floorLife = [
+  { run: settings({ lang: "en", theme: "light", chat: "closed", tour: "1", mode: "advanced", "sira.sound": "off" }), waitMs: 3000, file: join(work, "discard.png") },
+  { run: click("Run the demo job"), waitMs: 14000, file: join(work, "discard.png") },
+  // A coffee for the second perito, then Berlin to the third.
+  { run: `${press("Bring a coffee")}[1]?.click(); ${press("Bring a doughnut")}[2]?.click(); ${press("Send Berlin over")}[2]?.click(); null`, waitMs: 150, file: join(work, "discard.png") },
+  ...Array.from({ length: ERRAND }, (_, index) => ({ run: floorArea, waitMs: 330, file: errand(index) })),
+  { run: click("Sıra gecesi"), waitMs: 2600, file: join(work, "discard.png") },
+  ...Array.from({ length: NIGHT }, (_, index) => ({ run: floorArea, waitMs: 300, file: night(index) })),
+];
+const stitch = (name, files, ms) => {
+  const all = files.map((file) => readPng(file));
+  const { w, h } = all[0];
+  writeApng(join(docs, name), w, h, all.filter((f) => f.w === w && f.h === h).map((f) => f.data), ms);
+  console.log(`${name}: ${all.length} frames, ${w}×${h}`);
+};
 const stepsFile = join(work, "steps.json");
 const run = (list) => {
   writeFileSync(stepsFile, JSON.stringify(list));
@@ -69,6 +94,12 @@ const run = (list) => {
   });
   if (result.status !== 0) process.exit(result.status ?? 1);
 };
+if (process.argv.includes("--floor-life")) {
+  run(floorLife);
+  stitch("berlin.png", Array.from({ length: ERRAND }, (_, index) => errand(index)), 330);
+  stitch("sira-gecesi.png", Array.from({ length: NIGHT }, (_, index) => night(index)), 300);
+  process.exit(0);
+}
 run(steps);
 
 // Stitch the frames into one looping animation.

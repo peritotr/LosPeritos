@@ -1367,3 +1367,76 @@ test("a coffee brought to a perito's desk is counted and mentioned with the next
   assert.equal(adapter.sent.at(-1), "sonra", "said once");
   await core.close();
 });
+
+test("with routine decisions left to the lead, it seals teammates' work, sends it back or passes it up; the rest stays the user's", async () => {
+  const { core, adapter, folder, workspace, tokenOf } = setup();
+  for (let i = 0; i < 100 && core.listAgents(workspace.id)[0]!.status !== "idle"; i++) await tick();
+  core.updateWorkspace(workspace.id, { delegation: "routine" });
+  await tick();
+  // The lead was restarted to be told; the next message starts it again.
+  core.sendMessage(workspace.id, { body: "plan", toAgentId: null, taskId: null });
+  const leadAt = adapter.starts.length - 1;
+  assert.match(adapter.starts[leadAt]!.systemPrompt!, /The user has left routine decisions to you/);
+  const lead = (command: AgentCommandInput) => core.agentCommand(tokenOf(leadAt), AgentCommand.parse(command));
+
+  await lead({ command: "task.create", title: "Add hello file", specialty: "developer" });
+  const memberAt = adapter.starts.length - 1;
+  const member = (command: AgentCommandInput) => core.agentCommand(tokenOf(memberAt), AgentCommand.parse(command));
+  const [task] = core.listTasks(workspace.id);
+  const commit = (text: string) => {
+    writeFileSync(join(task!.worktree!, "hello.txt"), text);
+    sh(task!.worktree!, "git", "add", ".");
+    sh(task!.worktree!, "git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "hello");
+  };
+  commit("hi\n");
+  const handed = await member({ command: "task.done", report: { done: ["added hello.txt"], tested: ["read it back"], notVerified: [] } });
+  assert.match(handed.message, /the lead will review it/);
+  const seal = core.listApprovals(workspace.id).at(-1)!;
+  assert.equal(seal.delegated, true);
+  assert.equal(core.waiting().approvals.length, 0, "it is not waiting for the user");
+  for (let i = 0; i < 50 && !adapter.sent.some((text) => text.includes("waits for a seal")); i++) await tick();
+  assert.match(adapter.sent.find((text) => text.includes("waits for a seal"))!, /git diff main\.\.\.peritos\/task-1-add-hello-file/);
+
+  // A teammate cannot seal, and the lead cannot be vague about why.
+  await assert.rejects(member({ command: "seal", task: 1, decision: "approve", reason: "fine" }), /Only the lead/);
+  // Sent back: the task is open again and the teammate is told what to fix.
+  await lead({ command: "seal", task: 1, decision: "reject", reason: "Say hello to the user by name." });
+  assert.equal(core.getTask(task!.id).status, "in_progress");
+  assert.equal(core.listApprovals(workspace.id).at(-1)!.decidedBy, "lead");
+  for (let i = 0; i < 50 && !adapter.sent.some((text) => text.includes("What to fix: Say hello")); i++) await tick();
+  assert.ok(adapter.sent.some((text) => text.startsWith("The lead rejected your request") && text.includes("What to fix: Say hello to the user by name.")));
+
+  // Handed in again and sealed by the lead: merged, closed, and on record as the lead's seal with its note.
+  commit("hi, Levent\n");
+  await member({ command: "task.done", report: { done: ["greets by name"], tested: [], notVerified: [] } });
+  await lead({ command: "seal", task: 1, decision: "approve", reason: "Read the file; it greets by name." });
+  assert.equal(core.getTask(task!.id).status, "done");
+  assert.equal(readFileSync(join(folder, "hello.txt"), "utf8"), "hi, Levent\n");
+  const sealed = core.listApprovals(workspace.id).at(-1)!;
+  assert.deepEqual([sealed.status, sealed.decidedBy, sealed.note], ["approved", "lead", "Read the file; it greets by name."]);
+  await assert.rejects(lead({ command: "seal", task: 1, decision: "approve", reason: "again" }), /no seal waiting/);
+
+  // Passed up: the lead is unsure, so the seal goes to the user with its reason.
+  await lead({ command: "task.create", title: "Change the licence", specialty: "developer" });
+  const secondAt = adapter.starts.length - 1;
+  const second = core.listTasks(workspace.id).at(-1)!;
+  writeFileSync(join(second.worktree!, "LICENSE"), "MIT\n");
+  sh(second.worktree!, "git", "add", ".");
+  sh(second.worktree!, "git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "licence");
+  await core.agentCommand(tokenOf(secondAt), AgentCommand.parse({ command: "task.done", report: { done: ["x"], tested: [], notVerified: [] } }));
+  await lead({ command: "seal", task: 2, decision: "escalate", reason: "A licence is the user's call." });
+  const passed = core.waiting().approvals[0]!;
+  assert.deepEqual([passed.delegated, passed.note], [false, "A licence is the user's call."]);
+  await assert.rejects(lead({ command: "seal", task: 2, decision: "approve", reason: "changed my mind" }), /the user's to decide/);
+  await core.decideApproval(passed.id, "approved");
+  assert.equal(core.listApprovals(workspace.id).at(-1)!.decidedBy, "user");
+
+  // A look-up goes ahead unasked; a command that pushes still waits for the user.
+  assert.equal(await core.requestPermission(tokenOf(leadAt), "WebSearch", { query: "x" }), "approved");
+  const push = core.requestPermission(tokenOf(leadAt), "Bash", { command: "git push" });
+  await tick();
+  assert.equal(core.waiting().approvals.at(-1)!.title, "Bash: git push");
+  await core.decideApproval(core.waiting().approvals.at(-1)!.id, "rejected");
+  await push;
+  await core.close();
+});

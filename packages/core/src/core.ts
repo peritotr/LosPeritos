@@ -191,6 +191,15 @@ const OWN_CLIENT_SECRET = "OAUTH_CLIENT_SECRET";
 const headerSecrets = (secrets: Record<string, string>) =>
   Object.fromEntries(Object.entries(secrets).filter(([name]) => name !== OWN_CLIENT_ID && name !== OWN_CLIENT_SECRET));
 
+/** What a lead is told when the user has left routine decisions to it. */
+const INITIATIVE_PROMPT =
+  "\nThe user has left routine decisions to you. Use your own judgement and keep the work moving:\n" +
+  "- Settle small, reversible choices yourself (the order of work, names, wording, which of two equivalent ways) and say in one line what you chose and why. Do not ask the user about them.\n" +
+  "- You seal teammates' work when it can be undone: you are told when a task waits for you, and decide with `peritos seal <task number> --approve|--reject|--escalate \"<reason>\"`. Look at the work itself before you seal it.\n" +
+  "- Send work back as often as it needs; a seal from you means you would put your name to it.\n" +
+  "Still the user's alone: anything that publishes, deploys, spends money or credits, deletes, reaches another machine, or cannot be undone; " +
+  "and choices of taste or direction the user clearly cares about (a brand's look, a product's scope). For those use `peritos ask` or `peritos approval` as before.\n";
+
 /** The lead of the bureau that stands over the others: it places work, and does none. */
 const COORDINATOR_PROMPT =
   "You are the coordinator over the user's bureaus. Each bureau is one project with its own lead and team; you have no team and do no work yourself. " +
@@ -602,16 +611,26 @@ export class Core {
 
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused" | "agentTool" | "freeTools" | "language">>,
+    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused" | "agentTool" | "freeTools" | "language" | "delegation">>,
   ): Workspace {
     const state = this.state(workspaceId);
     if (patch.agentTool && !this.adapters.has(patch.agentTool)) throw new CoreError("bad_request", `No agent tool "${patch.agentTool}" here.`);
     const before = this.toolOf(state.workspace);
     const languageBefore = state.workspace.language;
+    const delegationBefore = state.workspace.delegation;
     state.workspace = { ...state.workspace, ...patch };
     state.store.writeDoc("workspace", state.workspace);
     // The team is told the language when it sits down: a change reaches it at its next start.
     if (patch.language && patch.language !== languageBefore) this.refreshSessions(workspaceId);
+    if (patch.delegation && patch.delegation !== (delegationBefore ?? "none")) {
+      this.refreshSessions(workspaceId);
+      // Taking the seals back: what the lead had not yet decided waits for the user again.
+      if (patch.delegation === "none") {
+        for (const approval of state.approvals.all()) {
+          if (approval.status === "pending" && approval.delegated) this.emit({ type: "approval.requested", approval: state.approvals.put({ ...approval, delegated: false }) });
+        }
+      }
+    }
     const tool = this.toolOf(state.workspace);
     if (tool !== before) {
       // Another tool cannot pick up this one's conversations: the team starts afresh on it, tasks and notebook intact.
@@ -1141,7 +1160,8 @@ export class Core {
     const approvals: Approval[] = [];
     const questions: Message[] = [];
     for (const state of this.workspaces.values()) {
-      approvals.push(...state.approvals.all().filter((a) => a.status === "pending"));
+      // What the lead has been left to decide is not waiting for the user.
+      approvals.push(...state.approvals.all().filter((a) => a.status === "pending" && !a.delegated));
       questions.push(...state.messages.all().filter((m) => m.question && m.question.answer === null));
     }
     return { approvals, questions };
@@ -1521,8 +1541,16 @@ export class Core {
     return updated;
   }
 
-  async decideApproval(approvalId: string, decision: "approved" | "rejected", remember = false): Promise<Approval> {
-    const { state, item } = this.find((s) => s.approvals, approvalId, "approval");
+  async decideApproval(
+    approvalId: string,
+    decision: "approved" | "rejected",
+    remember = false,
+    /** Set when the lead decides a seal the user left to it; otherwise the decision is the user's. */
+    by?: { who: "lead"; note: string },
+  ): Promise<Approval> {
+    const { state, item: raised } = this.find((s) => s.approvals, approvalId, "approval");
+    // Whoever decides, it no longer waits on the lead; the lead's word is kept with it.
+    const item: Approval = { ...raised, delegated: false, decidedBy: by ? "lead" : "user", ...(by && { note: by.note }) };
     if (item.status !== "pending") throw new CoreError("conflict", "Already decided.");
     if (remember && decision === "approved" && item.call) {
       // Only this tool, by its exact name: nothing wider than what was looked at.
@@ -1592,7 +1620,7 @@ export class Core {
     }
     if (agent) {
       const verdict = decision === "approved" ? "approved" : "rejected";
-      this.deliver(state, agent, `The user ${verdict} your request: ${item.title}`);
+      this.deliver(state, agent, `The ${by ? "lead" : "user"} ${verdict} your request: ${item.title}${by && decision === "rejected" ? `\n\nWhat to fix: ${by.note}` : ""}`);
     }
     return updated;
   }
@@ -1737,7 +1765,43 @@ export class Core {
           // Replacing a file outside git leaves no way back.
           reversible: !draft?.some((file) => existsSync(join(state.workspace.path, file))),
         });
+        // Routine seals can be left to the lead: work that can be undone, with nothing odd about it.
+        const seal = state.approvals.all().at(-1)!;
+        const leadAgent = state.agents.all().find((item) => item.role === "lead");
+        if (state.workspace.delegation === "routine" && seal.reversible && !outsideNote && leadAgent && leadAgent.id !== agent.id) {
+          const left = state.approvals.put({ ...seal, delegated: true });
+          this.emit({ type: "approval.requested", approval: left });
+          const where = task.branch
+            ? `It is on branch ${task.branch}; see what changed with \`git diff ${task.baseBranch}...${task.branch}\`${task.repo ? ` in ${task.repo}` : ""}.`
+            : `Its files are in ${task.worktree}.`;
+          this.deliver(
+            state,
+            leadAgent,
+            `Task #${task.number} "${task.title}" was handed in by ${agent.name} and waits for a seal. The user has left routine seals to you, so this one is yours to decide.\n\n` +
+              `${seal.detail}\n\n${where}\n\n` +
+              "Look at the work itself, not only the report. Then one of:\n" +
+              `- It does what the task asked and nothing in it is risky: \`peritos seal ${task.number} --approve "<one line: what you checked>"\`\n` +
+              `- It falls short: \`peritos seal ${task.number} --reject "<exactly what to fix>"\` (it goes back to ${agent.name})\n` +
+              `- You are not sure, or it touches money, publishing, the direction of the brand or product, or anything that cannot be undone: \`peritos seal ${task.number} --escalate "<why the user should decide>"\``,
+          );
+          return say("Task handed in; the lead will review it. Stop here; you will be told if changes are needed.");
+        }
         return say("Task handed in for the user's approval. Stop here; you will be told if changes are needed.");
+      }
+      case "seal": {
+        if (agent.role !== "lead") throw new CoreError("bad_request", "Only the lead can seal, and only what the user has left to it.");
+        const sealed = state.tasks.all().find((item) => item.number === command.task);
+        const waiting = sealed && state.approvals.all().find((item) => item.taskId === sealed.id && item.status === "pending" && item.kind === "merge");
+        if (!sealed || !waiting) throw new CoreError("not_found", `Task #${command.task} has no seal waiting.`);
+        if (!waiting.delegated) throw new CoreError("bad_request", `The seal for task #${command.task} is the user's to decide, not yours.`);
+        if (command.decision === "escalate") {
+          const passed = state.approvals.put({ ...waiting, delegated: false, note: command.reason });
+          this.emit({ type: "approval.requested", approval: passed });
+          void this.notifier.nudge("seal");
+          return say("Passed to the user, with your reason. Carry on with other work; you will be told the outcome.");
+        }
+        await this.decideApproval(waiting.id, command.decision === "approve" ? "approved" : "rejected", false, { who: "lead", note: command.reason });
+        return say(command.decision === "approve" ? `Task #${command.task} sealed and closed.` : `Task #${command.task} sent back with your note.`);
       }
       case "bureaus": {
         const others = [...this.workspaces.values()].filter((other) => other !== state);
@@ -1914,6 +1978,8 @@ export class Core {
     const reads = READING_TOOLS.includes(tool);
     // A kind of looking-up the user has said need not be asked about again in this bureau.
     if (reads && state.workspace.freeTools?.includes(tool)) return Promise.resolve("approved");
+    // With routine decisions left to the lead, a look-up that changes nothing is not worth anyone's seal.
+    if (reads && state.workspace.delegation === "routine") return Promise.resolve("approved");
     const looked = ["Read", "Glob", "Grep", "LS"].includes(tool) ? (input.file_path ?? input.path) : undefined;
     if (typeof looked === "string" && isAbsolute(looked) && TEMP_DIRS.some((dir) => resolve(looked) === dir || resolve(looked).startsWith(dir + sep))) {
       return Promise.resolve("approved");
@@ -2283,7 +2349,7 @@ export class Core {
           (agent.role === "lead"
             ? state.workspace.coordinator
               ? COORDINATOR_PROMPT
-              : leadPrompt(state.workspace.kind ?? "software") + this.reposPrompt(state)
+              : leadPrompt(state.workspace.kind ?? "software") + this.reposPrompt(state) + (state.workspace.delegation === "routine" ? INITIATIVE_PROMPT : "")
             : memberPrompt(
                 state.workspace.kind ?? "software",
                 !task?.worktree

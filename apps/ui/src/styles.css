@@ -754,3 +754,4 @@ button.file-chip { font: inherit; cursor: pointer; }
 .treats { display: flex; gap: 2px; margin: -4px 0 -2px -6px; }
 .treats .btn { padding: 3px 6px; gap: 4px; font-size: 11px; }
 .treats .btn:hover { color: var(--color-accent); }
+.seal-lead { margin: 0; padding: 8px 12px; font-size: 13px; border: 1px dashed var(--color-accent); }

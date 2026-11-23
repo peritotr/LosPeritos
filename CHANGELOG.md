@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+**A lead that decides the routine**
+- A bureau can leave routine decisions to its lead (Settings → Who seals).
+  The lead then reviews teammates' work that can be undone and seals it,
+  sends it back with what to fix, or passes it up to you with its reason;
+  look-ups that change nothing go ahead unasked; and it settles small,
+  reversible choices without asking.
+- Still yours alone: anything that publishes, deploys, spends, deletes or
+  cannot be undone, and an acceptance that would overwrite an existing file.
+- Every seal says who gave it, with the lead's note. A seal that is with the
+  lead can still be decided by you.
+
+**Other**
+- A demo or a screenshot run keeps its own window state, so it can be started
+  while the app is open and leaves the app's settings alone.
+- The sıra gecesi can be held without its tune.
+
 ## 0.7.0 — 2026-11-23
 
 **The floor, for its own sake**

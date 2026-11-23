@@ -63,6 +63,12 @@ function drum(at: number, kind: string): void {
 export function startSiraMusic(): void {
   if (timer) return;
   try {
+    // A quiet night, for whoever wants the gathering without the tune.
+    if (localStorage.getItem("losperitos.sira.sound") === "off") return;
+  } catch {
+    // No storage: play.
+  }
+  try {
     context ??= new AudioContext();
   } catch {
     return; // No sound here: the night goes on without it.

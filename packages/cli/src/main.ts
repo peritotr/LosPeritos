@@ -18,7 +18,8 @@ const USAGE = `Usage:
   peritos lesson <text>
   peritos page --title <t> (--file <markdown file> | <markdown text>)
   peritos pages [<title>]
-  peritos bureaus`;
+  peritos bureaus
+  peritos seal <task number> (--approve | --reject | --escalate) "<reason>"`;
 
 function fail(message: string): never {
   console.error(message);
@@ -45,6 +46,9 @@ function build(argv: string[]): AgentCommandInput {
       to: { type: "string" },
       option: { type: "string", multiple: true },
       recommend: { type: "string" },
+      approve: { type: "string" },
+      reject: { type: "string" },
+      escalate: { type: "string" },
       kind: { type: "string" },
       detail: { type: "string" },
       step: { type: "string", multiple: true },
@@ -107,6 +111,11 @@ function build(argv: string[]): AgentCommandInput {
     }
     case "bureaus":
       return { command: "bureaus" };
+    case "seal": {
+      const decision = values.approve ? "approve" : values.reject ? "reject" : values.escalate ? "escalate" : undefined;
+      if (!decision) fail("Say what you decide: --approve, --reject or --escalate, each with a reason.");
+      return { command: "seal", task: Number(rest[0]), decision, reason: (values.approve ?? values.reject ?? values.escalate ?? "").trim() || rest.slice(1).join(" ") };
+    }
     case "pages":
       return { command: "pages", title: text || undefined };
     default:
