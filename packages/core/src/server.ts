@@ -19,6 +19,7 @@ import {
   SavePageRequest,
   OpenTerminalRequest,
   SetPhoneRequest,
+  SetNotifyRequest,
   TerminalInput,
   SendMessageRequest,
   UpdateAgentRequest,
@@ -103,6 +104,15 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "POST /workspaces/:workspaceId/pages": (p, body) => core.savePage(p.workspaceId!, parse(SavePageRequest, body)),
     "POST /pages/:pageId/remove": (p) => core.removePage(p.pageId!),
     "GET /workspaces/:workspaceId/docs": (p) => core.listDocs(p.workspaceId!),
+    "GET /notify": () => core.notifier.settings(),
+    "POST /notify": (_p, body) => {
+      try {
+        return core.notifier.set(parse(SetNotifyRequest, body));
+      } catch (err) {
+        throw err instanceof CoreError ? err : new CoreError("bad_request", (err as Error).message);
+      }
+    },
+    "POST /notify/test": async () => ({ sent: await core.notifier.nudge("test") }),
     "GET /phone": () => core.phone.status(),
     "POST /phone": (_p, body) => {
       const request = parse(SetPhoneRequest, body);

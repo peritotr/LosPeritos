@@ -7,7 +7,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
-import { createServer as createHttp } from "node:http";
+import { createServer as createHttp, request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { createHash } from "node:crypto";
 import { FakeAdapter } from "@losperitos/adapters";
 import { MAX_AGENTS_PER_WORKSPACE, type AgentCommandInput, OpenTerminalRequest } from "@losperitos/protocol";
@@ -983,26 +984,46 @@ test("a lead can see the user's other bureaus and hand work to another bureau's 
 });
 
 test("the phone's door opens only when switched on, only with its key, and only onto questions, seals and messages", async () => {
-  const { core, workspace } = setup({ repo: false });
-  assert.deepEqual(core.phone.status(), { enabled: false, urls: [] });
+  const { core, workspace, dataDir } = setup({ repo: false });
+  assert.deepEqual(core.phone.status(), { enabled: false, urls: [], secure: false, fingerprint: null });
   const opened = await core.phone.set(true);
   assert.equal(opened.enabled, true);
-  const port = Number(/:(\d+)\/m\//.exec(opened.urls[0] ?? `:${0}/m/`)?.[1]);
-  const key = (core as unknown as { app: { readSecret(name: string, fallback: null): { token: string; port: number } } }).app.readSecret("phone", null).token;
-  const base = `http://127.0.0.1:${port || (core as unknown as { phone: { port: number } }).phone.port}/m/${key}`;
-  const post = (path: string, value: unknown) => fetch(base + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
+  const inner = core as unknown as { app: { readSecret(name: string, fallback: null): { token: string } }; phone: { port: number } };
+  const key = inner.app.readSecret("phone", null).token;
+  const scheme = opened.secure ? "https" : "http";
+  const base = `${scheme}://127.0.0.1:${inner.phone.port}/m/${key}`;
+  // The certificate is the app's own: the test trusts exactly that one, as a phone does once the user has accepted it.
+  const ca = opened.secure ? readFileSync(join(dataDir, "phone-cert.pem")) : undefined;
+  if (opened.secure) {
+    assert.match(opened.fingerprint!, /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/);
+    assert.equal(statSync(join(dataDir, "phone-key.pem")).mode & 0o777, 0o600);
+  }
+  const ask = (url: string, value?: unknown) =>
+    new Promise<{ status: number; text: string }>((resolve, reject) => {
+      const target = new URL(url);
+      const req = (opened.secure ? httpsRequest : httpRequest)(
+        target,
+        { method: value === undefined ? "GET" : "POST", headers: { "Content-Type": "application/json" }, ...(ca && { ca }), agent: false },
+        (res) => {
+          let text = "";
+          res.on("data", (chunk) => (text += chunk)).on("end", () => resolve({ status: res.statusCode ?? 0, text }));
+        },
+      );
+      req.on("error", reject);
+      req.end(value === undefined ? undefined : JSON.stringify(value));
+    });
 
-  assert.match(await (await fetch(base)).text(), /<title>LosPeritos<\/title>/);
-  assert.equal((await fetch(base.replace(key, "wrong-key"))).status, 404);
-  assert.notEqual((await fetch(`${base}/terminals`)).status, 200, "the key opens nothing beyond the page's own actions");
-  assert.equal((await fetch(base.replace(`/m/${key}`, "/workspaces"))).status, 404, "the main API is not behind this door");
+  assert.match((await ask(base)).text, /<title>LosPeritos<\/title>/);
+  assert.equal((await ask(base.replace(key, "wrong-key"))).status, 404);
+  assert.notEqual((await ask(`${base}/terminals`)).status, 200, "the key opens nothing beyond the page's own actions");
+  assert.equal((await ask(base.replace(`/m/${key}`, "/workspaces"))).status, 404, "the main API is not behind this door");
 
   core.sendMessage(workspace.id, { body: "/ask", toAgentId: null, taskId: null });
   core.sendMessage(workspace.id, { body: "/approve", toAgentId: null, taskId: null });
   type View = { bureaus: Array<{ id: string; questions: Array<{ id: string; options: string[] }>; seals: Array<{ id: string }>; recent: unknown[] }> };
   let view: View = { bureaus: [] };
   for (let i = 0; i < 100; i++) {
-    view = (await (await fetch(`${base}/state`)).json()) as View;
+    view = JSON.parse((await ask(`${base}/state`)).text) as View;
     if (view.bureaus[0]?.questions.length && view.bureaus[0].seals.length) break;
     await tick();
   }
@@ -1010,19 +1031,53 @@ test("the phone's door opens only when switched on, only with its key, and only 
   assert.equal(bureau!.questions.length, 1);
   assert.equal(bureau!.seals.length, 1);
 
-  const answered = (await (await post("/answer", { id: bureau!.questions[0]!.id, answer: bureau!.questions[0]!.options[0] ?? "Yes" })).json()) as View;
+  const answered = JSON.parse((await ask(`${base}/answer`, { id: bureau!.questions[0]!.id, answer: bureau!.questions[0]!.options[0] ?? "Yes" })).text) as View;
   assert.equal(answered.bureaus[0]!.questions.length, 0);
-  const sealed = (await (await post("/decide", { id: bureau!.seals[0]!.id, decision: "approved" })).json()) as View;
+  const sealed = JSON.parse((await ask(`${base}/decide`, { id: bureau!.seals[0]!.id, decision: "approved" })).text) as View;
   assert.equal(sealed.bureaus[0]!.seals.length, 0);
   assert.equal(core.listApprovals(workspace.id)[0]!.status, "approved");
-  assert.equal((await post("/decide", { id: bureau!.seals[0]!.id, decision: "maybe" })).status, 400);
-  await post("/say", { bureau: workspace.id, body: "from the phone" });
+  assert.equal((await ask(`${base}/decide`, { id: bureau!.seals[0]!.id, decision: "maybe" })).status, 400);
+  await ask(`${base}/say`, { bureau: workspace.id, body: "from the phone" });
   assert.ok(core.listMessages(workspace.id).some((message) => message.author.kind === "user" && message.body === "from the phone"));
 
-  // A new key shuts out every address handed out before; switching off shuts the door.
-  await core.phone.set(true, true);
-  assert.equal((await fetch(base)).status, 404);
-  assert.deepEqual(await core.phone.set(false), { enabled: false, urls: [] });
-  await assert.rejects(fetch(base));
+  // A new key shuts out every address handed out before, under the same certificate; switching off shuts the door.
+  const renewed = await core.phone.set(true, true);
+  assert.equal(renewed.fingerprint, opened.fingerprint, "the phone is not asked to accept a new certificate for a new key");
+  assert.equal((await ask(base)).status, 404);
+  assert.deepEqual(await core.phone.set(false), { enabled: false, urls: [], secure: false, fingerprint: null });
+  await assert.rejects(ask(base));
   await core.close();
+});
+
+test("a nudge goes to the phone when something waits, and says nothing about the work", async () => {
+  const heard: Array<{ path: string; title: string | undefined; body: string }> = [];
+  const ntfy = createHttp(async (req, res) => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    heard.push({ path: req.url ?? "", title: req.headers.title as string | undefined, body: Buffer.concat(chunks).toString() });
+    res.end("{}");
+  });
+  await new Promise<void>((done) => ntfy.listen(0, "127.0.0.1", done));
+  const server = `http://127.0.0.1:${(ntfy.address() as AddressInfo).port}`;
+
+  const { core, workspace } = setup({ repo: false });
+  assert.equal(await core.notifier.nudge("seal"), false, "nothing is sent until the user sets it up");
+  assert.throws(() => core.notifier.set({ enabled: true, server: "ftp://x" }), /http/);
+  const settings = core.notifier.set({ enabled: true, server: `${server}/`, lang: "tr" });
+  assert.match(settings.topic!, /^losperitos-[0-9a-f]{24}$/);
+  assert.equal(await core.notifier.nudge("test"), true);
+
+  core.sendMessage(workspace.id, { body: "/ask", toAgentId: null, taskId: null });
+  core.sendMessage(workspace.id, { body: "/approve", toAgentId: null, taskId: null });
+  for (let i = 0; i < 100 && heard.length < 2; i++) await tick();
+  await tick();
+  assert.equal(heard.length, 2, "the test nudge, then one for what was raised together");
+  assert.deepEqual(heard[1], { path: `/${settings.topic}`, title: "LosPeritos", body: heard[1]!.body });
+  assert.match(heard[1]!.body, /seni bekliyor\.$/);
+  assert.ok(!heard.some((item) => /option|Deploy|staging/i.test(item.body)), "the text of the question or seal does not leave the machine");
+
+  assert.notEqual(core.notifier.set({ enabled: true, renew: true }).topic, settings.topic);
+  assert.equal(core.notifier.set({ enabled: false }).topic, null);
+  await core.close();
+  ntfy.close();
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { PhoneAccess, Terminal,
+import type { NotifySettings, PhoneAccess, Terminal,
   Agent,
   Approval,
   BudgetState,
@@ -320,6 +320,10 @@ export interface Actions {
   /** Whether a phone on the same network can reach the bureau, and where. */
   phone(): Promise<PhoneAccess>;
   setPhone(enabled: boolean, renew?: boolean): Promise<PhoneAccess>;
+  /** Nudges to the phone through an ntfy server. */
+  notify(): Promise<NotifySettings>;
+  setNotify(request: { enabled: boolean; server?: string; renew?: boolean; lang?: "en" | "tr" }): Promise<NotifySettings>;
+  testNotify(): Promise<boolean>;
   terminals(workspaceId: string): Promise<{ available: boolean; terminals: Terminal[] }>;
   openTerminal(workspaceId: string, taskId?: string): Promise<Terminal>;
   closeTerminal(terminalId: string): Promise<{ closed: boolean }>;
@@ -495,6 +499,9 @@ export function useCore(): [State, Actions] {
     repoSearch: async (workspaceId, words, repo) =>
       (await post<{ hits: Array<{ path: string; line: number; text: string }> }>(`/workspaces/${workspaceId}/repo/search${query({ q: words, repo })}`, undefined, "GET")).hits,
     phone: () => post<PhoneAccess>("/phone", undefined, "GET"),
+    notify: () => post<NotifySettings>("/notify", undefined, "GET"),
+    setNotify: (request) => post<NotifySettings>("/notify", request),
+    testNotify: async () => (await post<{ sent: boolean }>("/notify/test", {})).sent,
     setPhone: (enabled, renew) => post<PhoneAccess>("/phone", { enabled, renew }),
     terminals: (workspaceId) => post(`/workspaces/${workspaceId}/terminals`, undefined, "GET"),
     openTerminal: (workspaceId, taskId) => post<Terminal>(`/workspaces/${workspaceId}/terminals`, { taskId, cols: 100, rows: 30 }),

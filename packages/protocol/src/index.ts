@@ -274,11 +274,28 @@ export const TerminalInput = z.discriminatedUnion("type", [
 // ── Phone ───────────────────────────────────────────────────────────────────
 
 /** Whether the bureau can be reached from a phone on the same network, and at which addresses. */
-export const PhoneAccess = z.object({ enabled: z.boolean(), urls: z.array(z.string()) });
+export const PhoneAccess = z.object({
+  enabled: z.boolean(),
+  urls: z.array(z.string()),
+  /** Whether the page is served encrypted, under the app's own certificate. */
+  secure: z.boolean(),
+  /** That certificate's SHA-256 fingerprint, to compare with what the phone shows. */
+  fingerprint: z.string().nullable(),
+});
 export const SetPhoneRequest = z.object({
   enabled: z.boolean(),
   /** Make a new key: every address handed out before stops working. */
   renew: z.boolean().optional(),
+});
+
+/** Nudges to the phone through an ntfy server. `topic` is what the phone subscribes to; null while off. */
+export const NotifySettings = z.object({ enabled: z.boolean(), server: z.string(), topic: z.string().nullable() });
+export const SetNotifyRequest = z.object({
+  enabled: z.boolean(),
+  server: z.string().max(200).optional(),
+  /** Make a new topic: phones subscribed to the old one hear nothing more. */
+  renew: z.boolean().optional(),
+  lang: z.enum(["en", "tr"]).optional(),
 });
 
 // ── Run & budget ────────────────────────────────────────────────────────────
@@ -520,6 +537,10 @@ export const routes = {
   closeTerminal: "POST /terminals/:terminalId/close",
   /** WebSocket, `?token=`: `{type:"data"|"exit"}` out, TerminalInput in. */
   terminalSocket: "GET /terminals/:terminalId/socket",
+  notify: "GET /notify",
+  setNotify: "POST /notify",
+  /** Send one nudge now; `{ sent }`. */
+  testNotify: "POST /notify/test",
   phone: "GET /phone",
   setPhone: "POST /phone",
   connectors: "GET /workspaces/:workspaceId/connectors",
@@ -687,6 +708,7 @@ export type Connector = z.infer<typeof Connector>;
 export type ConnectorTool = z.infer<typeof ConnectorTool>;
 export type Terminal = z.infer<typeof Terminal>;
 export type OpenTerminalRequest = z.infer<typeof OpenTerminalRequest>;
+export type NotifySettings = z.infer<typeof NotifySettings>;
 export type PhoneAccess = z.infer<typeof PhoneAccess>;
 export type SavePageRequest = z.infer<typeof SavePageRequest>;
 export type SaveConnectorRequest = z.infer<typeof SaveConnectorRequest>;

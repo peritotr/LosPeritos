@@ -36,6 +36,7 @@ import * as git from "@losperitos/git";
 import { listTools } from "./mcp-client.js";
 import { Terminals } from "./terminal.js";
 import { Phone, type PhoneConfig } from "./phone.js";
+import { Notifier, type NotifyConfig } from "./notify.js";
 import { beginSignIn, finishSignIn, refresh, type OAuthGrant, type PendingSignIn } from "./oauth.js";
 import { AppStore, WorkspaceStore, type Collection } from "@losperitos/storage";
 import type { Adapter, AgentSession, McpServer, SessionEvent } from "@losperitos/adapters";
@@ -858,6 +859,14 @@ export class Core {
     this,
     () => this.app.readSecret<PhoneConfig | null>("phone", null),
     (config) => this.app.writeSecret("phone", config),
+    () => this.options.dataDir,
+  );
+
+  /** Nudges to the user's phone when something waits; silent unless the user set it up. */
+  readonly notifier = new Notifier(
+    () => this.app.readSecret<NotifyConfig | null>("notify", null),
+    (config) => this.app.writeSecret("notify", config),
+    () => this.now(),
   );
 
   // ── Terminals ─────────────────────────────────────────────────────────────
@@ -1817,6 +1826,7 @@ export class Core {
     recommended?: string,
   ): void {
     const agent = state.agents.get(agentId);
+    void this.notifier.nudge("question");
     this.addMessage(state, {
       author: { kind: "agent", agentId },
       toAgentId: null,
@@ -1833,6 +1843,7 @@ export class Core {
     agentId: string,
     fields: Pick<Approval, "kind" | "title" | "detail" | "steps" | "reversible" | "call">,
   ): Approval {
+    void this.notifier.nudge("seal");
     const approval = state.approvals.put({
       id: randomUUID(),
       workspaceId: state.workspace.id,

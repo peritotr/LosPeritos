@@ -6,8 +6,12 @@
  * page: no files, no terminals, no connectors, no settings. It travels in the
  * address, over plain HTTP, so it is for a network the user trusts.
  */
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { randomBytes, timingSafeEqual, X509Certificate } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { createServer as createSecureServer } from "node:https";
+import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { networkInterfaces } from "node:os";
 import type { PhoneAccess } from "@losperitos/protocol";
@@ -39,15 +43,53 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
 
+/**
+ * A certificate of the machine's own making, so that what passes between the
+ * phone and here cannot be read by others on the network. Nobody vouches for
+ * it, so the phone warns once; the fingerprint lets the user see it is this one.
+ * Made with the system's openssl; without it there is none, and the door is plain.
+ */
+function certificate(dir: string, hosts: string[]): { key: Buffer; cert: Buffer; fingerprint: string } | null {
+  const keyFile = join(dir, "phone-key.pem");
+  const certFile = join(dir, "phone-cert.pem");
+  const read = () => {
+    const cert = readFileSync(certFile);
+    const parsed = new X509Certificate(cert);
+    return { key: readFileSync(keyFile), cert, parsed, fingerprint: parsed.fingerprint256 };
+  };
+  try {
+    if (existsSync(keyFile) && existsSync(certFile)) {
+      const kept = read();
+      // Good for as long as it names every address the machine has now and has not run out.
+      const names = kept.parsed.subjectAltName ?? "";
+      if (hosts.every((host) => names.includes(`IP Address:${host}`)) && new Date(kept.parsed.validTo).getTime() > Date.now() + 86_400_000) return kept;
+    }
+    mkdirSync(dir, { recursive: true });
+    const names = ["DNS:localhost", "IP:127.0.0.1", ...hosts.map((host) => `IP:${host}`)].join(",");
+    execFileSync(
+      "openssl",
+      ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", keyFile, "-out", certFile, "-days", "825", "-subj", "/CN=LosPeritos", "-addext", `subjectAltName=${names}`],
+      { stdio: "ignore", timeout: 20_000 },
+    );
+    chmodSync(keyFile, 0o600);
+    return read();
+  } catch {
+    return null;
+  }
+}
+
 export class Phone {
   private server: Server | null = null;
   private port: number | null = null;
+  private fingerprint: string | null = null;
   private readonly wrong = new Map<string, { count: number; since: number }>();
 
   constructor(
     private readonly core: Core,
     private readonly read: () => PhoneConfig | null,
     private readonly write: (config: PhoneConfig) => void,
+    /** Where the certificate is kept. */
+    private readonly dir: () => string,
   ) {}
 
   /** Addresses of this machine on the networks it is on. */
@@ -61,7 +103,13 @@ export class Phone {
   status(): PhoneAccess {
     const config = this.read();
     const on = !!config?.enabled && this.server !== null && this.port !== null;
-    return { enabled: on, urls: on ? this.hosts().map((host) => `http://${host}:${this.port}/m/${config!.token}`) : [] };
+    const scheme = this.fingerprint ? "https" : "http";
+    return {
+      enabled: on,
+      urls: on ? this.hosts().map((host) => `${scheme}://${host}:${this.port}/m/${config!.token}`) : [],
+      secure: on && !!this.fingerprint,
+      fingerprint: on ? this.fingerprint : null,
+    };
   }
 
   /** Bring the door in line with the stored choice; called at start and after every change. */
@@ -72,7 +120,10 @@ export class Phone {
       return this.status();
     }
     if (!this.server) {
-      const server = createServer((req, res) => void this.handle(req, res));
+      const made = certificate(this.dir(), this.hosts());
+      const answer = (req: IncomingMessage, res: ServerResponse) => void this.handle(req, res);
+      const server: Server = made ? createSecureServer({ key: made.key, cert: made.cert }, answer) : createServer(answer);
+      this.fingerprint = made?.fingerprint ?? null;
       const listen = (port: number) =>
         new Promise<void>((resolve, reject) => {
           server.once("error", reject);
@@ -98,6 +149,7 @@ export class Phone {
     const server = this.server;
     this.server = null;
     this.port = null;
+    this.fingerprint = null;
     if (!server) return Promise.resolve();
     return new Promise((resolve) => {
       server.close(() => resolve());
