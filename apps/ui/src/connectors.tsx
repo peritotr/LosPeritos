@@ -19,6 +19,10 @@ interface Preset {
   /** A command on this machine, with the secret it needs… */
   line?: string;
   secret?: string;
+  /** Further settings the command reads from its environment: ids and paths, kept with the secrets. */
+  settings?: string[];
+  /** What the user has to have or do first; a key of `T.connectors.notes`. */
+  note?: keyof typeof T.connectors.notes;
   /** Where the user gets the secret. */
   keyUrl?: string;
   /** …or an address signed in to in the browser. */
@@ -45,6 +49,66 @@ const PRESETS: Preset[] = [
     // fal's own hosted server; it takes a sign-in in the browser, not a key.
     url: "https://mcp.fal.ai/mcp-relay",
     free: ["search_models", "get_model_schema", "get_pricing", "search_docs", "recommend_model", "check_job", "get_job_result"],
+  },
+  {
+    id: "higgsfield",
+    name: "Higgsfield",
+    // Higgsfield's own hosted server: image, video and sound, signed in to in the browser.
+    url: "https://mcp.higgsfield.ai/mcp",
+    free: ["balance", "models_explore", "estimate_*", "show_generations", "transactions", "job_display", "jobs_wait"],
+    note: "higgsfield",
+  },
+  {
+    id: "runway",
+    name: "Runway",
+    // Runway's own hosted server, signed in to in the browser. Its tool names are not published, so none is free.
+    url: "https://mcp.runwayml.com/mcp",
+    free: [],
+    note: "runway",
+  },
+  {
+    id: "kling",
+    name: "Kling",
+    // Kling's own hosted server for international accounts, signed in to in the browser.
+    url: "https://kling.ai/mcp",
+    free: [],
+    note: "kling",
+  },
+  {
+    id: "stability",
+    name: "Stability AI",
+    // A community server (Stability publishes none), at the version whose tools were read. Every tool spends credits.
+    line: "npx -y mcp-server-stability-ai@0.2.0",
+    secret: "STABILITY_AI_API_KEY",
+    keyUrl: "platform.stability.ai/account/keys",
+    free: [],
+    note: "stability",
+  },
+  {
+    id: "search-console",
+    name: "Search Console",
+    // A community server (Google publishes none), pinned. With a service account it needs no browser.
+    line: "uvx mcp-search-console==0.4.2",
+    settings: ["GSC_CREDENTIALS_PATH", "GSC_SKIP_OAUTH"],
+    free: ["list_properties", "get_*", "compare_search_periods", "inspect_url_enhanced"],
+    note: "searchConsole",
+  },
+  {
+    id: "google-ads",
+    name: "Google Ads",
+    // Google's own server, pinned. It reads and proposes; it has no tool that changes a budget or a bid.
+    line: "pipx run --spec google-ads-mcp==0.0.6 google-ads-mcp",
+    settings: ["GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "GOOGLE_ADS_LOGIN_CUSTOMER_ID"],
+    free: ["search_search", "metadata_get_resource_metadata", "customers_list_accessible_customers"],
+    note: "googleAds",
+  },
+  {
+    id: "meta-ads",
+    name: "Meta Ads",
+    // Meta's own hosted server. Its tools can create and switch on ads, so none is free.
+    url: "https://mcp.facebook.com/ads",
+    free: [],
+    note: "metaAds",
   },
 ];
 
@@ -83,7 +147,9 @@ function ConnectorForm({
   const [free, setFree] = useState((editing?.free ?? preset?.free ?? []).join(", "));
   /** Secrets already kept, minus those the user is taking away. */
   const [kept, setKept] = useState(editing?.secretNames ?? []);
-  const [added, setAdded] = useState<Array<{ name: string; value: string }>>(preset?.secret ? [{ name: preset.secret, value: "" }] : []);
+  const [added, setAdded] = useState<Array<{ name: string; value: string }>>(
+    [...(preset?.secret ? [preset.secret] : []), ...(preset?.settings ?? [])].map((name) => ({ name, value: name === "GSC_SKIP_OAUTH" ? "true" : "" })),
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const key = editing?.id ?? (id || slug(name));
@@ -190,6 +256,7 @@ function ConnectorForm({
           {T.connectors.secretAdd}
         </button>
         <p className="muted" style={{ fontSize: 12 }}>
+          {preset?.note && `${T.connectors.notes[preset.note]} `}
           {preset?.keyUrl && `${T.connectors.keyFrom(preset.keyUrl)} `}
           {how === "url" && `${T.connectors.signInHint} `}
           {T.connectors.secretsHint}
