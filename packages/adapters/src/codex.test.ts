@@ -34,6 +34,7 @@ function standIn(dir: string): string {
 const fs = require("node:fs");
 const args = process.argv.slice(2);
 if (args[0] === "--version") { console.log("codex-cli 0.171.0"); process.exit(0); }
+if (args[0] === "login" && args[1] === "status") { console.error("Logged in using ChatGPT"); process.exit(0); }
 fs.appendFileSync(${JSON.stringify(join(dir, "calls.jsonl"))}, JSON.stringify(args) + "\\n");
 const store = ${JSON.stringify(join(dir, "threads.json"))};
 const threads = fs.existsSync(store) ? JSON.parse(fs.readFileSync(store, "utf8")) : {};
@@ -80,7 +81,7 @@ test("the Codex adapter runs one command per turn and carries the conversation o
   const bin = standIn(dir);
   const state = join(dir, "state", "codex-threads.json");
   const adapter = new CodexAdapter(bin, state);
-  assert.deepEqual(await adapter.check(), { tool: "codex", required: false, found: true, version: "codex-cli 0.171.0", installHint: null });
+  assert.deepEqual(await adapter.check(), { tool: "codex", required: false, found: true, version: "codex-cli 0.171.0", installHint: null, signedIn: true });
   assert.equal((await new CodexAdapter(join(dir, "missing")).check()).found, false);
 
   const session = adapter.start({ cwd: dir, trustMode: "full", sessionId: "s-1", systemPrompt: 'Say "hi"\nand stop.', model: "sonnet", connectors: { rows: { command: "node", args: ["rows.js"], env: { KEY: "v" } } } });

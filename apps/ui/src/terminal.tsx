@@ -27,7 +27,8 @@ function colours(el: Element) {
   };
 }
 
-function View({ ctx, id, onUrl }: { ctx: Ctx; id: string; onUrl(url: string): void }) {
+/** One terminal of the core's, shown and typed into. Leaving it closes nothing. */
+export function TerminalView({ actions, id, onUrl = () => undefined }: { actions: Pick<Ctx["actions"], "terminalSocket">; id: string; onUrl?(url: string): void }) {
   const host = useRef<HTMLDivElement>(null);
   const found = useRef(onUrl);
   found.current = onUrl;
@@ -44,7 +45,7 @@ function View({ ctx, id, onUrl }: { ctx: Ctx; id: string; onUrl(url: string): vo
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(el);
-    const socket = ctx.actions.terminalSocket(id);
+    const socket = actions.terminalSocket(id);
     const send = (message: unknown) => socket.readyState === WebSocket.OPEN && socket.send(JSON.stringify(message));
     const size = () => {
       try {
@@ -172,7 +173,7 @@ export function TerminalScreen(ctx: Ctx) {
           </button>
         )}
       </div>
-      {active ? <View key={active} ctx={ctx} id={active} onUrl={setUrl} /> : list && <p className="muted">{T.terminal.none}</p>}
+      {active ? <TerminalView key={active} actions={ctx.actions} id={active} onUrl={setUrl} /> : list && <p className="muted">{T.terminal.none}</p>}
       <p className="muted term-hint">{T.terminal.hint}</p>
     </div>
   );

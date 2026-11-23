@@ -12,7 +12,7 @@ import { request as httpsRequest } from "node:https";
 import { createHash } from "node:crypto";
 import { FakeAdapter, type SessionEvent } from "@losperitos/adapters";
 import { MAX_AGENTS_PER_WORKSPACE, type AgentCommandInput, OpenTerminalRequest } from "@losperitos/protocol";
-import { AgentCommand, Charter, SaveConnectorRequest, SaveRoutineRequest } from "@losperitos/protocol";
+import { AgentCommand, Charter, SaveConnectorRequest, SaveRoutineRequest, SignInToolRequest } from "@losperitos/protocol";
 import { Core, CoreError, nextRun } from "./core.js";
 import { createServer } from "./server.js";
 import { CLIENT_METADATA_URL } from "./oauth.js";
@@ -1532,5 +1532,24 @@ test("a routine comes round by the clock, runs once for a time it missed, and gi
   for (let i = 0; i < 50 && adapter.sent.length === before; i++) await tick();
   assert.equal(adapter.sent.length, before + 1);
   assert.deepEqual(core.removeRoutine(ran.id), []);
+  await core.close();
+});
+
+test("a tool's own sign-in can be started in a terminal of the app's, and nothing else can", async (t) => {
+  const { core, workspace } = setup({ repo: false });
+  if (!core.listTerminals(workspace.id).available) return t.skip("no pseudo-terminal library on this machine");
+  // A stand-in for the command: a test must not start a real sign-in on whoever's machine it runs on.
+  const terminal = core.signInTool("claude", "echo claude auth login");
+  assert.equal(terminal.title, "claude");
+  assert.deepEqual(core.listTerminals(workspace.id).terminals, [], "it belongs to no bureau");
+  let seen = "";
+  const stop = core.terminals.attach(terminal.id, (message) => {
+    if (message.type === "data") seen += message.data;
+  })!;
+  for (let i = 0; i < 150 && !seen.includes("claude auth login"); i++) await tick();
+  assert.ok(seen.includes("claude auth login"), "the sign-in command is typed for the user");
+  stop();
+  assert.deepEqual(core.closeTerminal(terminal.id), { closed: true });
+  assert.throws(() => SignInToolRequest.parse({ tool: "rm -rf" }), /./);
   await core.close();
 });

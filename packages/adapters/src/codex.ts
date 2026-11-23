@@ -130,12 +130,18 @@ export class CodexAdapter implements Adapter {
   check() {
     return new Promise<Awaited<ReturnType<Adapter["check"]>>>((resolve) => {
       execFile(this.bin, ["--version"], { timeout: 10_000 }, (err, stdout) => {
-        resolve({
-          tool: "codex",
+        const check = {
+          tool: "codex" as const,
           required: false,
           found: !err,
           version: err ? null : stdout.trim(),
           installHint: err ? "Install Codex: npm install -g @openai/codex, then run codex login" : null,
+        };
+        if (err) return resolve(check);
+        // Codex answers with its exit code: 0 signed in, 1 not.
+        execFile(this.bin, ["login", "status"], { timeout: 15_000 }, (failed) => {
+          const code = (failed as (Error & { code?: unknown }) | null)?.code;
+          resolve({ ...check, ...(failed === null ? { signedIn: true } : code === 1 ? { signedIn: false } : {}) });
         });
       });
     });

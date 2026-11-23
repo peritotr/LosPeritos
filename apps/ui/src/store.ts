@@ -319,6 +319,8 @@ export interface Actions {
   /** Give a perito a name of your own; null goes back to the default. */
   renameAgent(agentId: string, nickname: string | null): Promise<void>;
   checkTools(): Promise<ToolCheck[]>;
+  /** Open a terminal that runs an agent tool's own sign-in. */
+  signInTool(tool: "claude" | "codex"): Promise<Terminal>;
   taskDiff(taskId: string): Promise<string>;
   /** What a new file is likely to cost, by effort. */
   estimate(workspaceId: string): Promise<Estimate>;
@@ -511,6 +513,7 @@ export function useCore(): [State, Actions] {
     treatAgent: async (agentId, kind) => void (await post(`/agents/${agentId}/treat`, { kind })),
     renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
     checkTools: () => post<ToolCheck[]>("/setup", undefined, "GET"),
+    signInTool: (tool) => post<Terminal>("/setup/sign-in", { tool }),
     taskFile: (taskId, path) => post<TaskFile>(`/tasks/${taskId}/file?path=${encodeURIComponent(path)}`, undefined, "GET"),
     folder: (workspaceId) => post(`/workspaces/${workspaceId}/folder`, undefined, "GET"),
     folderRaw: async (workspaceId, path) => {

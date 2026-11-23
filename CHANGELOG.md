@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+**Signing in, from the app**
+- Setup and Settings show for each agent tool whether it is signed in, and a
+  "Sign in" button runs the tool's own sign-in (`claude auth login`,
+  `codex login`) in a terminal right there. The app asks the tool every few
+  seconds and closes the terminal by itself once the sign-in has gone
+  through. Your password does not pass through the app.
+- Codex's sign-in is checked as well.
+
 ## 0.10.0 — 2026-11-23
 
 **Bureaus of your own making**

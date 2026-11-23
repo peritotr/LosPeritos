@@ -21,6 +21,7 @@ import {
   SetPhoneRequest,
   SaveRoutineRequest,
   TreatRequest,
+  SignInToolRequest,
   SetNotifyRequest,
   TerminalInput,
   SendMessageRequest,
@@ -126,6 +127,7 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "POST /routines/:routineId/run": (p) => core.runRoutine(p.routineId!),
     "GET /workspaces/:workspaceId/folder": (p) => core.listFolder(p.workspaceId!),
     "GET /messages/:messageId/pictures": (p) => core.messagePictures(p.messageId!),
+    "POST /setup/sign-in": (_p, body) => core.signInTool(parse(SignInToolRequest, body).tool),
     "GET /phone": () => core.phone.status(),
     "POST /phone": (_p, body) => {
       const request = parse(SetPhoneRequest, body);

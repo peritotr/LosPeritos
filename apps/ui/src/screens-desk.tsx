@@ -1,3 +1,4 @@
+import { TerminalView } from "./terminal";
 import { BUREAU_TYPES, CharterForm, Routines, type BureauType } from "./charter";
 import { Attachments, MentionedPictures } from "./attachments";
 import { ReportFiles } from "./preview";
@@ -17,7 +18,7 @@ import {
   TriangleAlert,
   Undo2,
   Wifi,
-  WifiOff, Eye,
+  WifiOff, Eye, LogIn,
 } from "lucide-react";
 import type { Approval, Charter, Message, ToolCheck, Workspace, WorkspaceKind } from "@losperitos/protocol";
 
@@ -749,15 +750,44 @@ const INSTALL: Partial<Record<ToolCheck["tool"], string>> = {
 function Tools({ ctx, compact }: { ctx: Ctx | Pick<Ctx, "actions">; compact?: boolean }) {
   const [tools, setTools] = useState<ToolCheck[] | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  /** The sign-in under way: which tool, and the terminal it runs in. */
+  const [signing, setSigning] = useState<{ tool: "claude" | "codex"; terminalId: string } | null>(null);
+  const [signError, setSignError] = useState<string | null>(null);
   const check = () => {
     setTools(null);
     ctx.actions.checkTools().then(setTools, () => setTools([]));
   };
   useEffect(check, []);
+  const stopSigning = (terminalId: string) => {
+    void ctx.actions.closeTerminal(terminalId).catch(() => undefined);
+    setSigning(null);
+  };
+  const signIn = (tool: "claude" | "codex") => {
+    setSignError(null);
+    if (signing) stopSigning(signing.terminalId);
+    ctx.actions.signInTool(tool).then(
+      (terminal) => setSigning({ tool, terminalId: terminal.id }),
+      (err: Error) => setSignError(err.message),
+    );
+  };
+  // While a sign-in is under way, ask the tool every few seconds whether it has gone through.
+  useEffect(() => {
+    if (!signing) return;
+    const timer = setInterval(() => {
+      ctx.actions.checkTools().then((next) => {
+        setTools(next);
+        if (next.find((tool) => tool.tool === signing.tool)?.signedIn) stopSigning(signing.terminalId);
+      }, () => undefined);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [signing?.terminalId]);
+  // Leaving the screen with a sign-in half done: its terminal goes too.
+  useEffect(() => () => void (signing && ctx.actions.closeTerminal(signing.terminalId).catch(() => undefined)), [signing?.terminalId]);
 
   if (tools === null) return <p className="muted">{T.setup.checking}</p>;
   return (
     <div>
+      {signError && <p className="err">{signError}</p>}
       {tools.map((tool) => {
         const command = INSTALL[tool.tool];
         return (
@@ -771,15 +801,38 @@ function Tools({ ctx, compact }: { ctx: Ctx | Pick<Ctx, "actions">; compact?: bo
               <div className="mono muted" style={{ fontSize: 12 }}>
                 {tool.found ? tool.version : T.setup.notFound}
               </div>
-              {tool.found && tool.signedIn === false && (
-                <div className="err" style={{ fontSize: 13, marginTop: 4 }}>
-                  {T.setup.notSignedIn} <code>claude auth login</code>
+              {tool.found && tool.signedIn !== undefined && (
+                <div className={tool.signedIn ? "muted" : "err"} style={{ fontSize: 13, marginTop: 4 }}>
+                  {tool.signedIn ? T.setup.signedIn : T.setup.notSignedIn}
                 </div>
               )}
             </div>
-            <span className="tag" style={{ color: tool.found ? "var(--st-work)" : "var(--st-warn)", borderColor: "currentColor" }}>
-              {tool.found ? T.setup.installed : T.setup.notInstalled}
+            <span className="tag" style={{ color: tool.found && tool.signedIn !== false ? "var(--st-work)" : "var(--st-warn)", borderColor: "currentColor" }}>
+              {!tool.found ? T.setup.notInstalled : tool.signedIn === false ? T.setup.tagNotSignedIn : tool.signedIn ? T.setup.tagSignedIn : T.setup.installed}
             </span>
+            {tool.found && (tool.tool === "claude" || tool.tool === "codex") && (
+              <div className="install">
+                <button className={`btn ${tool.signedIn === false ? "btn-primary" : "btn-secondary"}`} onClick={() => signIn(tool.tool as "claude" | "codex")}>
+                  <I icon={LogIn} size={14} />
+                  {tool.signedIn ? T.setup.signInAgain : T.setup.signIn}
+                </button>
+                <button className="btn btn-secondary" onClick={check}>
+                  <I icon={RefreshCw} size={14} />
+                  {T.setup.again}
+                </button>
+              </div>
+            )}
+            {signing?.tool === tool.tool && (
+              <div className="sign-in">
+                <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+                  {T.setup.signingIn}
+                </p>
+                <TerminalView actions={ctx.actions} id={signing.terminalId} />
+                <button className="btn btn-ghost" style={{ alignSelf: "flex-start" }} onClick={() => stopSigning(signing.terminalId)}>
+                  {T.setup.signInClose}
+                </button>
+              </div>
+            )}
             {!tool.found && (
               <div className="install">
                 {command && <code>{command}</code>}

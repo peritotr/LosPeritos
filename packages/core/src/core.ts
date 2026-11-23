@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import type {
   Routine,
   SaveRoutineRequest,
@@ -327,6 +327,11 @@ const CODEX_PROMPT =
 const READING_TOOLS = ["Read", "Glob", "Grep", "LS", "WebSearch", "WebFetch", "NotebookRead"];
 /** Stands where a connector's id would, for a tool that is the agent's own. */
 const BUILT_IN = "builtin";
+
+/** What signs each agent tool in, typed for the user into a terminal of the app's. */
+const SIGN_IN = { claude: "claude auth login", codex: "codex login" } as const;
+/** Stands where a bureau's id would, for terminals opened from Setup. */
+const SETUP_TERMINALS = "setup";
 
 /** How many pictures are shown beside one message at most. */
 const MAX_SHOWN_PICTURES = 12;
@@ -1159,6 +1164,21 @@ export class Core {
     const title = task?.worktree && cwd === task.worktree ? `#${task.number}` : basename(cwd);
     try {
       return this.terminals.open(workspaceId, cwd, title, request.cols, request.rows, this.now());
+    } catch (err) {
+      throw new CoreError("bad_request", (err as Error).message);
+    }
+  }
+
+  /**
+   * A terminal that runs an agent tool's own sign-in, so the user can do it
+   * without leaving the app. It belongs to no bureau, and starts in the home
+   * folder. Only the tools' sign-in commands can be started this way.
+   */
+  signInTool(tool: "claude" | "codex", command: string = SIGN_IN[tool]): Terminal {
+    try {
+      const terminal = this.terminals.open(SETUP_TERMINALS, homedir(), tool, 100, 24, this.now());
+      this.terminals.write(terminal.id, `${command}\r`);
+      return terminal;
     } catch (err) {
       throw new CoreError("bad_request", (err as Error).message);
     }

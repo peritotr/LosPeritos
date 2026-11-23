@@ -381,6 +381,7 @@ export const PhoneAccess = z.object({
   /** That certificate's SHA-256 fingerprint, to compare with what the phone shows. */
   fingerprint: z.string().nullable(),
 });
+export const SignInToolRequest = z.object({ tool: z.enum(["claude", "codex"]) });
 export const TreatRequest = z.object({ kind: z.enum(["coffee", "donut"]) });
 export const SetPhoneRequest = z.object({
   enabled: z.boolean(),
@@ -613,6 +614,8 @@ export const routes = {
   removeRoutine: "POST /routines/:routineId/remove",
   /** Run it now, whatever its hour; answers with the routine. */
   runRoutine: "POST /routines/:routineId/run",
+  /** `{ tool: "claude" | "codex" }`: open a terminal that runs the tool's own sign-in; a Terminal. */
+  signInTool: "POST /setup/sign-in",
   /** `{ files: [{ path, size, modifiedAt }], more }`: everything in the bureau's folder, git or not. */
   folder: "GET /workspaces/:workspaceId/folder",
   /** `?path=`: the bytes of one file of the bureau's folder, for showing it. */
