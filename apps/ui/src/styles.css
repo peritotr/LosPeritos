@@ -608,3 +608,11 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .label-filter { gap: 6px; margin: 0 0 12px; }
 .label-filter .tag { cursor: pointer; background: none; font-family: var(--lp-mono); text-transform: none; }
 .label-filter .tag[aria-pressed="true"] { border-color: var(--st-act); color: var(--st-act); }
+
+/* ── Connectors ─────────────────────────────────────────────────────────── */
+.connector { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--lp-faint); font-size: 13px; }
+.connector-form { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px solid var(--lp-faint); }
+.secret-row { margin-bottom: 6px; font-size: 13px; }
+.secret-row .input { min-width: 0; }
+.secret-row .input:first-child { flex: 0 1 190px; }
+.secret-row .input[type="password"] { flex: 1; }

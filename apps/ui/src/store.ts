@@ -16,6 +16,8 @@ import type {
   ToolCall,
   ToolOutcome,
   WorkspaceKind,
+  Connector,
+  SaveConnectorRequest,
 } from "@losperitos/protocol";
 
 declare const __CORE_URL__: string;
@@ -283,6 +285,9 @@ export interface Actions {
   /** What a new file is likely to cost, by effort. */
   estimate(workspaceId: string): Promise<Estimate>;
   taskFile(taskId: string, path: string): Promise<TaskFile>;
+  connectors(workspaceId: string): Promise<Connector[]>;
+  saveConnector(workspaceId: string, request: SaveConnectorRequest): Promise<Connector[]>;
+  removeConnector(workspaceId: string, connectorId: string): Promise<Connector[]>;
   flightDone(id: string): void;
   stampDone(id: string): void;
 }
@@ -420,6 +425,9 @@ export function useCore(): [State, Actions] {
     renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
     checkTools: () => post<ToolCheck[]>("/setup", undefined, "GET"),
     taskFile: (taskId, path) => post<TaskFile>(`/tasks/${taskId}/file?path=${encodeURIComponent(path)}`, undefined, "GET"),
+    connectors: (workspaceId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, undefined, "GET"),
+    saveConnector: (workspaceId, request) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, request),
+    removeConnector: (workspaceId, connectorId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors/${connectorId}/remove`, {}),
     estimate: (workspaceId) => post<Estimate>(`/workspaces/${workspaceId}/estimate`, undefined, "GET"),
     taskDiff: async (taskId) => (await post<{ diff: string }>(`/tasks/${taskId}/diff`, undefined, "GET")).diff,
     flightDone: (id) => dispatch({ type: "flight_done", id }),

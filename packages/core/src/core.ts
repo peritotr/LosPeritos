@@ -10,12 +10,14 @@ import type {
   ApiError,
   Approval,
   BudgetState,
+  Connector,
   Estimate,
   Event,
   EventEnvelope,
   Lesson,
   Message,
   Run,
+  SaveConnectorRequest,
   Task,
   TaskFile,
   ToolCheck,
@@ -26,7 +28,7 @@ import type {
 import { MAX_AGENTS_PER_WORKSPACE, MAX_ATTACHMENT_BYTES, MAX_PREVIEW_BYTES, PROTOCOL_VERSION } from "@losperitos/protocol";
 import * as git from "@losperitos/git";
 import { AppStore, WorkspaceStore, type Collection } from "@losperitos/storage";
-import type { Adapter, AgentSession, SessionEvent } from "@losperitos/adapters";
+import type { Adapter, AgentSession, McpServer, SessionEvent } from "@losperitos/adapters";
 
 export class CoreError extends Error {
   constructor(
@@ -154,6 +156,15 @@ const MIME: Record<string, string> = {
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
   pdf: "application/pdf",
 };
+
+/** A connector as kept on this machine: with the values of its secrets. */
+type StoredConnector = Omit<Connector, "secretNames"> & { secrets: Record<string, string> };
+
+/** Whether a tool name fits a pattern in which `*` stands for any run of characters. */
+function matchesTool(pattern: string, tool: string): boolean {
+  const escaped = pattern.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp("^" + escaped.join(".*") + "$").test(tool);
+}
 
 /** A starting guess at what a task costs, used until the workspace has closed tasks of its own. */
 const GUESS_USD = { small: 0.1, normal: 0.4, large: 1.5 };
@@ -702,6 +713,70 @@ export class Core {
     return message;
   }
 
+  // ── Connectors ────────────────────────────────────────────────────────────
+
+  private storedConnectors(workspaceId: string): StoredConnector[] {
+    return this.app.readSecret<Record<string, StoredConnector[]>>("connectors", {})[workspaceId] ?? [];
+  }
+
+  private storeConnectors(workspaceId: string, connectors: StoredConnector[]): void {
+    const all = this.app.readSecret<Record<string, StoredConnector[]>>("connectors", {});
+    this.app.writeSecret("connectors", { ...all, [workspaceId]: connectors });
+  }
+
+  /** The workspace's connectors, without the values of their secrets. */
+  listConnectors(workspaceId: string): Connector[] {
+    this.state(workspaceId);
+    return this.storedConnectors(workspaceId).map(({ secrets, ...rest }) => ({ ...rest, secretNames: Object.keys(secrets) }));
+  }
+
+  /** Add a connector or replace the one with the same id. Agents get it when they next sit down. */
+  saveConnector(workspaceId: string, request: SaveConnectorRequest): Connector[] {
+    this.state(workspaceId);
+    const stored = this.storedConnectors(workspaceId);
+    const before = stored.find((connector) => connector.id === request.id);
+    const secrets = { ...before?.secrets };
+    for (const [name, value] of Object.entries(request.secrets)) {
+      if (!name.trim()) continue;
+      if (value) secrets[name.trim()] = value;
+      else delete secrets[name.trim()];
+    }
+    const next: StoredConnector = { ...request, secrets };
+    this.storeConnectors(workspaceId, before ? stored.map((c) => (c.id === request.id ? next : c)) : [...stored, next]);
+    return this.listConnectors(workspaceId);
+  }
+
+  removeConnector(workspaceId: string, connectorId: string): Connector[] {
+    this.state(workspaceId);
+    this.storeConnectors(workspaceId, this.storedConnectors(workspaceId).filter((c) => c.id !== connectorId));
+    return this.listConnectors(workspaceId);
+  }
+
+  /** The connectors as the agent's tool starts them. */
+  private mcpServers(state: WorkspaceState): Record<string, McpServer> {
+    return Object.fromEntries(
+      this.storedConnectors(state.workspace.id).map((connector) => [
+        connector.id,
+        connector.url
+          ? { type: "http" as const, url: connector.url, headers: connector.secrets }
+          : { command: connector.command!, args: connector.args, env: connector.secrets },
+      ]),
+    );
+  }
+
+  /** What an agent is told about the outside services it can reach. */
+  private connectorsPrompt(state: WorkspaceState): string {
+    const connectors = this.storedConnectors(state.workspace.id);
+    if (connectors.length === 0) return "";
+    return (
+      "\nOutside services connected to this project. Their tools are named mcp__<id>__<tool>:\n" +
+      connectors.map((connector) => `- ${connector.name} (id: ${connector.id})`).join("\n") +
+      "\nA call that changes, publishes or spends something outside this computer waits for the user's seal, " +
+      "which can take a long time. If a call is refused, do not try to reach the same end another way: " +
+      "say what was refused in your report.\n"
+    );
+  }
+
   /** The lessons the user has accepted, as a block for an agent's system prompt. */
   private lessonsPrompt(state: WorkspaceState): string {
     const accepted = state.lessons.all().filter((lesson) => lesson.status === "accepted");
@@ -1002,6 +1077,21 @@ export class Core {
     const agentId = [...this.agentTokens].find(([, t]) => t === token)?.[0];
     if (!agentId) throw new CoreError("unauthorized", "Unknown agent token");
     const { state } = this.find((s) => s.agents, agentId, "agent");
+    const [, connectorId, call] = /^mcp__([a-z][a-z0-9-]*)__(.+)$/.exec(tool) ?? [];
+    const connector = connectorId ? this.storedConnectors(state.workspace.id).find((c) => c.id === connectorId) : undefined;
+    if (connector && call) {
+      if (connector.free.some((pattern) => matchesTool(pattern, call))) return Promise.resolve("approved");
+      const shown = JSON.stringify(input, null, 2);
+      const approval = this.raiseApproval(state, agentId, {
+        kind: "connector",
+        title: `${connector.name}: ${call}`,
+        detail: shown.length > 4000 ? shown.slice(0, 3999) + "…" : shown,
+        steps: [],
+        // What the service does with the call is not ours to undo.
+        reversible: false,
+      });
+      return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
+    }
     const command = typeof input.command === "string" ? input.command : JSON.stringify(input);
     const why = typeof input.description === "string" ? input.description : "";
     const approval = this.raiseApproval(state, agentId, {
@@ -1271,7 +1361,8 @@ export class Core {
                   : task.branch
                     ? { on: "branch" }
                     : { on: "draft", project: state.workspace.path },
-              )) + this.lessonsPrompt(state),
+              )) + this.lessonsPrompt(state) + this.connectorsPrompt(state),
+        connectors: this.mcpServers(state),
         sessionId,
         resume,
         model: agent.role === "member" ? MODEL_FOR[task?.effort ?? "normal"] : undefined,

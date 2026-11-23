@@ -2,7 +2,7 @@
  * File-backed storage. Workspace data lives in `<folder>/.losperitos/` as one
  * JSON file per collection; machine-level data lives in the app data dir.
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 export const WORKSPACE_DIR = ".losperitos";
@@ -89,6 +89,20 @@ export class AppStore {
 
   token(): string | undefined {
     return readJson<{ token?: string }>(join(this.dir, "token.json"), {}).token;
+  }
+
+  /**
+   * Machine-level documents that hold secrets, such as connector keys. They
+   * stay out of project folders, which may be shared or committed.
+   */
+  readSecret<T>(name: string, fallback: T): T {
+    return readJson<T>(join(this.dir, `${name}.json`), fallback);
+  }
+
+  writeSecret(name: string, value: unknown): void {
+    const file = join(this.dir, `${name}.json`);
+    writeFileSync(file, JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
+    chmodSync(file, 0o600);
   }
 
   setToken(token: string): void {

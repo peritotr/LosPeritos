@@ -26,6 +26,11 @@ export type SessionEvent =
   /** The underlying process is gone. */
   | { type: "exit"; code: number | null };
 
+/** One MCP server as Claude Code's `--mcp-config` describes it. */
+export type McpServer =
+  | { command: string; args: string[]; env: Record<string, string> }
+  | { type: "http"; url: string; headers: Record<string, string> };
+
 export interface AgentSession {
   /** Start a turn with a user message. */
   send(text: string): void;
@@ -47,6 +52,11 @@ export interface StartOptions {
    * speaks MCP over stdio and offers an `approve` tool. Without it such calls are refused.
    */
   permissionBridge?: { command: string; args: string[]; env: Record<string, string> };
+  /**
+   * Outside services to offer as MCP servers, by the name their tools carry.
+   * They may hold secrets, so they are handed over in a file only the user can read.
+   */
+  connectors?: Record<string, McpServer>;
   /** Folders outside `cwd` the agent may read, e.g. where attachments are kept. */
   addDirs?: string[];
   /** Extra environment for the agent process, on top of the core's own. */

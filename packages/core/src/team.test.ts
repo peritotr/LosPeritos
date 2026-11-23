@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { FakeAdapter } from "@losperitos/adapters";
 import { MAX_AGENTS_PER_WORKSPACE, type AgentCommandInput } from "@losperitos/protocol";
-import { AgentCommand } from "@losperitos/protocol";
+import { AgentCommand, SaveConnectorRequest } from "@losperitos/protocol";
 import { Core, CoreError } from "./core.js";
 import { createServer } from "./server.js";
 
@@ -450,4 +450,57 @@ test("tasks carry labels, and the estimate learns from what closed tasks cost", 
     title: "Later", description: "", specialty: "developer", effort: "normal", priority: "normal", dependsOn: [], labels: ["q3"], start: false,
   });
   assert.deepEqual((await core.updateTask(draft.id, { labels: ["q4"] })).labels, ["q4"]);
+});
+
+test("a connector reaches the team, keeps its secrets, and seals every call not set free", async () => {
+  const { core, adapter, workspace, dataDir, folder, tokenOf, as } = setup({ repo: false });
+  const save = (request: Record<string, unknown>) => core.saveConnector(workspace.id, SaveConnectorRequest.parse(request));
+  const [listed] = save({
+    id: "search-console",
+    name: "Search Console",
+    command: "npx",
+    args: ["-y", "some-mcp-server"],
+    secrets: { API_KEY: "s3cret" },
+    free: ["get_*", "list_sites"],
+  });
+  assert.deepEqual(listed!.secretNames, ["API_KEY"]);
+  assert.ok(!JSON.stringify(core.listConnectors(workspace.id)).includes("s3cret"), "values are never read back");
+  // Kept with the machine's own state, readable by the user alone, and not in the project folder.
+  const file = join(dataDir, "connectors.json");
+  assert.equal(statSync(file).mode & 0o777, 0o600);
+  assert.ok(!existsSync(join(folder, ".losperitos", "connectors.json")));
+
+  // Saving again without the secret keeps it; an empty value removes it.
+  save({ id: "search-console", name: "Search Console", command: "npx", args: [], free: ["get_*"] });
+  assert.deepEqual(core.listConnectors(workspace.id)[0]!.secretNames, ["API_KEY"]);
+  assert.throws(() => SaveConnectorRequest.parse({ id: "peritos", name: "x", command: "x" }));
+  assert.throws(() => SaveConnectorRequest.parse({ id: "both", name: "x", command: "x", url: "https://example.com/mcp" }));
+  assert.throws(() => SaveConnectorRequest.parse({ id: "neither", name: "x" }));
+
+  // The next agent to sit down is given the connector and told about it.
+  await as(0, { command: "task.create", title: "Look at search data", specialty: "developer" });
+  const start = adapter.starts.at(-1)!;
+  assert.deepEqual(start.connectors, { "search-console": { command: "npx", args: [], env: { API_KEY: "s3cret" } } });
+  assert.match(start.systemPrompt!, /Search Console \(id: search-console\)/);
+
+  // A tool set free goes straight through; any other waits for the seal.
+  assert.equal(await core.requestPermission(tokenOf(1), "mcp__search-console__get_rows", { site: "example.com" }), "approved");
+  assert.equal(core.waiting().approvals.length, 0);
+  const held = core.requestPermission(tokenOf(1), "mcp__search-console__submit_sitemap", { url: "https://example.com/sitemap.xml" });
+  const [approval] = core.waiting().approvals;
+  assert.equal(approval!.kind, "connector");
+  assert.equal(approval!.title, "Search Console: submit_sitemap");
+  assert.match(approval!.detail, /sitemap\.xml/);
+  assert.equal(approval!.reversible, false);
+  await core.decideApproval(approval!.id, "rejected");
+  assert.equal(await held, "rejected");
+
+  // A tool of a server the bureau does not know is treated as any other command.
+  void core.requestPermission(tokenOf(1), "mcp__other__get_rows", {});
+  assert.equal(core.waiting().approvals[0]!.kind, "command");
+
+  save({ id: "ads", name: "Ads", url: "https://example.com/mcp", secrets: { Authorization: "Bearer t", Gone: "" } });
+  assert.deepEqual(core.listConnectors(workspace.id).map((c) => c.id), ["search-console", "ads"]);
+  assert.deepEqual(core.removeConnector(workspace.id, "search-console").map((c) => c.id), ["ads"]);
+  assert.deepEqual(core.listConnectors(workspace.id)[0]!.secretNames, ["Authorization"]);
 });

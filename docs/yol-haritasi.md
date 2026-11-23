@@ -39,12 +39,21 @@ klasöründe çalışır; dosyalar mühürden sonra klasöre kopyalanır. Pazarl
 ve içerik büroları gerçek Claude ile uçtan uca denendi. Eksik kalan: taslak
 yalıtımı talimata dayanıyor, teknik olarak zorlanmıyor.
 
-İkinci adım (B), önce tasarım kararı ister:
+İkinci adım (B):
 
-- Bağlayıcılar (MCP): görsel ve video üretimi, Search Console, Google Ads,
-  Meta Ads. Hangi bağlayıcının hangi büroda açık olduğu ayarlardan.
-- Yeni mühür türleri: "yayınla" ve "bütçe harca" her zaman onaya bağlı.
+- Bağlayıcı altyapısı: yapıldı. Ayarlar'dan büroya bir MCP sunucusu (komut ya
+  da adres) bağlanır; gizli değerler makinede, yalnızca kullanıcının
+  okuyabildiği bir dosyada durur. Sormadan kullanılabilir diye işaretlenmeyen
+  her araç çağrısı mühür bekler. Gerçek Claude ile deneme servisi üzerinde
+  doğrulandı (`scripts/e2e-connector.mjs`).
+- Hazır bağlayıcılar: görsel ve video üretimi, Search Console, Google Ads,
+  Meta Ads. Her biri hesap ve anahtar ister; sırayla eklenecek.
+- Para harcayan çağrılar için bütçe sınırı (reklam bağlayıcılarıyla birlikte).
 - Video ve PDF önizleme.
+
+Bağlayıcıların eksikleri: bir sunucunun araç listesi ekranda gösterilmiyor,
+araç adları mühür isteklerinden öğreniliyor; mühürde "bundan sonra sorma"
+seçeneği yok; çalışan bir perito yeni bağlayıcıyı ancak yeniden oturunca görür.
 
 ### 1. Sohbet her ekranda (O)
 
@@ -163,9 +172,10 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 - 7(a) (zengin ajan çıktısı): yapıldı. Araç çağrıları katlanabilir blok olarak
   görünüyor. Gerçek terminal sekmesi (7b) yapılmadı.
 - 15 (ilk kullanım): tur ve ilk iş kartları yapıldı; sade / gelişmiş mod yapılmadı.
-- 16 (büro türleri): birinci adım yapıldı.
+- 16 (büro türleri): birinci adım ve ikinci adımın bağlayıcı altyapısı yapıldı.
 
 ## Önerilen sıra
 
-Sıradaki: 16'nın ikinci adımı (bağlayıcılar; önce tasarım kararı) → 8 (Codex)
+Sıradaki: 16'nın ikinci adımının kalanı (video ve PDF önizleme, hazır
+bağlayıcılar) → 8 (Codex)
 → 9 (kod ve Git paneli). Sonrası kullanıcı geri bildirimine göre.

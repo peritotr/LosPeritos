@@ -1,4 +1,7 @@
 import { spawn, execFile } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { Adapter, AgentSession, SessionEvent, StartOptions } from "./types.js";
 
@@ -160,6 +163,15 @@ export class ClaudeCodeAdapter implements Adapter {
     if (options.model) args.push("--model", options.model);
     if (options.systemPrompt) args.push("--append-system-prompt", options.systemPrompt);
     for (const dir of options.addDirs ?? []) args.push("--add-dir", dir);
+    /** Where the connectors' configuration was written, to be removed when the agent ends. */
+    let secretDir: string | null = null;
+    if (options.connectors && Object.keys(options.connectors).length > 0) {
+      // A file rather than an argument: arguments can be read by any process of this user.
+      secretDir = mkdtempSync(join(tmpdir(), "losperitos-mcp-"));
+      const file = join(secretDir, "connectors.json");
+      writeFileSync(file, JSON.stringify({ mcpServers: options.connectors }), { mode: 0o600 });
+      args.push("--mcp-config", file);
+    }
     if (options.permissionBridge) {
       args.push(
         "--mcp-config",
@@ -199,6 +211,9 @@ export class ClaudeCodeAdapter implements Adapter {
     );
     child.on("error", (err) => emit({ type: "error", message: `Cannot run ${this.bin}: ${err.message}` }));
     child.on("exit", (code) => emit({ type: "exit", code }));
+    const forget = () => secretDir && rmSync(secretDir, { recursive: true, force: true });
+    child.on("exit", forget);
+    child.on("error", forget);
 
     return {
       onEvent: (listener) => void listeners.push(listener),

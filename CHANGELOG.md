@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Connectors**
+- A bureau can be given outside services as MCP servers, from Settings: a
+  command on this machine or an HTTP address, with its secrets. Secrets are
+  kept on the machine in a file only the user can read, never in the project
+  folder, and are not shown again.
+- Every call to a connector waits for a seal unless the tool has been marked
+  as free to use; agents are told which services they can reach.
+
 - Messages from the team are shown as formatted text in the chat, not with raw
   Markdown marks.
 - Marketing and content bureaus no longer show the GitHub import, and the

@@ -181,7 +181,8 @@ export const Message = z.object({
 
 // ── Approval ────────────────────────────────────────────────────────────────
 
-export const ApprovalKind = z.enum(["merge", "deploy", "command", "other"]);
+/** `connector`: a call to an outside service that the user has not said may go ahead unasked. */
+export const ApprovalKind = z.enum(["merge", "deploy", "command", "connector", "other"]);
 export const ApprovalStatus = z.enum(["pending", "approved", "rejected"]);
 
 export const Approval = z.object({
@@ -247,6 +248,39 @@ export const ToolCheck = z.object({
 });
 
 // ── Requests ────────────────────────────────────────────────────────────────
+
+// ── Connector ───────────────────────────────────────────────────────────────
+
+/**
+ * An outside service the team may use, reached over MCP. Its tools reach the
+ * agents as `mcp__<id>__<tool>`. A call to a tool not listed in `free` waits
+ * for the user's seal.
+ */
+export const Connector = z.object({
+  /** Lower-case letters, digits and hyphens; `peritos` is the core's own. */
+  id: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/).refine((value) => value !== "peritos", "That name is taken"),
+  name: z.string().trim().min(1).max(60),
+  /** A local program that speaks MCP over stdio. Either this or `url`. */
+  command: z.string().trim().min(1).optional(),
+  args: z.array(z.string()).default([]),
+  /** A server reached over HTTP. */
+  url: z.string().url().optional(),
+  /**
+   * Names of the secrets it has been given: environment variables for a
+   * command, request headers for a URL. The values never leave the core.
+   */
+  secretNames: z.array(z.string()),
+  /** Tools that may be called without asking. `*` stands for any run of characters. */
+  free: z.array(z.string().trim().min(1)).default([]),
+});
+
+/**
+ * Add a connector, or replace the one with the same id. `secrets` sets the
+ * named values and leaves the others as they are; an empty value removes one.
+ */
+export const SaveConnectorRequest = Connector.omit({ secretNames: true })
+  .extend({ secrets: z.record(z.string()).default({}) })
+  .refine((value) => !!value.command !== !!value.url, "Give either a command or a URL");
 
 /** `kind` applies only when the folder has not been opened before. */
 export const OpenWorkspaceRequest = z.object({ path: z.string(), kind: WorkspaceKind.optional() });
@@ -360,6 +394,9 @@ export const routes = {
   runs: "GET /workspaces/:workspaceId/runs",
   /** Everything waiting on the user, across all workspaces. */
   waiting: "GET /waiting",
+  connectors: "GET /workspaces/:workspaceId/connectors",
+  saveConnector: "POST /workspaces/:workspaceId/connectors",
+  removeConnector: "POST /workspaces/:workspaceId/connectors/:connectorId/remove",
   events: "WS /events",
   /** Agent bridge, used by the `peritos` CLI with a per-agent token. */
   agentCommand: "POST /agent",
@@ -420,7 +457,7 @@ export const AgentCommand = z.discriminatedUnion("command", [
   }),
   z.object({
     command: z.literal("approval"),
-    kind: ApprovalKind.exclude(["merge"]).default("other"),
+    kind: ApprovalKind.exclude(["merge", "connector"]).default("other"),
     title: z.string().min(1),
     detail: z.string().default(""),
     steps: z.array(z.string()).default([]),
@@ -502,6 +539,8 @@ export type Estimate = z.infer<typeof Estimate>;
 export type MessageAuthor = z.infer<typeof MessageAuthor>;
 export type Message = z.infer<typeof Message>;
 export type ApprovalKind = z.infer<typeof ApprovalKind>;
+export type Connector = z.infer<typeof Connector>;
+export type SaveConnectorRequest = z.infer<typeof SaveConnectorRequest>;
 export type ApprovalStatus = z.infer<typeof ApprovalStatus>;
 export type Approval = z.infer<typeof Approval>;
 export type LessonStatus = z.infer<typeof LessonStatus>;

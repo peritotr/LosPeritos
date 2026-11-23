@@ -19,6 +19,7 @@ import type { Approval, Message, ToolCheck, Workspace, WorkspaceKind } from "@lo
 
 const KINDS = ["software", "marketing", "content"] as const satisfies readonly WorkspaceKind[];
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
+import { Connectors } from "./connectors";
 import { showTour } from "./onboarding";
 import { CORE_URL, shell } from "./store";
 import { LANGUAGES, T, dateLocale, fromCore, language, setLanguage, type Language } from "./strings";
@@ -855,6 +856,8 @@ export function Settings(ctx: Ctx) {
             </p>
           </div>
         </section>
+
+        <Connectors ctx={ctx} />
 
         <section className="panel blueprint">
           <Corners />

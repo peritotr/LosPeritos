@@ -12,6 +12,7 @@ import {
   DecideLessonRequest,
   OpenWorkspaceRequest,
   PermissionRequest,
+  SaveConnectorRequest,
   SendMessageRequest,
   UpdateAgentRequest,
   UploadAttachmentRequest,
@@ -79,6 +80,11 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "GET /workspaces/:workspaceId/estimate": (p) => core.estimate(p.workspaceId!),
     "GET /workspaces/:workspaceId/runs": (p) => core.listRuns(p.workspaceId!),
     "GET /waiting": () => core.waiting(),
+    "GET /workspaces/:workspaceId/connectors": (p) => core.listConnectors(p.workspaceId!),
+    "POST /workspaces/:workspaceId/connectors": (p, body) =>
+      core.saveConnector(p.workspaceId!, parse(SaveConnectorRequest, body)),
+    "POST /workspaces/:workspaceId/connectors/:connectorId/remove": (p) =>
+      core.removeConnector(p.workspaceId!, p.connectorId!),
   };
   return Object.entries(table).map(([route, handler]) => {
     const [method, path] = route.split(" ") as [string, string];
