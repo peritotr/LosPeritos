@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.6 — 2026-11-23
 
 **What was asked before the update**
 - Pictures a question points at without attaching them ("they are in
