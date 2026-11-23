@@ -72,6 +72,54 @@ function stampTime(iso: string | null): string {
   return `${day} · ${date.toTimeString().slice(0, 5)}`;
 }
 
+/**
+ * What a tool was called with, laid out to be read: names on the left, values
+ * as plain text, lists numbered. Prose stays prose; nothing is shown as raw JSON.
+ */
+function DataView({ value, depth = 0 }: { value: unknown; depth?: number }) {
+  if (value === null || typeof value !== "object") {
+    const text = typeof value === "string" ? value : String(value);
+    return <span className={typeof value === "string" ? "data-text" : "data-text mono"}>{text}</span>;
+  }
+  const entries: Array<[string, unknown]> = Array.isArray(value) ? value.map((item, index) => [String(index + 1), item]) : Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) return <span className="muted">—</span>;
+  // An item that only wraps one thing (`{ params: {…} }`) is shown as that thing.
+  if (!Array.isArray(value) && entries.length === 1 && entries[0]![1] !== null && typeof entries[0]![1] === "object" && depth > 0) {
+    return <DataView value={entries[0]![1]} depth={depth} />;
+  }
+  return (
+    <dl className={`data ${Array.isArray(value) ? "data-list" : ""}`}>
+      {entries.map(([name, item]) => (
+        <div key={name} className={item !== null && typeof item === "object" ? "data-row data-nested" : typeof item === "string" && item.length > 36 ? "data-row data-long" : "data-row"}>
+          <dt>{Array.isArray(value) ? name : name.replace(/_/g, " ")}</dt>
+          <dd>
+            <DataView value={item} depth={depth + 1} />
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function SealDetail({ text }: { text: string }) {
+  let data: unknown;
+  if (/^\s*[{[]/.test(text)) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Cut short or not data after all: shown as it is.
+    }
+  }
+  if (data !== undefined && data !== null && typeof data === "object") {
+    return (
+      <div className="detail-data">
+        <DataView value={data} />
+      </div>
+    );
+  }
+  return <p className={`detail-text ${/^\s*[{[]/.test(text) ? "is-data" : ""}`}>{text}</p>;
+}
+
 function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
   const names = lookup(ctx);
   const { busy, error, decide, remember, setRemember } = useSeal(ctx, approval);
@@ -90,7 +138,8 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
           <div className="kicker" style={{ marginBottom: 8 }}>
             {T.seal.request(ref)}
           </div>
-          <h3>{sealText(approval).title}</h3>
+          {/* A tool's name has no spaces to break at: let it break after an underscore rather than mid-word. */}
+          <h3>{sealText(approval).title.replace(/_/g, "_\u200b")}</h3>
         </div>
         {approval.status === "pending" ? (
           <Stamp kind="pending" sub={ref} />
@@ -110,7 +159,7 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
         <dt>{T.seal.bureau}</dt>
         <dd style={{ textAlign: "left" }}>{names.bureau(approval.workspaceId)?.name}</dd>
       </dl>
-      {approval.detail && <p className={`detail-text ${/^\s*[{[]/.test(approval.detail) ? "is-data" : ""}`}>{sealText(approval).detail}</p>}
+      {approval.detail && <SealDetail text={sealText(approval).detail} />}
       {approval.steps.length > 0 && (
         <div>
           <div className="kicker" style={{ marginBottom: 8 }}>

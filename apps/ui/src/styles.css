@@ -712,3 +712,21 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .seal-card h3, .seal-card .detail-text, .seal-card dd, .reply-card, .msg-body, .toast h4 { overflow-wrap: anywhere; min-width: 0; }
 .seal-card .top > :first-child { min-width: 0; }
 .seal-card .detail-text.is-data { font-family: var(--lp-mono); font-size: 12px; padding: 10px; background: var(--lp-faint); color: var(--color-text); max-height: 240px; overflow: auto; }
+
+/* A tool's arguments, laid out to be read. */
+.detail-data { max-height: 46vh; overflow: auto; padding: 12px; background: var(--lp-faint); font-size: 13px; min-width: 0; }
+.data { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.data-row { display: grid; grid-template-columns: minmax(70px, 110px) minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.data-row > dt { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lp-muted); overflow-wrap: anywhere; }
+.data-row > dd { margin: 0; min-width: 0; }
+.data-nested { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.data-nested > dd { padding-left: 12px; border-left: 2px solid var(--color-divider); }
+.data-list > .data-row { grid-template-columns: 22px minmax(0, 1fr); }
+.data-list > .data-row > dt { font-family: var(--lp-mono); text-align: right; }
+.data-list > .data-nested > dd { padding-left: 10px; }
+.data-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.data-long { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+.data-nested > dd { padding-left: 8px; }
+.data-list > .data-nested { grid-template-columns: 18px minmax(0, 1fr); gap: 6px; }
+.data-list > .data-nested > dd { padding-left: 8px; }
+.seal-card h3 { overflow-wrap: break-word; }

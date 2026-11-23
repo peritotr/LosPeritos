@@ -16,6 +16,8 @@
 - Tools of servers connected to your own Claude account are asked about as
   connector calls, and "do not ask again" works for them; Settings lists the
   ones you have let through, to take back.
+- What a tool was called with is laid out as a list to read (names, values,
+  numbered items, prose as prose) instead of a block of raw data.
 - Long names no longer run out of the seal's card.
 
 ## 0.6.3 — 2026-11-23
