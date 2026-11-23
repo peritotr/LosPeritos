@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.3 — 2026-11-23
 
 - What is under a seal can be read before sealing: the seal's detail lists the
   files the task handed in, and choosing one opens it in place.
