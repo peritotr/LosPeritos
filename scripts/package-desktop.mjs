@@ -1,5 +1,5 @@
-// Builds a standalone LosPeritos app for this machine's platform, and on macOS
-// a .dmg holding it. Run through `npm run package`, which builds everything first.
+// Builds a standalone LosPeritos app for this machine's platform: on macOS a
+// .dmg holding it, on Windows a .zip of the app's folder (unsigned). Run through `npm run package`, which builds everything first.
 //
 // On macOS the app is signed and notarised when this Mac can do it:
 //   - signing needs a "Developer ID Application" certificate in the keychain
@@ -152,4 +152,12 @@ if (process.platform === "darwin") {
         ? "Signed but not notarised: other Macs will still warn."
         : "Unsigned: other Macs will refuse it until the user allows it in System Settings.",
   );
+}
+
+if (process.platform === "win32") {
+  // No installer and no signature yet: the folder as a zip, to be unpacked anywhere and started from LosPeritos.exe.
+  const zipName = `LosPeritos-${manifest.version}-win-${process.arch}.zip`;
+  execFileSync("tar.exe", ["-a", "-cf", path.join(release, zipName), "-C", release, path.basename(appPath)], { stdio: "inherit" });
+  console.log("Zip:", path.join(release, zipName));
+  console.log("Unsigned: Windows will ask before running it the first time (More info > Run anyway).");
 }

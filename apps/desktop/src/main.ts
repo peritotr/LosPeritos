@@ -119,6 +119,8 @@ async function openWindow(core: RunningCore): Promise<void> {
     minHeight: 700,
     show: !smoke && !shots,
     title: "LosPeritos",
+    // Windows and Linux would put a menu bar across the top that the app has no use for; Alt still shows it.
+    autoHideMenuBar: process.platform !== "darwin",
     ...(existsSync(icon) && { icon }),
     backgroundColor: "#f2f2f3",
     webPreferences: {
