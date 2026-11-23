@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — 2026-11-23
 
 **Finding what the team made**
 - A Folder screen shows the bureau's whole folder, for every kind of bureau:
