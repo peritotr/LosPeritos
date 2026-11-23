@@ -675,6 +675,18 @@ export const en = {
     add: "Add a coordinator…",
     hint: "A perito over all your bureaus: give it a job and it hands each part to the bureau it belongs to. It does no work itself.",
   },
+  treats: {
+    coffee: "Bring a coffee",
+    donut: "Bring a doughnut",
+    berlin: "Send Berlin over",
+    berlinSent: (who: string) => `Berlin is on the way to ${who}.`,
+  },
+  sira: {
+    label: "Sıra gecesi",
+    hint: "Everyone leaves their desk and gathers for an evening of music. No new work is handed out while it lasts; a turn already under way finishes in the background.",
+    on: "Sıra gecesi: everyone to the carpet.",
+    off: "The night is over. Back to the desks.",
+  },
   mode: {
     label: "How much to show",
     simple: "Plain",

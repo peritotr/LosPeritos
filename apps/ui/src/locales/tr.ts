@@ -673,6 +673,18 @@ export const tr: Strings = {
     add: "Koordinatör ekle…",
     hint: "Tüm büroların üstünde bir perito: ona bir iş ver, her parçayı ait olduğu büroya devretsin. Kendisi iş yapmaz.",
   },
+  treats: {
+    coffee: "Kahve götür",
+    donut: "Donut götür",
+    berlin: "Berlin'i gönder",
+    berlinSent: (who) => `Berlin ${who} için yola çıktı.`,
+  },
+  sira: {
+    label: "Sıra gecesi",
+    hint: "Herkes masasını bırakıp sıra gecesine toplanır. Gece sürerken yeni iş dağıtılmaz; başlamış bir tur arka planda biter.",
+    on: "Sıra gecesi: herkes halının başına.",
+    off: "Gece bitti. Herkes masasına.",
+  },
   mode: {
     label: "Görünüm düzeyi",
     simple: "Sade",

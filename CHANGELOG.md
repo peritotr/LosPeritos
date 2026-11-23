@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**The floor, for its own sake**
+- Berlin sees to faulty work: when a perito's work ends in an error, or you
+  send a dossier back, the bulldog trots over and bites. You can also send
+  Berlin to anyone's desk yourself.
+- Bring a perito a coffee or a doughnut from its card. It is counted, shown
+  on the floor, and mentioned with the next message the perito gets; it
+  starts no turn and costs nothing.
+- Sıra gecesi: a switch on the floor. Everyone leaves their desk for the
+  carpet, the dogs lie down beside it, evening falls and a short tune made in
+  the app plays. No new work is handed out while it lasts.
+
 **A seal you can decide on**
 - A held tool call now says in words what such a call does (a web search
   sends only its words; a read changes nothing), and shows what the perito

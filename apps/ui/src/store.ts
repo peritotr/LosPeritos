@@ -305,6 +305,8 @@ export interface Actions {
   decideApproval(approvalId: string, decision: "approved" | "rejected", remember?: boolean): Promise<void>;
   decideLesson(lessonId: string, decision: "accepted" | "rejected"): Promise<void>;
   stopAgent(agentId: string): Promise<void>;
+  /** Bring a perito a coffee or a doughnut. */
+  treatAgent(agentId: string, kind: "coffee" | "donut"): Promise<void>;
   /** Give a perito a name of your own; null goes back to the default. */
   renameAgent(agentId: string, nickname: string | null): Promise<void>;
   checkTools(): Promise<ToolCheck[]>;
@@ -489,6 +491,7 @@ export function useCore(): [State, Actions] {
       void (await post(`/approvals/${approvalId}/decision`, { decision, remember })),
     decideLesson: async (lessonId, decision) => void (await post(`/lessons/${lessonId}/decision`, { decision })),
     stopAgent: async (agentId) => void (await post(`/agents/${agentId}/stop`)),
+    treatAgent: async (agentId, kind) => void (await post(`/agents/${agentId}/treat`, { kind })),
     renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
     checkTools: () => post<ToolCheck[]>("/setup", undefined, "GET"),
     taskFile: (taskId, path) => post<TaskFile>(`/tasks/${taskId}/file?path=${encodeURIComponent(path)}`, undefined, "GET"),

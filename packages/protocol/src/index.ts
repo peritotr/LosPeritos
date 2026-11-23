@@ -77,6 +77,8 @@ export const Agent = z.object({
   sessionId: z.string().nullable().optional(),
   /** When a limited agent will try again. */
   resumeAt: timestamp.nullable().optional(),
+  /** Coffees and doughnuts the user has brought to this perito's desk. */
+  treats: z.object({ coffee: z.number().int().nonnegative(), donut: z.number().int().nonnegative() }).optional(),
   /** Set when the app closed while the agent was in the middle of a turn: it carries on at the next start. */
   interrupted: z.boolean().optional(),
 });
@@ -301,6 +303,7 @@ export const PhoneAccess = z.object({
   /** That certificate's SHA-256 fingerprint, to compare with what the phone shows. */
   fingerprint: z.string().nullable(),
 });
+export const TreatRequest = z.object({ kind: z.enum(["coffee", "donut"]) });
 export const SetPhoneRequest = z.object({
   enabled: z.boolean(),
   /** Make a new key: every address handed out before stops working. */
@@ -524,6 +527,8 @@ export const routes = {
   uploadAttachment: "POST /workspaces/:workspaceId/attachments",
   /** `{ files }`: pictures of the bureau's folder that a message's text points at, by file or by folder. */
   messagePictures: "GET /messages/:messageId/pictures",
+  /** `{ kind: "coffee" | "donut" }`: bring something to a perito's desk; an Agent. */
+  treatAgent: "POST /agents/:agentId/treat",
   /** The bytes of one attachment, for showing it. */
   attachment: "GET /workspaces/:workspaceId/attachments/:name",
   answerQuestion: "POST /messages/:messageId/answer",

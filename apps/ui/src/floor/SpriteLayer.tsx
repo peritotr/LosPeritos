@@ -1,3 +1,4 @@
+import { floorEffects, type Treat } from "./effects";
 import { useEffect, useRef, useState } from "react";
 import { backdrop } from "./backdrop";
 import { DECOR, DESK, DOGS, LOUNGE_SEATS } from "./decor";
@@ -25,6 +26,14 @@ interface Walker {
   /** Until when (in seconds of animation time) it is celebrating. */
   cheerUntil: number;
 }
+
+/** Where the sıra gecesi gathers: the middle of the floor, in a wide ring. */
+const SIRA = { x: 600, y: 400, rx: 200, ry: 86 };
+/** The dog that sees to faulty work, and how long each part of its errand takes, in seconds. */
+const BITER = "Berlin";
+const BITE = { out: 1.4, hold: 2.6, back: 1.8 };
+/** How long a treat stays above a perito's head. */
+const TREAT_SECONDS = 4.5;
 
 /**
  * Everything drawn from the skin's art: the room, set dressing, characters,
@@ -65,6 +74,42 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
     let frame = 0;
     let previous: number | null = null;
     let primed = false;
+    /** How far the sıra gecesi has gathered everyone: 0 at their desks, 1 in the circle. */
+    let sira = floorEffects.sira ? 1 : 0;
+    /** Berlin's errand: whose desk, and when it set off. */
+    let bite: { at: Point; start: number } | null = null;
+    /** Where each perito was last drawn, for what is shown above their head. */
+    const where = new Map<string, Point>();
+
+    /** A coffee cup or a doughnut, a few pixels of each, with its bottom centre at (x, y). */
+    const treat = (kind: Treat, x: number, y: number, seconds: number) => {
+      const s = scale;
+      const left = Math.round(x - 3 * s);
+      const top = Math.round(y - 6 * s);
+      if (kind === "coffee") {
+        ctx.fillStyle = "#f4f1ea";
+        ctx.fillRect(left, top + s, 6 * s, 5 * s);
+        ctx.fillRect(left + 6 * s, top + 2 * s, s, 3 * s);
+        ctx.fillStyle = "#6b4423";
+        ctx.fillRect(left + s, top + s, 4 * s, s);
+        // Steam, swaying.
+        ctx.fillStyle = "rgba(255,255,255,0.8)";
+        const sway = Math.floor(seconds * 3) % 2;
+        ctx.fillRect(left + (1 + sway) * s, top - s, s, s);
+        ctx.fillRect(left + (4 - sway) * s, top - 2 * s, s, s);
+      } else {
+        ctx.fillStyle = "#e58fb1";
+        ctx.fillRect(left + s, top, 4 * s, 6 * s);
+        ctx.fillRect(left, top + s, 6 * s, 4 * s);
+        ctx.fillStyle = "#c98a4b";
+        ctx.fillRect(left + s, top + 5 * s, 4 * s, s);
+        ctx.fillStyle = "#5a3a22";
+        ctx.fillRect(left + 2 * s, top + 2 * s, 2 * s, 2 * s);
+        ctx.fillStyle = "#fff6c2";
+        ctx.fillRect(left + s, top + s, s, s);
+        ctx.fillRect(left + 4 * s, top + 3 * s, s, s);
+      }
+    };
 
     /** Draw a prop with its bottom centre at (x, y). */
     const prop = (item: Prop | undefined, x: number, y: number) => {
@@ -144,6 +189,12 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
       const current = latest.current;
       const dark = shell?.dataset.theme === "dark";
 
+      // The night gathers and breaks up over a couple of seconds.
+      const wanted = floorEffects.sira ? 1 : 0;
+      sira = still ? wanted : sira + Math.max(-elapsed / 2.2, Math.min(elapsed / 2.2, wanted - sira));
+      const gathered = sira * sira * (3 - 2 * sira);
+      where.clear();
+
       ctx.clearRect(0, 0, FLOOR.width, FLOOR.height);
       ctx.imageSmoothingEnabled = false;
       if (furnished) ctx.drawImage(backdrop(skin, dark), 0, 0);
@@ -174,6 +225,12 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
           walker.cheerUntil = seconds + CELEBRATION_SECONDS;
           bursts.push({ at: stand, start: seconds });
         }
+        if (floorEffects.sendBerlin === actor.agent.id) {
+          floorEffects.sendBerlin = null;
+          if (!still) bite = { at: stand, start: seconds };
+        }
+        // Work that goes wrong earns a visit from Berlin.
+        if (primed && walker.pose !== "error" && actor.pose === "error" && !still && !bite) bite = { at: stand, start: seconds };
         walker.pose = actor.pose;
       }
       for (const id of walkers.keys()) if (!current.actors.some((actor) => actor.agent.id === id)) walkers.delete(id);
@@ -183,11 +240,15 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         if (sealed.has(stamp.id)) continue;
         sealed.add(stamp.id);
         if (primed && stamp.approved && !still) bursts.push({ at: { x: FLOOR.seal.x, y: FLOOR.seal.y - 20 }, start: seconds });
+        // Work the user sent back: Berlin goes to whoever handed it in.
+        const refused = !stamp.approved && stamp.taskId ? current.actors.find((actor) => actor.agent.taskId === stamp.taskId) : undefined;
+        if (primed && refused && !still && !bite) bite = { at: standAt(refused), start: seconds };
       }
       primed = true;
 
       // Desks, with whoever is sitting at them tucked behind.
-      const afoot: Array<{ actor: Actor; sheet: CharacterSheet; at: Point; moving: boolean }> = [];
+      const afoot: Array<{ actor: Actor; sheet: CharacterSheet; at: Point; moving: boolean; dancing?: boolean }> = [];
+      const party = sira > 0.01;
       let lounging = 0;
       current.actors.forEach((actor, index) => {
         const sheet = (actor.agent.role === "lead" && skin.lead) || skin.characters[index % skin.characters.length]!;
@@ -197,7 +258,7 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         const clip = sheet.clips[actor.pose];
         const { x, y } = actor.seat;
         const stand = standAt(actor);
-        const seated = !away && (clip || cheering);
+        const seated = !party && !away && (clip || cheering);
         if (furnished) {
           prop(skin.props.partitionLeft, x + DESK.partitionLeft.x, y + DESK.partitionLeft.y);
           prop(skin.props.partitionRight, x + DESK.partitionRight.x, y + DESK.partitionRight.y);
@@ -206,12 +267,20 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
           // Cheering: quick hops on the spot.
           const hop = cheering ? Math.abs(Math.sin(seconds * 14)) * 5 * scale : 0;
           figure(sheet, cheering ? sheet.clips.asking! : clip!, seconds, stand.x, stand.y - hop);
+          where.set(actor.agent.id, { x: stand.x, y: stand.y - sheet.frameHeight * scale });
         }
         if (furnished) {
           prop(skin.props.desk, x + DESK.desk.x, y + DESK.desk.y);
           prop(skin.props.computer, x + DESK.computer.x, y + DESK.computer.y);
         }
-        if (away) {
+        if (party) {
+          // Everyone leaves the desk for a place in the circle.
+          const angle = (index / Math.max(1, current.actors.length)) * Math.PI * 2 - Math.PI / 2;
+          const spot = { x: SIRA.x + Math.cos(angle) * SIRA.rx, y: SIRA.y + Math.sin(angle) * SIRA.ry };
+          const from = away ? pointAlong(walker.route, walker.travelled) : stand;
+          const at = { x: from.x + (spot.x - from.x) * gathered, y: from.y + (spot.y - from.y) * gathered };
+          afoot.push({ actor, sheet, at, moving: Math.abs(wanted - sira) > 0.01, dancing: sira > 0.99 });
+        } else if (away) {
           const at = pointAlong(walker.route, walker.travelled);
           const goal = NEEDS_YOU.includes(actor.pose) ? routeLength(walker.route) : 0;
           afoot.push({ actor, sheet, at, moving: Math.abs(goal - walker.travelled) > 0.5 });
@@ -219,16 +288,52 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
           // Off duty: on a sofa in the lounge, if the skin has one.
           const seat = LOUNGE_SEATS[lounging++]!;
           figure(sheet, sheet.clips.idle, seconds + index, seat.x, seat.y);
+          where.set(actor.agent.id, { x: seat.x, y: seat.y - sheet.frameHeight * scale });
         }
       });
 
       // Whoever is on their feet, nearest last so they overlap correctly.
+      if (party) {
+        // The carpet everyone sits around.
+        ctx.globalAlpha = gathered;
+        ctx.fillStyle = "#7a1f2b";
+        ctx.fillRect(SIRA.x - 120, SIRA.y - 34, 240, 68);
+        ctx.fillStyle = "#d9a441";
+        for (let i = 0; i < 12; i++) ctx.fillRect(SIRA.x - 114 + i * 20, SIRA.y - 30, 8, 4), ctx.fillRect(SIRA.x - 114 + i * 20, SIRA.y + 26, 8, 4);
+        ctx.fillStyle = "#f2e2b8";
+        ctx.fillRect(SIRA.x - 40, SIRA.y - 8, 80, 16);
+        ctx.fillStyle = "#7a1f2b";
+        ctx.fillRect(SIRA.x - 30, SIRA.y - 4, 60, 8);
+        ctx.globalAlpha = 1;
+      }
       afoot.sort((a, b) => a.at.y - b.at.y);
-      for (const { actor, sheet, at, moving } of afoot) {
-        const clip = (moving ? (sheet.walk ?? sheet.clips.asking) : sheet.clips.awaiting_seal) ?? sheet.clips.idle;
-        if (!clip) continue;
-        figure(sheet, clip, seconds, at.x, at.y);
-        if (NEEDS_YOU.includes(actor.pose)) sign(actor.pose, at.x, at.y - sheet.frameHeight * scale - scale, dark);
+      afoot.forEach(({ actor, sheet, at, moving, dancing }, index) => {
+        const clip = dancing ? (sheet.clips.asking ?? sheet.clips.idle) : ((moving ? (sheet.walk ?? sheet.clips.asking) : sheet.clips.awaiting_seal) ?? sheet.clips.idle);
+        if (!clip) return;
+        // In the circle everyone claps along: small hops, each in their own time.
+        const hop = dancing && !still ? Math.abs(Math.sin(seconds * 5 + index * 1.3)) * 3 * scale : 0;
+        figure(sheet, clip, seconds, at.x, at.y - hop);
+        where.set(actor.agent.id, { x: at.x, y: at.y - hop - sheet.frameHeight * scale });
+        if (!party && NEEDS_YOU.includes(actor.pose)) sign(actor.pose, at.x, at.y - sheet.frameHeight * scale - scale, dark);
+      });
+
+      // What was brought to a desk floats above its perito for a few seconds, with a heart.
+      const now = performance.now();
+      for (const gift of floorEffects.treats) {
+        const age = (now - gift.at) / 1000;
+        const head = where.get(gift.agentId);
+        if (age < 0 || age > TREAT_SECONDS || !head) continue;
+        const rise = still ? 0 : Math.min(1, age / 0.5) * 6 * scale;
+        ctx.globalAlpha = age > TREAT_SECONDS - 1 ? Math.max(0, TREAT_SECONDS - age) : 1;
+        treat(gift.kind, head.x, head.y - 2 * scale - rise, seconds);
+        ctx.fillStyle = "#e5484d";
+        const hx = Math.round(head.x + 6 * scale);
+        const hy = Math.round(head.y - 10 * scale - rise - (still ? 0 : (age * 10) % (6 * scale)));
+        ctx.fillRect(hx, hy, scale, scale);
+        ctx.fillRect(hx + 2 * scale, hy, scale, scale);
+        ctx.fillRect(hx, hy + scale, 3 * scale, scale);
+        ctx.fillRect(hx + scale, hy + 2 * scale, scale, scale);
+        ctx.globalAlpha = 1;
       }
 
       // Each dog walks out, rests, walks back, rests.
@@ -249,17 +354,69 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         const frameIndex = frames[Math.floor(seconds / sheet.secondsPerFrame) % frames.length]!;
         const width = sheet.frameWidth * scale;
         const height = sheet.frameHeight * scale;
-        const x = Math.round(dog.from + (dog.to - dog.from) * progress);
+        let x = Math.round(dog.from + (dog.to - dog.from) * progress);
+        let y = dog.y;
+        let facingRight = outbound;
+        let frameAt = frameIndex;
+        // Berlin has an errand: out to the desk, a bite, and back.
+        const errand = dog.name === BITER && bite ? seconds - bite.start : -1;
+        if (errand >= 0 && errand < BITE.out + BITE.hold + BITE.back) {
+          const target = { x: bite!.at.x + 34, y: bite!.at.y + 6 };
+          const away = errand < BITE.out ? errand / BITE.out : errand < BITE.out + BITE.hold ? 1 : 1 - (errand - BITE.out - BITE.hold) / BITE.back;
+          const biting = errand >= BITE.out && errand < BITE.out + BITE.hold;
+          facingRight = biting ? false : errand < BITE.out ? target.x > x : target.x < x;
+          x = Math.round(x + (target.x - x) * away + (biting ? Math.sin(seconds * 40) * 2 : 0));
+          y = Math.round(y + (target.y - y) * away);
+          frameAt = sheet.walk[Math.floor(seconds / (sheet.secondsPerFrame / 2)) % sheet.walk.length]!;
+          if (biting) {
+            ctx.save();
+            ctx.fillStyle = "#e5484d";
+            ctx.font = '700 15px ui-monospace, "SF Mono", Menlo, monospace';
+            ctx.fillText("HAV!", x, y - height - 20);
+            // The one who is bitten jumps.
+            ctx.fillRect(Math.round(bite!.at.x - scale), Math.round(bite!.at.y - 34 * scale - Math.abs(Math.sin(seconds * 12)) * 4 * scale), 2 * scale, 5 * scale);
+            ctx.fillRect(Math.round(bite!.at.x - scale), Math.round(bite!.at.y - 27 * scale - Math.abs(Math.sin(seconds * 12)) * 4 * scale), 2 * scale, 2 * scale);
+            ctx.restore();
+          }
+        } else if (dog.name === BITER && bite && errand >= 0) {
+          bite = null;
+        }
+        if (party) {
+          // The dogs come and lie by the carpet.
+          const spot = { x: SIRA.x + (dog.from < SIRA.x ? -150 : 150), y: SIRA.y + 70 };
+          x = Math.round(x + (spot.x - x) * gathered);
+          y = Math.round(y + (spot.y - y) * gathered);
+          if (sira > 0.99) frameAt = sheet.rest[Math.floor(seconds / sheet.secondsPerFrame) % sheet.rest.length]!;
+          facingRight = spot.x < SIRA.x;
+        }
         ctx.save();
-        ctx.translate(x, dog.y - height);
+        ctx.translate(x, y - height);
         // The drawing faces left, so it is mirrored while heading right.
-        if (outbound) ctx.scale(-1, 1);
-        ctx.drawImage(sheet.image, frameIndex * sheet.frameWidth, 0, sheet.frameWidth, sheet.frameHeight, -width / 2, 0, width, height);
+        if (facingRight) ctx.scale(-1, 1);
+        ctx.drawImage(sheet.image, frameAt * sheet.frameWidth, 0, sheet.frameWidth, sheet.frameHeight, -width / 2, 0, width, height);
         ctx.restore();
-        ctx.fillText(dog.name, x, dog.y - height - 5);
+        ctx.fillText(dog.name, x, y - height - 5);
       }
 
       confetti(seconds);
+      if (party) {
+        // Evening falls on the floor, and the music rises from the carpet.
+        ctx.fillStyle = `rgba(24, 16, 44, ${0.34 * gathered})`;
+        ctx.fillRect(0, 0, FLOOR.width, FLOOR.height);
+        ctx.textAlign = "center";
+        for (let i = 0; i < 7; i++) {
+          const life = still ? 0.4 : (seconds * 0.35 + i / 7) % 1;
+          ctx.globalAlpha = gathered * (1 - life);
+          ctx.fillStyle = ["#ffd166", "#f2e2b8", "#ff9f6e"][i % 3]!;
+          ctx.font = `700 ${18 + (i % 3) * 5}px ui-monospace, Menlo, monospace`;
+          ctx.fillText(i % 2 ? "♪" : "♫", SIRA.x + Math.sin(i * 2.4 + life * 4) * (60 + i * 14), SIRA.y - 40 - life * 190);
+        }
+        ctx.globalAlpha = gathered;
+        ctx.fillStyle = "#ffd166";
+        ctx.font = '700 20px "Barlow Condensed", ui-monospace, Menlo, monospace';
+        ctx.fillText("SIRA GECESİ", SIRA.x, 34);
+        ctx.globalAlpha = 1;
+      }
       if (!still) frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);

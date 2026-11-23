@@ -1347,3 +1347,23 @@ test("a held call says what the agent wrote just before, whether it only reads, 
   void adapter;
   await core.close();
 });
+
+test("a coffee brought to a perito's desk is counted and mentioned with the next message, not as a turn of its own", async () => {
+  const { core, adapter, workspace } = setup({ repo: false });
+  const lead = core.listAgents(workspace.id)[0]!;
+  for (let i = 0; i < 50 && adapter.sent.length === 0; i++) await tick();
+  await tick();
+  const turns = adapter.sent.length;
+  assert.deepEqual(core.treatAgent(lead.id, "coffee").treats, { coffee: 1, donut: 0 });
+  core.treatAgent(lead.id, "coffee");
+  assert.deepEqual(core.treatAgent(lead.id, "donut").treats, { coffee: 2, donut: 1 });
+  await tick();
+  assert.equal(adapter.sent.length, turns, "bringing something starts no turn and spends nothing");
+  core.sendMessage(workspace.id, { body: "devam", toAgentId: null, taskId: null });
+  for (let i = 0; i < 50 && adapter.sent.length === turns; i++) await tick();
+  assert.match(adapter.sent.at(-1)!, /^\(The user stopped by your desk and left you a coffee and a doughnut, as thanks for your work\.\)\n\ndevam$/);
+  core.sendMessage(workspace.id, { body: "sonra", toAgentId: null, taskId: null });
+  for (let i = 0; i < 50 && adapter.sent.at(-1) !== "sonra"; i++) await tick();
+  assert.equal(adapter.sent.at(-1), "sonra", "said once");
+  await core.close();
+});

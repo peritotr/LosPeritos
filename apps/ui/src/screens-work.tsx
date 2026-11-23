@@ -23,7 +23,7 @@ import {
   Stamp as StampIcon,
   Terminal,
   ZoomIn,
-  ZoomOut,
+  ZoomOut, Coffee, Donut, Dog, Music,
 } from "lucide-react";
 import type { Agent, Task } from "@losperitos/protocol";
 import { TerminalOutput } from "./activity";
@@ -34,6 +34,8 @@ import { SpriteLayer } from "./floor/SpriteLayer";
 import { buildFloor } from "./floor/model";
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
 import { Starters } from "./onboarding";
+import { bringTreat, floorEffects, sendBerlin, setSira } from "./floor/effects";
+import { startSiraMusic, stopSiraMusic } from "./floor/sira-music";
 import { ReportFiles } from "./preview";
 import { T } from "./strings";
 import {
@@ -101,6 +103,7 @@ export function Bench(ctx: Ctx) {
   const atWork = agents.filter((agent) => agent.status === "working").length;
   const [floorStyle, setFloorStyle] = useState<FloorStyle>(readFloorStyle);
   const [zoom, setZoomState] = useState(readFloorZoom);
+  const [sira, setSiraOn] = useState(floorEffects.sira);
   const setZoom = (step: number) => {
     const next = FLOOR_ZOOMS[Math.max(0, Math.min(FLOOR_ZOOMS.length - 1, FLOOR_ZOOMS.indexOf(zoom) + step))]!;
     setZoomState(next);
@@ -206,6 +209,29 @@ export function Bench(ctx: Ctx) {
               <I icon={ZoomIn} size={14} />
             </button>
           </div>
+          <button
+            className={`btn ${sira ? "btn-primary" : "btn-ghost"}`}
+            aria-pressed={sira}
+            title={T.sira.hint}
+            onClick={() => {
+              const next = !sira;
+              setSiraOn(next);
+              setSira(next);
+              if (next) startSiraMusic();
+              else stopSiraMusic();
+              // Nobody is handed new work while the night lasts; what was paused before stays paused after.
+              if (next && !bureau.dispatchPaused) {
+                pausedForSira.add(bureau.id);
+                void actions.updateWorkspace(bureau.id, { dispatchPaused: true }).catch(() => undefined);
+              } else if (!next && pausedForSira.delete(bureau.id)) {
+                void actions.updateWorkspace(bureau.id, { dispatchPaused: false }).catch(() => undefined);
+              }
+              ctx.note(next ? T.sira.on : T.sira.off);
+            }}
+          >
+            <I icon={Music} size={14} />
+            {T.sira.label}
+          </button>
           <Segmented<FloorStyle>
             label={T.bench.floorStyle}
             value={floorStyle}
@@ -249,6 +275,45 @@ export function Bench(ctx: Ctx) {
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * What the user can do for a perito, or to one, for its own sake: bring a
+ * coffee or a doughnut, or send Berlin over. None of it starts a turn.
+ */
+/** Bureaus whose hand-out of work the sıra gecesi paused, to be let go again when it ends. */
+const pausedForSira = new Set<string>();
+
+function Treats({ ctx, agent }: { ctx: Ctx; agent: Agent }) {
+  const give = (kind: "coffee" | "donut") => (event: React.MouseEvent) => {
+    event.stopPropagation();
+    bringTreat(agent.id, kind);
+    ctx.actions.treatAgent(agent.id, kind).catch(() => undefined);
+  };
+  return (
+    <div className="treats" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+      <button className="btn btn-ghost" title={T.treats.coffee} aria-label={T.treats.coffee} onClick={give("coffee")}>
+        <I icon={Coffee} size={14} />
+        {agent.treats?.coffee ? <span className="mono">{agent.treats.coffee}</span> : null}
+      </button>
+      <button className="btn btn-ghost" title={T.treats.donut} aria-label={T.treats.donut} onClick={give("donut")}>
+        <I icon={Donut} size={14} />
+        {agent.treats?.donut ? <span className="mono">{agent.treats.donut}</span> : null}
+      </button>
+      <button
+        className="btn btn-ghost"
+        title={T.treats.berlin}
+        aria-label={T.treats.berlin}
+        onClick={(event) => {
+          event.stopPropagation();
+          sendBerlin(agent.id);
+          ctx.note(T.treats.berlinSent(perito(agent, ctx.agents).who));
+        }}
+      >
+        <I icon={Dog} size={14} />
+      </button>
+    </div>
   );
 }
 
@@ -297,6 +362,7 @@ function PeritoCard({ ctx, agent }: { ctx: Ctx; agent: Agent }) {
         </div>
       </div>
       <Badge meta={AGENT_STATUS[agent.status]} />
+      <Treats ctx={ctx} agent={agent} />
       <div>
         <div className="mono" style={{ fontSize: 12 }}>
           {task ? fileRef(task) : "—"}

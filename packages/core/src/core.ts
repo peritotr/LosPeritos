@@ -424,6 +424,8 @@ export class Core {
   private readonly agentTokens = new Map<string, string>();
   private bridge: { url: string; binDir: string; cliEntry: string } | null = null;
   /** Tool calls held until the user decides, by approval id. */
+  /** What the user brought to an agent's desk since it was last spoken to. */
+  private readonly onTheDesk = new Map<string, string[]>();
   /** Set once the core is shutting down: what ends from here on ends because of that. */
   private closing = false;
   private readonly heldCalls = new Map<string, (decision: "approved" | "rejected") => void>();
@@ -567,6 +569,21 @@ export class Core {
         }
       }
     }
+  }
+
+  /**
+   * The user brings a perito a coffee or a doughnut. It costs nothing and
+   * starts nothing: it is counted, and mentioned with the next message the
+   * perito gets anyway.
+   */
+  treatAgent(agentId: string, kind: "coffee" | "donut"): Agent {
+    const { state, item } = this.find((s) => s.agents, agentId, "agent");
+    const treats = { coffee: item.treats?.coffee ?? 0, donut: item.treats?.donut ?? 0 };
+    treats[kind]++;
+    const waiting = this.onTheDesk.get(agentId) ?? [];
+    const thing = kind === "coffee" ? "a coffee" : "a doughnut";
+    if (!waiting.includes(thing)) this.onTheDesk.set(agentId, [...waiting, thing]);
+    return this.setAgent(state, agentId, { treats })!;
   }
 
   /** The bureau whose lead places work with the others. There is one; asking again returns it. */
@@ -2319,7 +2336,10 @@ export class Core {
       });
     }
     this.setAgent(state, agent.id, { status: "working", error: null });
-    session.send(text);
+    // What the user left on the desk is mentioned with the next thing said, never as a turn of its own.
+    const left = this.onTheDesk.get(agent.id);
+    this.onTheDesk.delete(agent.id);
+    session.send(left?.length ? `(The user stopped by your desk and left you ${left.join(" and ")}, as thanks for your work.)\n\n${text}` : text);
   }
 
   private onSessionEvent(state: WorkspaceState, agentId: string, event: SessionEvent): void {
