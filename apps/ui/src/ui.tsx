@@ -289,7 +289,21 @@ export function sealKind(bureau: Workspace, approval: Approval): string {
  * A seal's wording in the interface language. Only merge seals are written by
  * the core; the rest is the agent's own text and is shown as written.
  */
+/**
+ * Seals raised by older versions carry a tool's internal name and its
+ * arguments as raw data for a title; they are read the way new ones are written.
+ */
+function plainTitle(title: string): string {
+  const [, tool, data] = /^([\w-]+): (\{.*)$/s.exec(title) ?? [];
+  if (!tool) return title;
+  const [, server, call] = /^mcp__(.+?)__(.+)$/.exec(tool) ?? [];
+  const name = server && call ? `${server.replace(/^claude_ai_/, "").replace(/_/g, " ")}: ${call}` : tool;
+  if (server) return name;
+  const main = /"(?:command|query|url|file_path|path|pattern|prompt)":"((?:[^"\\]|\\.)*)/.exec(data ?? "")?.[1];
+  return main ? `${name}: ${main.replace(/\\(.)/g, "$1")}` : name;
+}
+
 export function sealText(approval: Approval): { title: string; detail: string; steps: string[] } {
   const own = approval.kind === "merge" ? fromCore : (text: string) => text;
-  return { title: own(approval.title), detail: own(approval.detail), steps: approval.steps.map(own) };
+  return { title: plainTitle(own(approval.title)), detail: own(approval.detail), steps: approval.steps.map(own) };
 }

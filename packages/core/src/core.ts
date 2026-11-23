@@ -265,6 +265,9 @@ const CODEX_PROMPT =
   "\n\nNothing stops you before a command, so hold yourself to this: never push, merge, deploy, publish, delete outside your working folder " +
   "or reach another machine on your own. When the work needs one of those, request it with `peritos approval` and stop.";
 
+/** How many pictures are shown beside one message at most. */
+const MAX_SHOWN_PICTURES = 12;
+
 /** Temporary folders of this machine, where agents keep scratch files; reading there needs no seal. */
 const TEMP_DIRS = [...new Set([tmpdir(), existsSync(tmpdir()) ? realpathSync(tmpdir()) : tmpdir(), "/tmp", "/private/tmp", "/var/folders", "/private/var/folders"])];
 
@@ -1388,6 +1391,38 @@ export class Core {
   }
 
   /** Store a file the user wants to attach; returns the name to send with the message. */
+  /**
+   * Pictures a message talks about without attaching them: "they are in
+   * gorseller/logo/". Where the text names a picture or a folder of the
+   * bureau's own that holds pictures, those are found, so the user can be
+   * shown them beside the message instead of going to look.
+   */
+  messagePictures(messageId: string): { files: string[] } {
+    const { state, item } = this.find((s) => s.messages, messageId, "message");
+    if (item.attachments?.length) return { files: [] };
+    const root = realpathSync(state.workspace.path);
+    const picture = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
+    const found = new Set<string>();
+    for (const [mention] of item.body.matchAll(/[\w@.~-]+(?:\/[\w@.~-]+)*\/?/g)) {
+      if (found.size >= MAX_SHOWN_PICTURES) break;
+      if (!mention.includes("/") && !picture.test(mention)) continue;
+      const full = resolve(root, mention.replace(/[.,;:]+$/, ""));
+      if (full !== root && !full.startsWith(root + sep)) continue;
+      if (!existsSync(full)) continue;
+      const real = realpathSync(full);
+      if (!real.startsWith(root + sep)) continue;
+      const stat = statSync(real);
+      if (stat.isFile() && picture.test(real)) found.add(relative(root, real));
+      else if (stat.isDirectory()) {
+        for (const name of readdirSync(real).sort()) {
+          if (found.size >= MAX_SHOWN_PICTURES) break;
+          if (picture.test(name) && statSync(join(real, name)).isFile()) found.add(relative(root, join(real, name)));
+        }
+      }
+    }
+    return { files: [...found].slice(0, MAX_SHOWN_PICTURES) };
+  }
+
   /** Where an attachment lies, for sending its bytes to the window. */
   attachmentAt(workspaceId: string, name: string): { full: string; mime: string; size: number } {
     const state = this.state(workspaceId);

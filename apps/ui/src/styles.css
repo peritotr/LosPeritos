@@ -733,7 +733,7 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 
 /* Files shown with a message: pictures as pictures. */
 .shown-pictures { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 9px; min-width: 0; }
-.seal-card .shown-pictures { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-top: 0; }
+.seal-card .shown-pictures { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); margin-top: 0; }
 .shown-picture { display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 1px solid var(--color-divider); background: var(--color-surface); color: inherit; cursor: zoom-in; min-width: 0; }
 .shown-picture:hover:not(:disabled) { border-color: var(--color-accent); }
 .shown-picture img { width: 100%; aspect-ratio: 1; object-fit: contain; background: repeating-conic-gradient(#e9e9ec 0% 25%, #fff 0% 50%) 50% / 16px 16px; display: block; }

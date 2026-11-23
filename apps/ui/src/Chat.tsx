@@ -1,4 +1,4 @@
-import { Attachments } from "./attachments";
+import { Attachments, MentionedPictures } from "./attachments";
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
 import { Check, Paperclip, Send, Stamp as StampIcon, X } from "lucide-react";
 import type { Agent, Approval, Message } from "@losperitos/protocol";
@@ -221,6 +221,7 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
                   <div className="msg-body">{message ? (message.author.kind === "system" ? fromCore(message.body) : message.body) : sealText(approval!).title}</div>
                 )}
                 {message?.attachments?.length ? <Attachments ctx={ctx} workspaceId={message.workspaceId} names={message.attachments} /> : null}
+                {message?.question && <MentionedPictures ctx={ctx} message={message} />}
                 {message?.question && <QuestionReply ctx={ctx} message={message} onError={setError} />}
                 {approval && <SealReply ctx={ctx} approval={approval} onError={setError} />}
               </div>

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+**What was asked before the update**
+- Pictures a question points at without attaching them ("they are in
+  gorseller/logo/") are found in the bureau's folder and shown under the
+  question. This reaches questions asked before the update as well.
+- Seals raised by older versions are read plainly too: "Higgs: balance" and
+  "Read: /tmp/…" rather than a tool's internal name and raw data.
+- A perito that stopped with its dossier still open has a "Carry on" button
+  on its page.
+
 ## 0.6.5 — 2026-11-23
 
 **A team that carries on**

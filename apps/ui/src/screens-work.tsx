@@ -922,10 +922,18 @@ export function PeritoDetail({ ctx, id }: { ctx: Ctx; id: string }) {
           </div>
         </div>
         <Badge meta={AGENT_STATUS[agent.status]} />
-        <button className="btn btn-secondary" disabled={stopped} onClick={() => void ctx.actions.stopAgent(agent.id)}>
-          <I icon={Square} size={13} />
-          {T.peritoDetail.stop}
-        </button>
+        {stopped && agent.taskId ? (
+          // Stopped with a dossier still open: one click sets it going again where it left off.
+          <button className="btn btn-primary" onClick={() => ctx.actions.send(ctx.bureau.id, T.peritoDetail.resumeText, agent.id).then(() => ctx.note(T.peritoDetail.resumed), (err: Error) => ctx.note(err.message))}>
+            <I icon={Play} size={13} />
+            {T.peritoDetail.resume}
+          </button>
+        ) : (
+          <button className="btn btn-secondary" disabled={stopped} onClick={() => void ctx.actions.stopAgent(agent.id)}>
+            <I icon={Square} size={13} />
+            {T.peritoDetail.stop}
+          </button>
+        )}
       </header>
 
       <div className="detail-body">

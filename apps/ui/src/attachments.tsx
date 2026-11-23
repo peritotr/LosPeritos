@@ -8,17 +8,20 @@ import type { Ctx } from "./context";
 import { T } from "./strings";
 import { I } from "./ui";
 
-const label = (name: string) => name.replace(/^[0-9a-f]{8}-/, "");
+const label = (name: string) => name.replace(/^[0-9a-f]{8}-/, "").replace(/^.*\//, "");
 const isPicture = (name: string) => /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(name);
 
 /** An address for an attachment's bytes, for as long as the component shows it. */
-function useBytes(ctx: Ctx, workspaceId: string, name: string, wanted: boolean): string | null {
+function useBytes(ctx: Ctx, workspaceId: string, name: string, wanted: boolean, project = false): string | null {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!wanted) return;
     let current = true;
     let made: string | null = null;
-    ctx.actions.attachment(workspaceId, name).then(
+    const bytes = project
+      ? ctx.actions.repoFile(workspaceId, name).then((file) => new Blob([Uint8Array.from(atob(file.data), (char) => char.charCodeAt(0))], { type: file.mime }))
+      : ctx.actions.attachment(workspaceId, name);
+    bytes.then(
       (blob) => {
         if (!current) return;
         // A drawing is sent as plain bytes; as a picture it only draws, it cannot run anything.
@@ -35,8 +38,8 @@ function useBytes(ctx: Ctx, workspaceId: string, name: string, wanted: boolean):
   return url;
 }
 
-function Picture({ ctx, workspaceId, name, onOpen }: { ctx: Ctx; workspaceId: string; name: string; onOpen(url: string): void }) {
-  const url = useBytes(ctx, workspaceId, name, true);
+function Picture({ ctx, workspaceId, name, onOpen, project = false }: { ctx: Ctx; workspaceId: string; name: string; onOpen(url: string): void; project?: boolean }) {
+  const url = useBytes(ctx, workspaceId, name, true, project);
   return (
     <button className="shown-picture" title={label(name)} disabled={!url} onClick={(event) => (event.stopPropagation(), url && onOpen(url))}>
       {url ? <img src={url} alt={label(name)} /> : <span className="muted">{T.files.loading}</span>}
@@ -61,7 +64,25 @@ function Other({ ctx, workspaceId, name }: { ctx: Ctx; workspaceId: string; name
   );
 }
 
-export function Attachments({ ctx, workspaceId, names }: { ctx: Ctx; workspaceId: string; names: string[] }) {
+/**
+ * Pictures a question talks about without attaching them ("they are in
+ * gorseller/logo/"): found in the bureau's folder and shown as if attached.
+ */
+export function MentionedPictures({ ctx, message }: { ctx: Ctx; message: { id: string; workspaceId: string; attachments?: string[] } }) {
+  const [files, setFiles] = useState<string[]>([]);
+  useEffect(() => {
+    setFiles([]);
+    if (message.attachments?.length) return;
+    let current = true;
+    ctx.actions.messagePictures(message.id).then((found) => current && setFiles(found), () => undefined);
+    return () => {
+      current = false;
+    };
+  }, [message.id]);
+  return files.length ? <Attachments ctx={ctx} workspaceId={message.workspaceId} names={files} project /> : null;
+}
+
+export function Attachments({ ctx, workspaceId, names, project = false }: { ctx: Ctx; workspaceId: string; names: string[]; project?: boolean }) {
   const [large, setLarge] = useState<{ url: string; name: string } | null>(null);
   useEffect(() => {
     if (!large) return;
@@ -76,7 +97,7 @@ export function Attachments({ ctx, workspaceId, names }: { ctx: Ctx; workspaceId
       {pictures.length > 0 && (
         <div className="shown-pictures">
           {pictures.map((name) => (
-            <Picture key={name} ctx={ctx} workspaceId={workspaceId} name={name} onOpen={(url) => setLarge({ url, name })} />
+            <Picture key={name} ctx={ctx} workspaceId={workspaceId} name={name} project={project} onOpen={(url) => setLarge({ url, name })} />
           ))}
         </div>
       )}

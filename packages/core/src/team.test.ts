@@ -1303,3 +1303,17 @@ test("a teammate cut off by the app closing carries on with its task when the ap
   assert.equal(reopened.listAgents(workspace.id).find((agent) => agent.id === member.id)!.interrupted, false);
   await reopened.close();
 });
+
+test("pictures a question points at, by folder or by file, are found for showing beside it", async () => {
+  const { core, folder, workspace, as } = setup({ repo: false });
+  sh(folder, "mkdir", "-p", "gorseller/logo", "gorseller/stil");
+  for (const name of ["logo/logo-02-rozet.png", "logo/logo-01-rota-m.png", "logo/notes.txt", "stil/stil-01.png"]) writeFileSync(join(folder, "gorseller", name), "x");
+  await as(0, { command: "ask", body: "Hangi yönü kilitleyelim? (Görseller widget'ta ve gorseller/logo/ klasöründe) Ayrıca gorseller/stil/stil-01.png, ../../etc/hosts ve /etc/passwd.", options: ["1", "2"] });
+  const question = core.listMessages(workspace.id).at(-1)!;
+  assert.deepEqual(core.messagePictures(question.id).files, ["gorseller/logo/logo-01-rota-m.png", "gorseller/logo/logo-02-rozet.png", "gorseller/stil/stil-01.png"]);
+  core.answerQuestion(question.id, "1");
+  // A question that carries its own files needs no guessing.
+  await as(0, { command: "ask", body: "gorseller/logo/ içinden hangisi?", options: ["1"], files: ["gorseller/logo/logo-02-rozet.png"] });
+  assert.deepEqual(core.messagePictures(core.listMessages(workspace.id).at(-1)!.id).files, []);
+  await core.close();
+});

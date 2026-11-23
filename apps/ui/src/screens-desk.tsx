@@ -1,4 +1,4 @@
-import { Attachments } from "./attachments";
+import { Attachments, MentionedPictures } from "./attachments";
 import { ReportFiles } from "./preview";
 import { PhoneSettings } from "./phone";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -264,7 +264,7 @@ function QuestionCard({ ctx, message }: { ctx: Ctx; message: Message }) {
         </div>
         <h3 style={{ whiteSpace: "pre-wrap" }}>{fromCore(message.body)}</h3>
       </div>
-      {message.attachments?.length ? <Attachments ctx={ctx} workspaceId={message.workspaceId} names={message.attachments} /> : null}
+      {message.attachments?.length ? <Attachments ctx={ctx} workspaceId={message.workspaceId} names={message.attachments} /> : <MentionedPictures ctx={ctx} message={message} />}
       <p className="muted" style={{ fontSize: 13 }}>
         {T.awaiting.from(who, file ? `${fileRef(file)} ${file.title}` : null)}
       </p>

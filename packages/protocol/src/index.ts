@@ -516,6 +516,8 @@ export const routes = {
   sendMessage: "POST /workspaces/:workspaceId/messages",
   /** Store a file so the next message can attach it. */
   uploadAttachment: "POST /workspaces/:workspaceId/attachments",
+  /** `{ files }`: pictures of the bureau's folder that a message's text points at, by file or by folder. */
+  messagePictures: "GET /messages/:messageId/pictures",
   /** The bytes of one attachment, for showing it. */
   attachment: "GET /workspaces/:workspaceId/attachments/:name",
   answerQuestion: "POST /messages/:messageId/answer",
