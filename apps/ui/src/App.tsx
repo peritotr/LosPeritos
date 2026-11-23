@@ -24,7 +24,7 @@ import {
   Wrench,
   ChevronsDown,
   BookOpen,
-  type LucideIcon, SquareTerminal, Eye, Rocket,
+  type LucideIcon, SquareTerminal, Eye, Rocket, Waypoints,
 } from "lucide-react";
 import { Chat } from "./Chat";
 import { UpdateNotice, useUpdates } from "./updates";
@@ -219,10 +219,10 @@ export function App() {
               key={workspace.id}
               className="nav-row bureau"
               aria-current={workspace.id === bureau?.id}
-              title={workspace.path}
+              title={workspace.coordinator ? T.coordinator.hint : workspace.path}
               onClick={() => pickBureau(workspace.id)}
             >
-              <I icon={FolderOpen} size={16} />
+              <I icon={workspace.coordinator ? Waypoints : FolderOpen} size={16} />
               <span className="grow ellipsis">{workspace.name}</span>
               {waitingIn(workspace.id) > 0 && (
                 <span className="count" title={T.nav.awaiting}>
@@ -244,6 +244,17 @@ export function App() {
             <I icon={FolderPlus} />
             {T.nav.openBureau}
           </button>
+          {state.workspaces.length >= 2 && !state.workspaces.some((workspace) => workspace.coordinator) && (
+            <button
+              className="btn btn-ghost"
+              style={{ margin: "0 12px", justifyContent: "flex-start", font: "13px var(--font-body)", gap: 8 }}
+              title={T.coordinator.hint}
+              onClick={() => actions.openCoordinator(T.coordinator.name).then((workspace) => (pickBureau(workspace.id), setRoute({ screen: "mail" })), () => undefined)}
+            >
+              <I icon={Waypoints} />
+              {T.coordinator.add}
+            </button>
+          )}
 
           <div className="side-label">{T.nav.panel}</div>
           {NAV.filter(([id]) => (!simple || !ADVANCED_ONLY.has(id)) && (id !== "code" || (bureau && kindOf(bureau) === "software"))).map(([id, label, icon]) => (

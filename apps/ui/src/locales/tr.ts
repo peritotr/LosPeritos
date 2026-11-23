@@ -644,6 +644,11 @@ export const tr: Strings = {
     renewHint: "Şimdiye kadar verilen bütün adresler çalışmaz olur.",
     noNetwork: "Bu makine bir telefonun ulaşabileceği bir ağda değil.",
   },
+  coordinator: {
+    name: "Koordinatör",
+    add: "Koordinatör ekle…",
+    hint: "Tüm büroların üstünde bir perito: ona bir iş ver, her parçayı ait olduğu büroya devretsin. Kendisi iş yapmaz.",
+  },
   mode: {
     label: "Görünüm düzeyi",
     simple: "Sade",

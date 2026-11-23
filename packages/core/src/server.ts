@@ -113,6 +113,10 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
       }
     },
     "POST /notify/test": async () => ({ sent: await core.notifier.nudge("test") }),
+    "POST /coordinator": (_p, body) => {
+      const name = (body as { name?: unknown } | undefined)?.name;
+      return core.openCoordinator(typeof name === "string" && name.trim() ? name.trim().slice(0, 60) : undefined);
+    },
     "GET /phone": () => core.phone.status(),
     "POST /phone": (_p, body) => {
       const request = parse(SetPhoneRequest, body);

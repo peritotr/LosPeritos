@@ -1081,3 +1081,26 @@ test("a nudge goes to the phone when something waits, and says nothing about the
   await core.close();
   ntfy.close();
 });
+
+test("the coordinator is a bureau of its own whose lead places work and opens no dossiers", async () => {
+  const { core, adapter, workspace } = setup({ repo: false });
+  const coordinator = core.openCoordinator("Koordinatör");
+  assert.equal(coordinator.coordinator, true);
+  assert.equal(core.openCoordinator().id, coordinator.id, "there is one coordinator");
+  assert.equal(core.listWorkspaces().length, 2);
+
+  core.sendMessage(coordinator.id, { body: "ship the feature and announce it", toAgentId: null, taskId: null });
+  const start = adapter.starts.at(-1)!;
+  assert.match(start.systemPrompt!, /You are the coordinator over the user's bureaus/);
+  assert.doesNotMatch(start.systemPrompt!, /peritos task create/);
+  const token = start.env!.LOSPERITOS_AGENT_TOKEN!;
+  const as = (command: AgentCommandInput) => core.agentCommand(token, AgentCommand.parse(command));
+  await assert.rejects(as({ command: "task.create", title: "x", specialty: "developer" }), /opens no dossiers/);
+  assert.match((await as({ command: "bureaus" })).message, new RegExp(`- ${workspace.name} \\(software`));
+  assert.match((await as({ command: "send", to: `bureau:${workspace.name}`, body: "Build sign-in with a code; report when it is sealed." })).message, /Sent to the lead/);
+  assert.deepEqual(core.listMessages(workspace.id).at(-1)!.author, { kind: "bureau", workspaceId: coordinator.id, name: "Koordinatör" });
+  // The other bureau's lead sees the coordinator for what it is.
+  const lead = adapter.starts[0]!.env!.LOSPERITOS_AGENT_TOKEN!;
+  assert.match((await core.agentCommand(lead, AgentCommand.parse({ command: "bureaus" }))).message, /Koordinatör \(the coordinator over all bureaus/);
+  await core.close();
+});

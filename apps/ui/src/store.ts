@@ -287,6 +287,8 @@ export interface Actions {
   setToken(token: string): void;
   reconnect(): void;
   openWorkspace(path: string, kind?: WorkspaceKind): Promise<Workspace>;
+  /** Open the bureau whose lead places work with the others. */
+  openCoordinator(name: string): Promise<Workspace>;
   updateWorkspace(
     workspaceId: string,
     patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "kind" | "dispatchPaused" | "agentTool">>,
@@ -461,6 +463,11 @@ export function useCore(): [State, Actions] {
     reconnect: () => reconnectNow.current(),
     async openWorkspace(path, kind) {
       const workspace = await post<Workspace>("/workspaces", { path, kind });
+      dispatch({ type: "workspace", data: await loadWorkspaces([workspace]) });
+      return workspace;
+    },
+    async openCoordinator(name) {
+      const workspace = await post<Workspace>("/coordinator", { name });
       dispatch({ type: "workspace", data: await loadWorkspaces([workspace]) });
       return workspace;
     },

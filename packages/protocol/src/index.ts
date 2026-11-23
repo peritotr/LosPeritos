@@ -30,6 +30,8 @@ export const Workspace = z.object({
   dailyBudgetUsd: z.number().nonnegative().nullable(),
   /** While set, queued tasks are not handed out; work already started carries on. */
   dispatchPaused: z.boolean().optional(),
+  /** Set on the one bureau that does no work of its own: its lead hands jobs to the other bureaus. */
+  coordinator: z.boolean().optional(),
   /** The agent tool this bureau's team runs on; Claude Code when absent. */
   agentTool: z.enum(["claude-code", "codex"]).optional(),
   createdAt: timestamp,
@@ -541,6 +543,8 @@ export const routes = {
   setNotify: "POST /notify",
   /** Send one nudge now; `{ sent }`. */
   testNotify: "POST /notify/test",
+  /** `{ name? }`: open the coordinator's bureau, or return it if it is open; a Workspace. */
+  openCoordinator: "POST /coordinator",
   phone: "GET /phone",
   setPhone: "POST /phone",
   connectors: "GET /workspaces/:workspaceId/connectors",

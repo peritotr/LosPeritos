@@ -151,6 +151,21 @@ function leadPrompt(kind: WorkspaceKind): string {
   );
 }
 
+/** The lead of the bureau that stands over the others: it places work, and does none. */
+const COORDINATOR_PROMPT =
+  "You are the coordinator over the user's bureaus. Each bureau is one project with its own lead and team; you have no team and do no work yourself. " +
+  "When the user gives you a job: run `peritos bureaus` to see the bureaus and what each is busy with, decide which bureau each part belongs to, " +
+  "and hand each part to that bureau's lead with `peritos send --to \"bureau:<name>\" \"<what is needed, what done looks like, and what to report back>\"`. " +
+  "A job that spans bureaus is split: say in each hand-over what the other bureau is doing, so the leads can line up. " +
+  "Then tell the user in two or three lines who got what, and stop. Leads report back to you; pass on to the user what matters, briefly. " +
+  "Never create tasks, never edit files, never run the work yourself. If no bureau fits a job, say so and ask the user with `peritos ask` which bureau should take it. " +
+  "A bureau takes only a few messages from other bureaus before the user has to write there, so make each hand-over complete.\n" +
+  "You talk through the `peritos` command in your shell:\n" +
+  "- `peritos bureaus` lists the bureaus.\n" +
+  "- `peritos send --to \"bureau:<name>\" \"<message>\"` writes to a bureau's lead.\n" +
+  "- `peritos ask \"<question>\" --option A --option B` asks the user; then stop and wait.\n" +
+  "- `peritos page --title \"<title>\" --file <markdown file>` keeps a page (a plan across bureaus, for instance) in your notebook for the user.\n";
+
 /**
  * Where a member's work goes until the user accepts it: a git branch, a draft
  * folder of its own (`project` is then the real folder), or straight into the folder.
@@ -467,6 +482,20 @@ export class Core {
       state.store.writeDoc("workspace", state.workspace);
     }
     this.app.addWorkspacePath(full);
+    this.emit({ type: "workspace.updated", workspace: state.workspace });
+    return state.workspace;
+  }
+
+  /** The bureau whose lead places work with the others. There is one; asking again returns it. */
+  openCoordinator(name = "Coordinator"): Workspace {
+    const open = [...this.workspaces.values()].find((state) => state.workspace.coordinator);
+    if (open) return open.workspace;
+    const folder = join(this.options.dataDir, "coordinator");
+    mkdirSync(folder, { recursive: true });
+    const workspace = this.openWorkspace(folder);
+    const state = this.state(workspace.id);
+    state.workspace = { ...state.workspace, name, coordinator: true };
+    state.store.writeDoc("workspace", state.workspace);
     this.emit({ type: "workspace.updated", workspace: state.workspace });
     return state.workspace;
   }
@@ -1429,6 +1458,7 @@ export class Core {
       }
       case "task.create": {
         if (agent.role !== "lead") throw new CoreError("bad_request", "Only the lead can create tasks.");
+        if (state.workspace.coordinator) throw new CoreError("bad_request", "The coordinator opens no dossiers. Hand the work to a bureau with `peritos send --to \"bureau:<name>\"`.");
         this.requireBudget(state);
         const dependsOn = command.after.map((number) => {
           const earlier = state.tasks.all().find((t) => t.number === number);
@@ -1531,6 +1561,7 @@ export class Core {
             .map((other) => {
               const open = other.tasks.all().filter((task) => task.status !== "done" && task.status !== "cancelled");
               const busy = open.slice(0, 5).map((task) => `    #${task.number} ${task.title} (${task.status})`);
+              if (other.workspace.coordinator) return `- ${other.workspace.name} (the coordinator over all bureaus; report to it what it asked for)`;
               return [`- ${other.workspace.name} (${other.workspace.kind ?? "software"}, ${other.workspace.path}): ${open.length} open dossier(s)`, ...busy].join("\n");
             })
             .join("\n") + '\nHand work to one with `peritos send --to "bureau:<name>" "<what you need and what done looks like>"`.',
@@ -1993,7 +2024,9 @@ export class Core {
         trustMode: state.workspace.trustMode,
         systemPrompt:
           (agent.role === "lead"
-            ? leadPrompt(state.workspace.kind ?? "software") + this.reposPrompt(state)
+            ? state.workspace.coordinator
+              ? COORDINATOR_PROMPT
+              : leadPrompt(state.workspace.kind ?? "software") + this.reposPrompt(state)
             : memberPrompt(
                 state.workspace.kind ?? "software",
                 !task?.worktree

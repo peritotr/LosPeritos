@@ -646,6 +646,11 @@ export const en = {
     renewHint: "Every address handed out so far stops working.",
     noNetwork: "This machine is not on a network a phone could reach it over.",
   },
+  coordinator: {
+    name: "Coordinator",
+    add: "Add a coordinator…",
+    hint: "A perito over all your bureaus: give it a job and it hands each part to the bureau it belongs to. It does no work itself.",
+  },
   mode: {
     label: "How much to show",
     simple: "Plain",
