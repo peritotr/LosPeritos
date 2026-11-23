@@ -509,7 +509,9 @@ function Changes({ ctx, task }: { ctx: Ctx; task: Task }) {
 }
 
 export function FileDetail({ ctx, id }: { ctx: Ctx; id: string }) {
-  const [tab, setTab] = useState<"changes" | "tests">("changes");
+  // A document bureau is read, not diffed: its files take the place of the changes.
+  const docs = kindOf(ctx.bureau) !== "software";
+  const [tab, setTab] = useState<"output" | "changes" | "tests">(docs ? "output" : "changes");
   const task = ctx.tasks.find((t) => t.id === id);
   if (!task) {
     return (
@@ -634,7 +636,7 @@ export function FileDetail({ ctx, id }: { ctx: Ctx; id: string }) {
                   )}
                 </section>
               ))}
-              <ReportFiles ctx={ctx} task={task} />
+              {!docs && <ReportFiles ctx={ctx} task={task} />}
             </div>
           ) : (
             <div className="empty">
@@ -644,21 +646,31 @@ export function FileDetail({ ctx, id }: { ctx: Ctx; id: string }) {
         </div>
         <div>
           <div className="tabs" role="tablist">
-            <button role="tab" aria-selected={tab === "changes"} onClick={() => setTab("changes")}>
-              <I icon={FileDiff} />
-              {T.files.changes}
-            </button>
+            {docs && (
+              <button role="tab" aria-selected={tab === "output"} onClick={() => setTab("output")}>
+                <I icon={FileText} />
+                {T.files.output}
+              </button>
+            )}
+            {(!docs || task.branch) && (
+              <button role="tab" aria-selected={tab === "changes"} onClick={() => setTab("changes")}>
+                <I icon={FileDiff} />
+                {T.files.changes}
+              </button>
+            )}
             <button role="tab" aria-selected={tab === "tests"} onClick={() => setTab("tests")}>
               <I icon={FlaskConical} />
-              {T.files.tests}
+              {docs ? T.files.checks : T.files.tests}
             </button>
           </div>
-          {tab === "changes" ? (
+          {tab === "output" ? (
+            <ReportFiles ctx={ctx} task={task} wide />
+          ) : tab === "changes" ? (
             <Changes ctx={ctx} task={task} />
           ) : (
             <>
               <p className="muted" style={{ marginBottom: 12 }}>
-                {T.files.noTests}
+                {docs ? T.files.noChecks : T.files.noTests}
               </p>
               {task.report?.tested.map((item) => (
                 <div key={item} className="row" style={{ padding: "8px 0", borderTop: "1px solid var(--lp-faint)" }}>

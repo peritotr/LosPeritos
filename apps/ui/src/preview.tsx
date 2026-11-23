@@ -147,10 +147,14 @@ function Body({ file }: { file: TaskFile }) {
 const iconFor = (path: string) =>
   /\.(png|jpe?g|gif|webp|svg)$/i.test(path) ? ImageIcon : /\.csv$/i.test(path) ? Table : FileText;
 
-/** The report's list of files; choosing one opens it underneath. */
-export function ReportFiles({ ctx, task }: { ctx: Ctx; task: Task }) {
+/**
+ * The files a task handed in; choosing one opens it underneath. `wide` is the
+ * document bureau's own column: the first file is open from the start.
+ */
+export function ReportFiles({ ctx, task, wide = false }: { ctx: Ctx; task: Task; wide?: boolean }) {
   const files = task.report?.files ?? [];
-  const [open, setOpen] = useState<string | null>(null);
+  const [chosen, setOpen] = useState<string | null>(null);
+  const open = chosen && files.includes(chosen) ? chosen : wide ? (files[0] ?? null) : null;
   const [file, setFile] = useState<TaskFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -166,16 +170,18 @@ export function ReportFiles({ ctx, task }: { ctx: Ctx; task: Task }) {
       current = false;
     };
   }, [task.id, open, task.updatedAt]);
-  if (files.length === 0) return null;
+  if (files.length === 0) return wide ? <p className="muted">{T.files.noOutput}</p> : null;
   return (
-    <section>
-      <h5>
-        <I icon={FileText} size={14} />
-        {T.files.output}
-      </h5>
+    <section className={wide ? "output-wide" : undefined}>
+      {!wide && (
+        <h5>
+          <I icon={FileText} size={14} />
+          {T.files.output}
+        </h5>
+      )}
       <div className="output-files">
         {files.map((path) => (
-          <button key={path} className="output-file mono" aria-pressed={open === path} onClick={() => setOpen(open === path ? null : path)}>
+          <button key={path} className="output-file mono" aria-pressed={open === path} onClick={() => setOpen(open === path && !wide ? null : path)}>
             <I icon={iconFor(path)} size={14} />
             <span className="ellipsis">{path}</span>
           </button>
@@ -186,9 +192,11 @@ export function ReportFiles({ ctx, task }: { ctx: Ctx; task: Task }) {
           <Corners />
           <header>
             <span className="mono grow ellipsis">{open}</span>
-            <button className="btn btn-ghost" aria-label={T.files.closePreview} onClick={() => setOpen(null)}>
-              <I icon={X} size={14} />
-            </button>
+            {!wide && (
+              <button className="btn btn-ghost" aria-label={T.files.closePreview} onClick={() => setOpen(null)}>
+                <I icon={X} size={14} />
+              </button>
+            )}
           </header>
           <div className="preview-body">
             {error ? <p className="err">{error}</p> : file ? <Body file={file} /> : <p className="muted">{T.files.loading}</p>}

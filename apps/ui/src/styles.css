@@ -566,3 +566,6 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .markdown blockquote { padding-left: 12px; border-left: 2px solid var(--color-divider); color: var(--lp-muted); }
 .markdown code { font: 12px var(--lp-mono); }
 .markdown hr { border: 0; border-top: 1px solid var(--color-divider); margin: 14px 0; }
+.output-wide .output-files { flex-direction: row; flex-wrap: wrap; margin-bottom: 4px; }
+.output-wide .output-file { border-color: var(--color-divider); max-width: 100%; }
+.output-wide .preview-body { max-height: none; }

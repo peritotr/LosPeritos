@@ -80,7 +80,8 @@ const KINDS: Record<WorkspaceKind, { team: string; specialties: string; lead: st
     specialties: "seo|copywriter|ads|social|analyst|...",
     lead:
       "The team's work is files in this folder: audits, keyword plans, ad copy, campaign plans, content calendars. " +
-      "Nobody on the team can publish, spend an advertising budget or log in to an ad platform; the user does that with the files you hand over. ",
+      "Nobody on the team can publish, spend an advertising budget or log in to an ad platform; the user does that with the files you hand over. " +
+      "Anything written to be read by customers is at least --effort normal; small is for collecting, reformatting and other mechanical work. ",
     member:
       "Your deliverable is one or more files: Markdown for text, CSV for tables, in a subfolder that fits the work. " +
       "Write them ready to use (final copy, exact character limits, concrete numbers) and in the language the task is written in. " +
@@ -93,7 +94,8 @@ const KINDS: Record<WorkspaceKind, { team: string; specialties: string; lead: st
     specialties: "writer|editor|researcher|scriptwriter|translator|...",
     lead:
       "The team's work is files in this folder: drafts, outlines, scripts, shot lists, edited copy. " +
-      "Nobody on the team can publish or produce video or audio; they write what the user will publish or shoot. ",
+      "Nobody on the team can publish or produce video or audio; they write what the user will publish or shoot. " +
+      "Anything written to be read by customers is at least --effort normal; small is for collecting, reformatting and other mechanical work. ",
     member:
       "Your deliverable is one or more files: Markdown for text, CSV for tables, in a subfolder that fits the work. " +
       "Write finished copy, not notes about copy, in the language the task is written in. " +
