@@ -8,6 +8,7 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -20,7 +21,8 @@ jobs:
           cache: npm
       - run: npm ci
       # The merge tests create commits.
-      - run: git config --global user.name "CI" && git config --global user.email "ci@example.invalid"
+      # ... and compare file contents, so line endings are left as they are.
+      - run: git config --global user.name "CI" && git config --global user.email "ci@example.invalid" && git config --global core.autocrlf false
       - run: npm test
       - run: npm run typecheck:ui
       - run: npm run build --workspace @losperitos/ui

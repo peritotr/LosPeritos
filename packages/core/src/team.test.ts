@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import { createServer as createHttp, request as httpRequest } from "node:http";
@@ -37,6 +37,10 @@ function setup({ repo = true } = {}) {
   return { core, adapter, folder, workspace, dataDir, as, tokenOf };
 }
 
+/** Windows keeps no such thing as a file only its owner may read; the check is for the systems that do. */
+const windows = process.platform === "win32";
+/** A file that is certainly there and certainly outside any bureau. */
+const OUTSIDE = process.execPath;
 const tick = () => new Promise((done) => setTimeout(done, 20));
 
 test("a task runs on its own branch and is merged only after approval", async () => {
@@ -168,7 +172,8 @@ test("the peritos CLI reaches the core over HTTP with the agent's own token", as
     const { execFile } = await import("node:child_process");
     const run = (...args: string[]) =>
       new Promise<{ code: number; out: string }>((done) =>
-        execFile("peritos", args, { env }, (err, stdout, stderr) =>
+        // A batch file cannot be started by name alone; `cmd` finds it the way any Windows shell would.
+        execFile(windows ? "cmd" : "peritos", windows ? ["/d", "/c", "peritos", ...args] : args, { env }, (err, stdout, stderr) =>
           done({ code: err ? 1 : 0, out: stdout + stderr }),
         ),
       );
@@ -487,7 +492,7 @@ test("a connector reaches the team, keeps its secrets, and seals every call not 
   assert.ok(!JSON.stringify(core.listConnectors(workspace.id)).includes("s3cret"), "values are never read back");
   // Kept with the machine's own state, readable by the user alone, and not in the project folder.
   const file = join(dataDir, "connectors.json");
-  assert.equal(statSync(file).mode & 0o777, 0o600);
+  if (!windows) assert.equal(statSync(file).mode & 0o777, 0o600);
   assert.ok(!existsSync(join(folder, ".losperitos", "connectors.json")));
 
   // Saving again without the secret keeps it; an empty value removes it.
@@ -906,14 +911,16 @@ test("a terminal is a real shell in the bureau's folder that outlives the screen
   const first = follow(`/terminals/${terminal.id}/socket?token=user-token`);
   await first.opened;
   first.socket.send(JSON.stringify({ type: "resize", cols: 77, rows: 20 }));
-  first.socket.send(JSON.stringify({ type: "input", data: "echo sum-$((40+2)) && pwd && stty size\r" }));
-  await first.until(() => first.seen().includes("sum-42") && first.seen().includes("20 77"));
-  assert.ok(first.seen().includes(folder), "the shell starts in the bureau's folder");
+  // `cmd` on Windows does no sums and has its own word for the size of the window.
+  first.socket.send(JSON.stringify({ type: "input", data: windows ? "set /a 40+2 && echo  sum-done && mode con\r" : "echo sum-$((40+2)) && pwd && stty size\r" }));
+  const summed = windows ? "sum-done" : "sum-42";
+  await first.until(() => first.seen().includes(summed) && (windows ? /Columns:\s+77/.test(first.seen()) : first.seen().includes("20 77")));
+  assert.ok(first.seen().includes(windows ? basename(folder) : folder), "the shell starts in the bureau's folder");
   first.socket.close();
 
   // A screen that comes later is given what was printed while nobody watched.
   const second = follow(`/terminals/${terminal.id}/socket?token=user-token`);
-  await second.until(() => second.seen().includes("sum-42"));
+  await second.until(() => second.seen().includes(summed));
   second.socket.send(JSON.stringify({ type: "input", data: "exit 3\r" }));
   await second.until(() => second.exit() === 3);
   assert.equal(core.listTerminals(workspace.id).terminals[0]!.alive, false);
@@ -999,7 +1006,7 @@ test("the phone's door opens only when switched on, only with its key, and only 
   const ca = opened.secure ? readFileSync(join(dataDir, "phone-cert.pem")) : undefined;
   if (opened.secure) {
     assert.match(opened.fingerprint!, /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/);
-    assert.equal(statSync(join(dataDir, "phone-key.pem")).mode & 0o777, 0o600);
+    if (!windows) assert.equal(statSync(join(dataDir, "phone-key.pem")).mode & 0o777, 0o600);
   }
   const ask = (url: string, value?: unknown) =>
     new Promise<{ status: number; text: string }>((resolve, reject) => {
@@ -1240,7 +1247,7 @@ test("an agent can show the user files with a question or a message, and only fi
   assert.equal(core.listMessages(workspace.id).at(-1)!.attachments!.length, 1);
 
   await assert.rejects(as(0, { command: "ask", body: "x", files: ["missing.png"] }), /No file missing\.png to show/);
-  await assert.rejects(as(0, { command: "ask", body: "x", files: ["/etc/hosts"] }), /outside the bureau's folder/);
+  await assert.rejects(as(0, { command: "ask", body: "x", files: [OUTSIDE] }), /outside the bureau's folder/);
   assert.throws(() => core.attachmentAt(workspace.id, "../workspace.json"), /No attachment/);
   await core.close();
 });

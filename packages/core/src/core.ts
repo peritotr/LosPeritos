@@ -365,7 +365,7 @@ function filesUnder(dir: string): string[] {
     for (const entry of readdirSync(at, { withFileTypes: true })) {
       const full = join(at, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (entry.isFile()) out.push(relative(dir, full));
+      else if (entry.isFile()) out.push(relative(dir, full).split(sep).join("/"));
     }
   };
   if (existsSync(dir)) walk(dir);
@@ -424,7 +424,7 @@ function fingerprint(root: string): Record<string, string> | null {
       } else if (entry.isFile()) {
         if (++count > MAX_SNAPSHOT_FILES) return false;
         const stat = statSync(full);
-        out[relative(root, full)] = `${stat.size}:${Math.round(stat.mtimeMs)}`;
+        out[relative(root, full).split(sep).join("/")] = `${stat.size}:${Math.round(stat.mtimeMs)}`;
       }
     }
     return true;
