@@ -755,3 +755,7 @@ button.file-chip { font: inherit; cursor: pointer; }
 .treats .btn { padding: 3px 6px; gap: 4px; font-size: 11px; }
 .treats .btn:hover { color: var(--color-accent); }
 .seal-lead { margin: 0; padding: 8px 12px; font-size: 13px; border: 1px dashed var(--color-accent); }
+
+/* Sıra gecesi: the office's labels, desks' names and the seal desk's card step back; the stage is the canvas's. */
+.floor-stage .scene { transition: opacity 0.9s ease; }
+.floor-stage.sira .scene { opacity: 0; pointer-events: none; }

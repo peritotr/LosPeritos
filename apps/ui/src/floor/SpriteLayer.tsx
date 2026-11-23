@@ -77,9 +77,9 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
     /** How far the sıra gecesi has gathered everyone: 0 at their desks, 1 in the circle. */
     let sira = floorEffects.sira ? 1 : 0;
     /** Berlin's errand: whose desk, and when it set off. */
-    let bite: { at: Point; start: number } | null = null;
-    /** Where each perito was last drawn, for what is shown above their head. */
-    const where = new Map<string, Point>();
+    let bite: { agentId: string; at: Point; start: number } | null = null;
+    /** Where each perito is drawn this frame: the top of the head (x, y) and the feet. */
+    const where = new Map<string, Point & { feet: number }>();
 
     /** A coffee cup or a doughnut, a few pixels of each, with its bottom centre at (x, y). */
     const treat = (kind: Treat, x: number, y: number, seconds: number) => {
@@ -227,10 +227,10 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         }
         if (floorEffects.sendBerlin === actor.agent.id) {
           floorEffects.sendBerlin = null;
-          if (!still) bite = { at: stand, start: seconds };
+          if (!still) bite = { agentId: actor.agent.id, at: stand, start: seconds };
         }
         // Work that goes wrong earns a visit from Berlin.
-        if (primed && walker.pose !== "error" && actor.pose === "error" && !still && !bite) bite = { at: stand, start: seconds };
+        if (primed && walker.pose !== "error" && actor.pose === "error" && !still && !bite) bite = { agentId: actor.agent.id, at: stand, start: seconds };
         walker.pose = actor.pose;
       }
       for (const id of walkers.keys()) if (!current.actors.some((actor) => actor.agent.id === id)) walkers.delete(id);
@@ -242,7 +242,7 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         if (primed && stamp.approved && !still) bursts.push({ at: { x: FLOOR.seal.x, y: FLOOR.seal.y - 20 }, start: seconds });
         // Work the user sent back: Berlin goes to whoever handed it in.
         const refused = !stamp.approved && stamp.taskId ? current.actors.find((actor) => actor.agent.taskId === stamp.taskId) : undefined;
-        if (primed && refused && !still && !bite) bite = { at: standAt(refused), start: seconds };
+        if (primed && refused && !still && !bite) bite = { agentId: refused.agent.id, at: standAt(refused), start: seconds };
       }
       primed = true;
 
@@ -267,7 +267,7 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
           // Cheering: quick hops on the spot.
           const hop = cheering ? Math.abs(Math.sin(seconds * 14)) * 5 * scale : 0;
           figure(sheet, cheering ? sheet.clips.asking! : clip!, seconds, stand.x, stand.y - hop);
-          where.set(actor.agent.id, { x: stand.x, y: stand.y - sheet.frameHeight * scale });
+          where.set(actor.agent.id, { x: stand.x, y: stand.y - sheet.frameHeight * scale, feet: stand.y });
         }
         if (furnished) {
           prop(skin.props.desk, x + DESK.desk.x, y + DESK.desk.y);
@@ -288,22 +288,48 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
           // Off duty: on a sofa in the lounge, if the skin has one.
           const seat = LOUNGE_SEATS[lounging++]!;
           figure(sheet, sheet.clips.idle, seconds + index, seat.x, seat.y);
-          where.set(actor.agent.id, { x: seat.x, y: seat.y - sheet.frameHeight * scale });
+          where.set(actor.agent.id, { x: seat.x, y: seat.y - sheet.frameHeight * scale, feet: seat.y });
         }
       });
 
       // Whoever is on their feet, nearest last so they overlap correctly.
       if (party) {
-        // The carpet everyone sits around.
+        // The office goes dark behind the gathering: only what is on the carpet stays lit.
+        ctx.fillStyle = `rgba(10, 7, 26, ${0.8 * gathered})`;
+        ctx.fillRect(0, 0, FLOOR.width, FLOOR.height);
+        // A pool of warm light on the floor, from the lanterns overhead.
+        const pool = ctx.createRadialGradient(SIRA.x, SIRA.y, 20, SIRA.x, SIRA.y, 330);
+        pool.addColorStop(0, `rgba(255, 190, 110, ${0.34 * gathered})`);
+        pool.addColorStop(0.55, `rgba(255, 150, 80, ${0.12 * gathered})`);
+        pool.addColorStop(1, "rgba(255, 150, 80, 0)");
+        ctx.save();
+        ctx.scale(1, 0.55);
+        ctx.fillStyle = pool;
+        ctx.fillRect(0, (SIRA.y - 190) / 0.55, FLOOR.width, 380 / 0.55);
+        ctx.restore();
+        // The carpet everyone sits around, with a tray in the middle and cushions at its edge.
         ctx.globalAlpha = gathered;
-        ctx.fillStyle = "#7a1f2b";
-        ctx.fillRect(SIRA.x - 120, SIRA.y - 34, 240, 68);
+        ctx.fillStyle = "#5c1620";
+        ctx.fillRect(SIRA.x - 150, SIRA.y - 46, 300, 92);
+        ctx.fillStyle = "#8a2331";
+        ctx.fillRect(SIRA.x - 142, SIRA.y - 40, 284, 80);
         ctx.fillStyle = "#d9a441";
-        for (let i = 0; i < 12; i++) ctx.fillRect(SIRA.x - 114 + i * 20, SIRA.y - 30, 8, 4), ctx.fillRect(SIRA.x - 114 + i * 20, SIRA.y + 26, 8, 4);
+        for (let i = 0; i < 14; i++) ctx.fillRect(SIRA.x - 136 + i * 20, SIRA.y - 36, 8, 4), ctx.fillRect(SIRA.x - 136 + i * 20, SIRA.y + 32, 8, 4);
+        for (let i = 0; i < 5; i++) ctx.fillRect(SIRA.x - 100 + i * 50 - 6, SIRA.y - 6, 12, 12);
         ctx.fillStyle = "#f2e2b8";
-        ctx.fillRect(SIRA.x - 40, SIRA.y - 8, 80, 16);
-        ctx.fillStyle = "#7a1f2b";
-        ctx.fillRect(SIRA.x - 30, SIRA.y - 4, 60, 8);
+        for (let i = 0; i < 5; i++) ctx.fillRect(SIRA.x - 100 + i * 50 - 2, SIRA.y - 2, 4, 4);
+        // The tray: a round of tea glasses.
+        ctx.fillStyle = "#c9a227";
+        ctx.fillRect(SIRA.x - 22, SIRA.y - 10, 44, 20);
+        ctx.fillStyle = "#b5452a";
+        for (let i = 0; i < 4; i++) ctx.fillRect(SIRA.x - 16 + i * 10, SIRA.y - 5, 4, 8);
+        // Cushions.
+        for (const [dx, dy, colour] of [[-168, -18, "#2f6f73"], [-168, 18, "#b5452a"], [168, -18, "#b5452a"], [168, 18, "#2f6f73"]] as const) {
+          ctx.fillStyle = colour;
+          ctx.fillRect(SIRA.x + dx - 12, SIRA.y + dy - 9, 24, 18);
+          ctx.fillStyle = "#f2e2b8";
+          ctx.fillRect(SIRA.x + dx - 2, SIRA.y + dy - 2, 4, 4);
+        }
         ctx.globalAlpha = 1;
       }
       afoot.sort((a, b) => a.at.y - b.at.y);
@@ -313,7 +339,7 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         // In the circle everyone claps along: small hops, each in their own time.
         const hop = dancing && !still ? Math.abs(Math.sin(seconds * 5 + index * 1.3)) * 3 * scale : 0;
         figure(sheet, clip, seconds, at.x, at.y - hop);
-        where.set(actor.agent.id, { x: at.x, y: at.y - hop - sheet.frameHeight * scale });
+        where.set(actor.agent.id, { x: at.x, y: at.y - hop - sheet.frameHeight * scale, feet: at.y });
         if (!party && NEEDS_YOU.includes(actor.pose)) sign(actor.pose, at.x, at.y - sheet.frameHeight * scale - scale, dark);
       });
 
@@ -341,6 +367,8 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
       ctx.textAlign = "center";
       // Over the planks the label needs fixed colours; otherwise it follows the theme's text.
       ctx.fillStyle = furnished ? (dark ? "#e7e7ea" : "#2b2b2d") : getComputedStyle(element).color;
+      // In the dark of the night the names are written light.
+      if (party) ctx.fillStyle = `rgba(242, 226, 184, ${0.4 + 0.6 * gathered})`;
       for (const dog of DOGS) {
         const sheet = skin.pets[dog.kind];
         if (!sheet) continue;
@@ -358,10 +386,12 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         let y = dog.y;
         let facingRight = outbound;
         let frameAt = frameIndex;
-        // Berlin has an errand: out to the desk, a bite, and back.
+        // Berlin has an errand: out to the perito, wherever it is (at its desk, on a sofa, at yours), a bite, and back.
+        const prey = bite ? where.get(bite.agentId) : undefined;
         const errand = dog.name === BITER && bite ? seconds - bite.start : -1;
         if (errand >= 0 && errand < BITE.out + BITE.hold + BITE.back) {
-          const target = { x: bite!.at.x + 34, y: bite!.at.y + 6 };
+          const target = prey ? { x: prey.x + 30, y: prey.feet + 4 } : { x: bite!.at.x + 34, y: bite!.at.y + 6 };
+          const head = prey ?? { x: bite!.at.x, y: bite!.at.y - 30 * scale };
           const away = errand < BITE.out ? errand / BITE.out : errand < BITE.out + BITE.hold ? 1 : 1 - (errand - BITE.out - BITE.hold) / BITE.back;
           const biting = errand >= BITE.out && errand < BITE.out + BITE.hold;
           facingRight = biting ? false : errand < BITE.out ? target.x > x : target.x < x;
@@ -374,8 +404,9 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
             ctx.font = '700 15px ui-monospace, "SF Mono", Menlo, monospace';
             ctx.fillText("HAV!", x, y - height - 20);
             // The one who is bitten jumps.
-            ctx.fillRect(Math.round(bite!.at.x - scale), Math.round(bite!.at.y - 34 * scale - Math.abs(Math.sin(seconds * 12)) * 4 * scale), 2 * scale, 5 * scale);
-            ctx.fillRect(Math.round(bite!.at.x - scale), Math.round(bite!.at.y - 27 * scale - Math.abs(Math.sin(seconds * 12)) * 4 * scale), 2 * scale, 2 * scale);
+            const jump = Math.abs(Math.sin(seconds * 12)) * 4 * scale;
+            ctx.fillRect(Math.round(head.x - scale), Math.round(head.y - 9 * scale - jump), 2 * scale, 5 * scale);
+            ctx.fillRect(Math.round(head.x - scale), Math.round(head.y - 3 * scale - jump), 2 * scale, 2 * scale);
             ctx.restore();
           }
         } else if (dog.name === BITER && bite && errand >= 0) {
@@ -400,9 +431,37 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
 
       confetti(seconds);
       if (party) {
-        // Evening falls on the floor, and the music rises from the carpet.
-        ctx.fillStyle = `rgba(24, 16, 44, ${0.34 * gathered})`;
-        ctx.fillRect(0, 0, FLOOR.width, FLOOR.height);
+        // Lanterns on a line across the room, each with its own glow, flickering a little.
+        ctx.globalAlpha = gathered;
+        ctx.strokeStyle = "rgba(242, 226, 184, 0.55)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i <= 12; i++) {
+          const lx = 60 + i * 90;
+          const ly = 70 + Math.sin((i / 12) * Math.PI) * 34;
+          if (i === 0) ctx.moveTo(lx, ly);
+          else ctx.lineTo(lx, ly);
+        }
+        ctx.stroke();
+        for (let i = 0; i <= 12; i++) {
+          const lx = 60 + i * 90;
+          const ly = 70 + Math.sin((i / 12) * Math.PI) * 34;
+          const colour = ["#ffb347", "#ff6f59", "#ffd166", "#7bd3c4"][i % 4]!;
+          const flicker = still ? 1 : 0.8 + 0.2 * Math.sin(seconds * 5 + i * 1.7);
+          const glow = ctx.createRadialGradient(lx, ly + 10, 2, lx, ly + 10, 46);
+          glow.addColorStop(0, `rgba(255, 200, 120, ${0.42 * flicker})`);
+          glow.addColorStop(1, "rgba(255, 200, 120, 0)");
+          ctx.fillStyle = glow;
+          ctx.fillRect(lx - 46, ly - 36, 92, 92);
+          ctx.fillStyle = "#3b2a1a";
+          ctx.fillRect(lx - 3, ly, 6, 4);
+          ctx.fillStyle = colour;
+          ctx.fillRect(lx - 6, ly + 4, 12, 14);
+          ctx.fillStyle = "#fff3c4";
+          ctx.fillRect(lx - 2, ly + 8, 4, 6);
+        }
+        ctx.globalAlpha = 1;
+        // The music rises from the carpet.
         ctx.textAlign = "center";
         for (let i = 0; i < 7; i++) {
           const life = still ? 0.4 : (seconds * 0.35 + i / 7) % 1;
@@ -413,8 +472,8 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         }
         ctx.globalAlpha = gathered;
         ctx.fillStyle = "#ffd166";
-        ctx.font = '700 20px "Barlow Condensed", ui-monospace, Menlo, monospace';
-        ctx.fillText("SIRA GECESİ", SIRA.x, 34);
+        ctx.font = '700 26px "Barlow Condensed", ui-monospace, Menlo, monospace';
+        ctx.fillText("SIRA GECESİ", SIRA.x, 40);
         ctx.globalAlpha = 1;
       }
       if (!still) frame = requestAnimationFrame(draw);

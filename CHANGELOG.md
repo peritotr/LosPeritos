@@ -13,6 +13,13 @@
 - Every seal says who gave it, with the lead's note. A seal that is with the
   lead can still be decided by you.
 
+**The floor**
+- Berlin goes to the perito itself, wherever it is (at its desk, on a sofa,
+  at your desk), not to its empty desk.
+- The sıra gecesi has a stage of its own: the office goes dark, a line of
+  lanterns hangs across the room, the carpet is lit and laid with a tray and
+  cushions, and the desks' names and labels step out of the picture.
+
 **Other**
 - A demo or a screenshot run keeps its own window state, so it can be started
   while the app is open and leaves the app's settings alone.

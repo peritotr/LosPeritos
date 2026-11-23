@@ -250,7 +250,7 @@ export function Bench(ctx: Ctx) {
           />
         </div>
         <div className="floor-scroll">
-        <div className="floor-stage" style={zoom === 1 ? undefined : { width: `${zoom * 100}%`, maxWidth: 1000 * zoom }}>
+        <div className={`floor-stage ${sira ? "sira" : ""}`} style={zoom === 1 ? undefined : { width: `${zoom * 100}%`, maxWidth: 1000 * zoom }}>
           {floorStyle === "characters" && <SpriteLayer model={floor} />}
         <SvgFloor
           model={floor}
