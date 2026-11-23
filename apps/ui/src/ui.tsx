@@ -270,6 +270,14 @@ export function Segmented<V extends string>({
   );
 }
 
+/**
+ * An agent tool's own words for "you are not signed in" vary and say little.
+ * Where an error reads like one, what to do about it is added.
+ */
+export function explainError(text: string): string {
+  return /oauth|authenticat|unauthori[sz]ed|\b401\b|not logged in|invalid api key|credential|\/login/i.test(text) ? `${text}\n\n${T.status.signInHint}` : text;
+}
+
 export const kindOf = (bureau: Workspace): WorkspaceKind => bureau.kind ?? "software";
 
 /** Outside a software bureau a branch is called a draft, and its git name stays out of sight. */

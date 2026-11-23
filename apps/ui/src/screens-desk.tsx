@@ -771,6 +771,11 @@ function Tools({ ctx, compact }: { ctx: Ctx | Pick<Ctx, "actions">; compact?: bo
               <div className="mono muted" style={{ fontSize: 12 }}>
                 {tool.found ? tool.version : T.setup.notFound}
               </div>
+              {tool.found && tool.signedIn === false && (
+                <div className="err" style={{ fontSize: 13, marginTop: 4 }}>
+                  {T.setup.notSignedIn} <code>claude auth login</code>
+                </div>
+              )}
             </div>
             <span className="tag" style={{ color: tool.found ? "var(--st-work)" : "var(--st-warn)", borderColor: "currentColor" }}>
               {tool.found ? T.setup.installed : T.setup.notInstalled}

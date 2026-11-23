@@ -50,22 +50,40 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 /**
- * A Mac app started from the Dock gets a bare PATH, without Homebrew or npm's
- * global bin, so `claude` and `git` would not be found. Take PATH from the
- * user's login shell instead.
+ * What an agent tool reads from the environment to know who the user is and
+ * how to reach its service: a key or token, the provider it is pointed at, a
+ * proxy, a company's certificates. Someone who set these in their shell's
+ * profile has a `claude` that works in the terminal and nowhere else.
+ */
+const SHELL_SETTINGS = /^(ANTHROPIC_|CLAUDE_|AWS_|GOOGLE_|CLOUD_ML_|VERTEX_|OPENAI_|CODEX_|HTTPS?_PROXY$|NO_PROXY$|ALL_PROXY$|https?_proxy$|no_proxy$|NODE_EXTRA_CA_CERTS$|SSL_CERT_|XDG_CONFIG_HOME$)/;
+
+/**
+ * A Mac app started from the Dock gets a bare environment: a PATH without
+ * Homebrew or npm's global bin, so `claude` and `git` would not be found, and
+ * none of what the user's shell profile sets. Take PATH from the login shell,
+ * and with it the settings an agent tool signs in by.
  */
 function adoptShellPath(): void {
   if (process.platform !== "darwin") return;
   try {
-    const out = execFileSync(process.env.SHELL ?? "/bin/zsh", ["-ilc", 'printf "__LP__%s__LP__" "$PATH"'], {
+    const out = execFileSync(process.env.SHELL ?? "/bin/zsh", ["-ilc", 'printf "__LP__"; env -0; printf "__LP__"'], {
       encoding: "utf8",
       timeout: 5000,
+      maxBuffer: 8 * 1024 * 1024,
       stdio: ["ignore", "pipe", "ignore"],
     });
-    const found = /__LP__(.*)__LP__/s.exec(out)?.[1];
-    if (found) process.env.PATH = found;
+    const listed = /__LP__([\s\S]*)__LP__/.exec(out)?.[1] ?? "";
+    for (const entry of listed.split("\0")) {
+      const cut = entry.indexOf("=");
+      if (cut <= 0) continue;
+      const name = entry.slice(0, cut);
+      const value = entry.slice(cut + 1);
+      if (name === "PATH" && value) process.env.PATH = value;
+      // What the app was started with wins: only what is missing is taken from the shell.
+      else if (SHELL_SETTINGS.test(name) && process.env[name] === undefined) process.env[name] = value;
+    }
   } catch {
-    // Keep the PATH we were given; Setup will show which tools are missing.
+    // Keep the environment we were given; Setup will show what is missing.
   }
 }
 

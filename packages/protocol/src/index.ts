@@ -430,6 +430,8 @@ export const ToolCheck = z.object({
   found: z.boolean(),
   version: z.string().nullable(),
   installHint: z.string().nullable(),
+  /** Whether the tool says it is signed in, as this app would run it; absent when it cannot say. */
+  signedIn: z.boolean().optional(),
 });
 
 // ── Requests ────────────────────────────────────────────────────────────────

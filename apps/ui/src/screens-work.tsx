@@ -55,6 +55,7 @@ import {
   kindOf,
   money,
   perito,
+  explainError,
 } from "./ui";
 
 const MAX_SEATS = 8;
@@ -325,7 +326,7 @@ function PeritoCard({ ctx, agent }: { ctx: Ctx; agent: Agent }) {
       ? agent.resumeAt
         ? T.status.resumesAt(clock(agent.resumeAt))
         : T.status.resumesLater
-      : (agent.error ?? ctx.state.output[agent.id]?.at(-1) ?? agent.lastOutput ?? T.bench.noOutput);
+      : ((agent.error && explainError(agent.error)) ?? ctx.state.output[agent.id]?.at(-1) ?? agent.lastOutput ?? T.bench.noOutput);
   const open = () => ctx.go({ screen: "perito", id: agent.id });
 
   const approval = pendingApprovals(ctx.approvals).find((a) => a.agentId === agent.id);
@@ -1015,7 +1016,7 @@ export function PeritoDetail({ ctx, id }: { ctx: Ctx; id: string }) {
           {agent.status === "limited" && (
             <p className="limit-note">{agent.resumeAt ? T.status.resumesAt(clock(agent.resumeAt)) : T.status.resumesLater}</p>
           )}
-          <TerminalOutput entries={ctx.state.activity[agent.id]} fallback={agent.error ?? agent.lastOutput} />
+          <TerminalOutput entries={ctx.state.activity[agent.id]} fallback={(agent.error && explainError(agent.error)) ?? agent.lastOutput} />
           {error && (
             <p className="err" style={{ padding: "6px 14px", fontSize: 13 }}>
               {error}

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 — 2026-11-23
 
 **Bureaus of your own making**
 - A bureau can work by a charter you write: what the job is, who is on the
@@ -12,6 +12,14 @@
   support and operations. And an empty office, where you write it all.
 - A charter can be written or rewritten later from Settings; the team works
   by it from its next start.
+
+**Signing in**
+- The desktop app now hands the agents the sign-in settings of your shell
+  profile (a key, a token, a provider, a proxy), not only its PATH. Before,
+  a Claude Code that worked in the terminal by such a setting failed with a
+  sign-in error when the app started it.
+- Setup says whether Claude Code is signed in, and what to run if it is not.
+  A sign-in error on a perito's card comes with the same advice.
 
 **Jobs that come round**
 - A routine gives the lead its brief every day, every week on a weekday or

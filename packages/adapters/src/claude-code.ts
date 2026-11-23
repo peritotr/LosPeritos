@@ -146,12 +146,24 @@ export class ClaudeCodeAdapter implements Adapter {
   check() {
     return new Promise<Awaited<ReturnType<Adapter["check"]>>>((resolve) => {
       execFile(this.bin, ["--version"], { timeout: 10_000 }, (err, stdout) => {
-        resolve({
-          tool: "claude",
+        const check = {
+          tool: "claude" as const,
           required: true,
           found: !err,
           version: err ? null : stdout.trim(),
           installHint: err ? "Install Claude Code: https://claude.com/claude-code" : null,
+        };
+        if (err) return resolve(check);
+        // Installed is not signed in: ask the tool itself, in the environment the agents will get.
+        execFile(this.bin, ["auth", "status"], { timeout: 15_000 }, (_failed, said) => {
+          let signedIn: boolean | undefined;
+          try {
+            const status = JSON.parse(said) as { loggedIn?: unknown };
+            if (typeof status.loggedIn === "boolean") signedIn = status.loggedIn;
+          } catch {
+            // An older tool without this command: nothing to say about sign-in.
+          }
+          resolve({ ...check, ...(signedIn !== undefined && { signedIn }) });
         });
       });
     });
