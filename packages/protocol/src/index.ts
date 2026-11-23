@@ -286,6 +286,8 @@ export const Connector = z.object({
    * command, request headers for a URL. The values never leave the core.
    */
   secretNames: z.array(z.string()),
+  /** For a URL that asks for a sign-in in the browser: whether the user has signed in and it still holds. */
+  signedIn: z.boolean().default(false),
   /** Tools that may be called without asking. `*` stands for any run of characters. */
   free: z.array(z.string().trim().min(1)).default([]),
 });
@@ -301,7 +303,7 @@ export const ConnectorTool = z.object({
  * Add a connector, or replace the one with the same id. `secrets` sets the
  * named values and leaves the others as they are; an empty value removes one.
  */
-export const SaveConnectorRequest = Connector.omit({ secretNames: true })
+export const SaveConnectorRequest = Connector.omit({ secretNames: true, signedIn: true })
   .extend({ secrets: z.record(z.string()).default({}) })
   .refine((value) => !!value.command !== !!value.url, "Give either a command or a URL");
 
@@ -428,6 +430,10 @@ export const routes = {
   connectors: "GET /workspaces/:workspaceId/connectors",
   saveConnector: "POST /workspaces/:workspaceId/connectors",
   removeConnector: "POST /workspaces/:workspaceId/connectors/:connectorId/remove",
+  /** `{ url }`: the page to open in the browser to sign in to a connector's server. */
+  connectorSignIn: "POST /workspaces/:workspaceId/connectors/:connectorId/signin",
+  /** Where the browser comes back after a sign-in. Not called by the UI; it carries no token, only the one-time state. */
+  oauthCallback: "GET /oauth/callback",
   /** `{ tools: ConnectorTool[] }`, asked of the server itself; may take a while the first time. */
   connectorTools: "GET /workspaces/:workspaceId/connectors/:connectorId/tools",
   events: "WS /events",

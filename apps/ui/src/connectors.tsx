@@ -3,7 +3,7 @@
  * secrets. Secret values go to the core and are never read back.
  */
 import { useEffect, useState, type FormEvent } from "react";
-import { ListChecks, Pencil, Plug, Plus, Trash2, X } from "lucide-react";
+import { ListChecks, LogIn, Pencil, Plug, Plus, Trash2, X } from "lucide-react";
 import type { Connector, ConnectorTool, SaveConnectorRequest } from "@losperitos/protocol";
 import type { Ctx } from "./context";
 import { T } from "./strings";
@@ -16,11 +16,14 @@ import { Corners, I, Segmented } from "./ui";
 interface Preset {
   id: string;
   name: string;
-  line: string;
-  secret: string;
-  free: string[];
+  /** A command on this machine, with the secret it needs… */
+  line?: string;
+  secret?: string;
   /** Where the user gets the secret. */
-  keyUrl: string;
+  keyUrl?: string;
+  /** …or an address signed in to in the browser. */
+  url?: string;
+  free: string[];
 }
 
 const PRESETS: Preset[] = [
@@ -35,6 +38,13 @@ const PRESETS: Preset[] = [
       "list_collections", "get_collections", "list_hardware", "get_predictions", "list_predictions",
     ],
     keyUrl: "replicate.com/account/api-tokens",
+  },
+  {
+    id: "fal",
+    name: "fal",
+    // fal's own hosted server; it takes a sign-in in the browser, not a key.
+    url: "https://mcp.fal.ai/mcp-relay",
+    free: ["search_models", "get_model_schema", "get_pricing", "search_docs", "recommend_model", "check_job", "get_job_result"],
   },
 ];
 
@@ -67,13 +77,13 @@ function ConnectorForm({
 }) {
   const [name, setName] = useState(editing?.name ?? preset?.name ?? "");
   const [id, setId] = useState(editing?.id ?? preset?.id ?? "");
-  const [how, setHow] = useState<"command" | "url">(editing?.url ? "url" : "command");
+  const [how, setHow] = useState<"command" | "url">(editing?.url || preset?.url ? "url" : "command");
   const [line, setLine] = useState(editing?.command ? [editing.command, ...editing.args].map(quote).join(" ") : (preset?.line ?? ""));
-  const [url, setUrl] = useState(editing?.url ?? "");
+  const [url, setUrl] = useState(editing?.url ?? preset?.url ?? "");
   const [free, setFree] = useState((editing?.free ?? preset?.free ?? []).join(", "));
   /** Secrets already kept, minus those the user is taking away. */
   const [kept, setKept] = useState(editing?.secretNames ?? []);
-  const [added, setAdded] = useState<Array<{ name: string; value: string }>>(preset ? [{ name: preset.secret, value: "" }] : []);
+  const [added, setAdded] = useState<Array<{ name: string; value: string }>>(preset?.secret ? [{ name: preset.secret, value: "" }] : []);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const key = editing?.id ?? (id || slug(name));
@@ -180,7 +190,8 @@ function ConnectorForm({
           {T.connectors.secretAdd}
         </button>
         <p className="muted" style={{ fontSize: 12 }}>
-          {preset && `${T.connectors.keyFrom(preset.keyUrl)} `}
+          {preset?.keyUrl && `${T.connectors.keyFrom(preset.keyUrl)} `}
+          {how === "url" && `${T.connectors.signInHint} `}
           {T.connectors.secretsHint}
         </p>
       </div>
@@ -226,7 +237,7 @@ function ConnectorTools({ ctx, connector, onSaved }: { ctx: Ctx; connector: Conn
   /** Ticking spells the list out by name, so a pattern never frees more than what is shown. */
   const toggle = (tool: string) => {
     const names = (tools ?? []).map((other) => other.name).filter((name) => (name === tool ? !free(name) : free(name)));
-    const { secretNames: _kept, ...rest } = connector;
+    const { secretNames: _kept, signedIn: _signedIn, ...rest } = connector;
     ctx.actions.saveConnector(ctx.bureau.id, { ...rest, secrets: {}, free: names }).then(onSaved, (err: Error) => setError(err.message));
   };
   if (error) return <p className="err">{error}</p>;
@@ -264,6 +275,25 @@ export function Connectors({ ctx }: { ctx: Ctx }) {
     ctx.actions.connectors(ctx.bureau.id).then(setList, (err: Error) => setError(err.message));
   }, [ctx.bureau.id]);
 
+  /** Open the provider's sign-in page, then look until the connector reports it is signed in. */
+  const signIn = (connector: Connector) => {
+    setError(null);
+    ctx.actions.connectorSignIn(ctx.bureau.id, connector.id).then(
+      (url) => {
+        window.open(url, "_blank", "noopener");
+        ctx.note(T.connectors.signInOpened);
+        let tries = 0;
+        const timer = setInterval(() => {
+          ctx.actions.connectors(ctx.bureau.id).then((next) => {
+            if (next.find((other) => other.id === connector.id)?.signedIn || ++tries > 90) clearInterval(timer);
+            setList(next);
+          }, () => clearInterval(timer));
+        }, 2000);
+      },
+      (err: Error) => setError(err.message),
+    );
+  };
+
   const remove = (connector: Connector) => {
     if (removing !== connector.id) return setRemoving(connector.id);
     setRemoving(null);
@@ -295,8 +325,15 @@ export function Connectors({ ctx }: { ctx: Ctx }) {
               <div className="muted" style={{ fontSize: 12 }}>
                 {connector.free.length ? T.connectors.freeList(connector.free.join(", ")) : T.connectors.freeNone}
                 {connector.secretNames.length > 0 && ` · ${T.connectors.secretCount(connector.secretNames.length)}`}
+                {connector.signedIn && ` · ${T.connectors.signedIn}`}
               </div>
             </div>
+            {connector.url && (
+              <button className="btn btn-secondary" onClick={() => signIn(connector)}>
+                <I icon={LogIn} size={14} />
+                {connector.signedIn ? T.connectors.signInAgain : T.connectors.signIn}
+              </button>
+            )}
             <button
               className="btn btn-ghost"
               aria-pressed={listing === connector.id}

@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
+import { createServer as createHttp } from "node:http";
+import { createHash } from "node:crypto";
 import { FakeAdapter } from "@losperitos/adapters";
 import { MAX_AGENTS_PER_WORKSPACE, type AgentCommandInput } from "@losperitos/protocol";
 import { AgentCommand, SaveConnectorRequest } from "@losperitos/protocol";
@@ -672,4 +674,98 @@ test("the code panel reads the repository: branch, commits, task branches and un
 
   const plain = setup({ repo: false });
   await assert.rejects(plain.core.repo(plain.workspace.id), /not a git repository/);
+});
+
+test("a connector that asks for a sign-in in the browser is signed in to, used, and renewed", async () => {
+  // A stand-in provider: the MCP server, its description, and its authorization server in one.
+  let issued = 0;
+  const seen: { challenge?: string; registered?: Record<string, unknown>; resource?: string | null } = {};
+  const provider = createHttp(async (req, res) => {
+    const url = new URL(req.url!, "http://x");
+    const origin = `http://127.0.0.1:${(provider.address() as AddressInfo).port}`;
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    const body = Buffer.concat(chunks).toString();
+    const json = (status: number, value: unknown, headers: Record<string, string> = {}) => {
+      res.writeHead(status, { "Content-Type": "application/json", ...headers });
+      res.end(JSON.stringify(value));
+    };
+    if (url.pathname === "/mcp") {
+      if (req.headers.authorization !== `Bearer access-${issued}`) {
+        return json(401, { error: "Authentication required" }, { "WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp"` });
+      }
+      const message = JSON.parse(body);
+      if (message.id === undefined) return json(202, {});
+      return json(200, { jsonrpc: "2.0", id: message.id, result: message.method === "tools/list" ? { tools: [{ name: "get_rows", description: "Rows." }] } : { protocolVersion: "2025-03-26", capabilities: {} } });
+    }
+    if (url.pathname === "/.well-known/oauth-protected-resource/mcp") return json(200, { resource: `${origin}/mcp`, authorization_servers: [`${origin}/auth`], scopes_supported: ["read"] });
+    if (url.pathname === "/.well-known/oauth-authorization-server/auth") {
+      return json(200, { authorization_endpoint: `${origin}/auth/authorize`, token_endpoint: `${origin}/auth/token`, registration_endpoint: `${origin}/auth/register` });
+    }
+    if (url.pathname === "/auth/register") {
+      seen.registered = JSON.parse(body);
+      return json(201, { client_id: "client-1" });
+    }
+    if (url.pathname === "/auth/authorize") {
+      // The user "signs in": the provider sends the browser back with a code.
+      seen.challenge = url.searchParams.get("code_challenge")!;
+      seen.resource = url.searchParams.get("resource");
+      res.writeHead(302, { Location: `${url.searchParams.get("redirect_uri")}?code=code-1&state=${url.searchParams.get("state")}` });
+      return res.end();
+    }
+    if (url.pathname === "/auth/token") {
+      const form = new URLSearchParams(body);
+      const ok =
+        form.get("grant_type") === "refresh_token"
+          ? form.get("refresh_token") === "refresh-1"
+          : form.get("code") === "code-1" && createHash("sha256").update(form.get("code_verifier") ?? "").digest("base64url") === seen.challenge;
+      if (!ok || form.get("client_id") !== "client-1") return json(400, { error: "invalid_grant" });
+      issued++;
+      // The first token lasts a moment, so the renewal can be watched.
+      return json(200, { access_token: `access-${issued}`, refresh_token: "refresh-1", expires_in: issued === 1 ? 301 : 3600 });
+    }
+    json(404, {});
+  });
+  await new Promise<void>((done) => provider.listen(0, "127.0.0.1", done));
+  const origin = `http://127.0.0.1:${(provider.address() as AddressInfo).port}`;
+
+  const { core, adapter, workspace } = setup({ repo: false });
+  const server = createServer(core, "user-token");
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  const here = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  core.setBridge(here, "cli.js");
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ id: "rows", name: "Rows", url: `${origin}/mcp` }));
+  assert.equal(core.listConnectors(workspace.id)[0]!.signedIn, false);
+  await assert.rejects(core.connectorTools(workspace.id, "rows"), /refused the sign-in/);
+
+  // The app prepares the sign-in; the browser goes to the provider and comes back with a code.
+  const { url } = await core.beginConnectorSignIn(workspace.id, "rows");
+  assert.deepEqual(seen.registered!.redirect_uris, [`${here}/oauth/callback`]);
+  assert.equal(seen.registered!.token_endpoint_auth_method, "none");
+  const landed = await fetch(url);
+  assert.match(await landed.text(), /Signed in to Rows/);
+  assert.equal(seen.resource, `${origin}/mcp`);
+  assert.equal(core.listConnectors(workspace.id)[0]!.signedIn, true);
+  assert.ok(!JSON.stringify(core.listConnectors(workspace.id)).includes("access-1"), "tokens are never read back");
+  assert.deepEqual((await core.connectorTools(workspace.id, "rows")).tools.map((tool) => tool.name), ["get_rows"]);
+
+  // A callback nobody started, or one used twice, is turned away.
+  assert.match(await (await fetch(`${here}/oauth/callback?code=code-1&state=made-up`)).text(), /did not go through/);
+  assert.match(await (await fetch(landed.url)).text(), /did not go through/);
+
+  // The token was due within the renewal margin, so it has been renewed; the team gets the new one.
+  await new Promise((done) => setTimeout(done, 1300));
+  assert.equal(issued, 2);
+  core.sendMessage(workspace.id, { body: "go", toAgentId: null, taskId: null });
+  const given = adapter.starts.at(-1)!.connectors!.rows as { headers: Record<string, string> };
+  assert.equal(given.headers.Authorization, "Bearer access-2");
+
+  // Keeping the address keeps the sign-in; changing it does not.
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ id: "rows", name: "Rows", url: `${origin}/mcp`, free: ["get_*"] }));
+  assert.equal(core.listConnectors(workspace.id)[0]!.signedIn, true);
+  core.saveConnector(workspace.id, SaveConnectorRequest.parse({ id: "rows", name: "Rows", url: `${origin}/other` }));
+  assert.equal(core.listConnectors(workspace.id)[0]!.signedIn, false);
+  await core.close();
+  server.close();
+  provider.close();
 });

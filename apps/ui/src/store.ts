@@ -294,6 +294,8 @@ export interface Actions {
   repoDiff(workspaceId: string, commit: string | null): Promise<string>;
   connectors(workspaceId: string): Promise<Connector[]>;
   connectorTools(workspaceId: string, connectorId: string): Promise<ConnectorTool[]>;
+  /** The provider's page to open in the browser to sign in to a connector. */
+  connectorSignIn(workspaceId: string, connectorId: string): Promise<string>;
   saveConnector(workspaceId: string, request: SaveConnectorRequest): Promise<Connector[]>;
   removeConnector(workspaceId: string, connectorId: string): Promise<Connector[]>;
   flightDone(id: string): void;
@@ -451,6 +453,8 @@ export function useCore(): [State, Actions] {
     connectors: (workspaceId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, undefined, "GET"),
     connectorTools: async (workspaceId, connectorId) =>
       (await post<{ tools: ConnectorTool[] }>(`/workspaces/${workspaceId}/connectors/${connectorId}/tools`, undefined, "GET")).tools,
+    connectorSignIn: async (workspaceId, connectorId) =>
+      (await post<{ url: string }>(`/workspaces/${workspaceId}/connectors/${connectorId}/signin`, {})).url,
     saveConnector: (workspaceId, request) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, request),
     removeConnector: (workspaceId, connectorId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors/${connectorId}/remove`, {}),
     estimate: (workspaceId) => post<Estimate>(`/workspaces/${workspaceId}/estimate`, undefined, "GET"),

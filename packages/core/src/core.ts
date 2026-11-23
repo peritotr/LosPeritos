@@ -30,6 +30,7 @@ import type {
 import { MAX_AGENTS_PER_WORKSPACE, MAX_ATTACHMENT_BYTES, MAX_PREVIEW_BYTES, PROTOCOL_VERSION } from "@losperitos/protocol";
 import * as git from "@losperitos/git";
 import { listTools } from "./mcp-client.js";
+import { beginSignIn, finishSignIn, refresh, type OAuthGrant, type PendingSignIn } from "./oauth.js";
 import { AppStore, WorkspaceStore, type Collection } from "@losperitos/storage";
 import type { Adapter, AgentSession, McpServer, SessionEvent } from "@losperitos/adapters";
 
@@ -170,7 +171,11 @@ const MIME: Record<string, string> = {
 };
 
 /** A connector as kept on this machine: with the values of its secrets. */
-type StoredConnector = Omit<Connector, "secretNames"> & { secrets: Record<string, string> };
+type StoredConnector = Omit<Connector, "secretNames" | "signedIn"> & { secrets: Record<string, string>; oauth?: OAuthGrant };
+
+/** How long before a token runs out it is renewed, and how long a sign-in may take in the browser. */
+const RENEW_EARLY_MS = 5 * 60_000;
+const SIGN_IN_WINDOW_MS = 10 * 60_000;
 
 /** Whether a tool name fits a pattern in which `*` stands for any run of characters. */
 function matchesTool(pattern: string, tool: string): boolean {
@@ -308,6 +313,10 @@ export class Core {
   private readonly heldCalls = new Map<string, (decision: "approved" | "rejected") => void>();
   /** Timers that wake agents whose usage limit is due to reset. */
   private readonly limitTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Sign-ins the user has been sent to the browser for, by their one-time state. */
+  private readonly signIns = new Map<string, { workspaceId: string; connectorId: string; pending: PendingSignIn; until: number }>();
+  /** Timers that renew connector sign-ins before they run out. */
+  private readonly renewTimers = new Map<string, ReturnType<typeof setTimeout>>();
   /** Timers that look in on a team member who went idle with its task still open. */
   private readonly stallTimers = new Map<string, ReturnType<typeof setTimeout>>();
   /** Tasks whose member has already been reminded once to report or ask. */
@@ -327,6 +336,9 @@ export class Core {
     }
     for (const path of this.app.workspacePaths()) {
       if (existsSync(path)) this.load(path);
+    }
+    for (const workspaceId of this.workspaces.keys()) {
+      for (const connector of this.storedConnectors(workspaceId)) if (connector.oauth) this.planRenewal(workspaceId, connector.id);
     }
   }
 
@@ -827,7 +839,85 @@ export class Core {
   /** The workspace's connectors, without the values of their secrets. */
   listConnectors(workspaceId: string): Connector[] {
     this.state(workspaceId);
-    return this.storedConnectors(workspaceId).map(({ secrets, ...rest }) => ({ ...rest, secretNames: Object.keys(secrets) }));
+    return this.storedConnectors(workspaceId).map(({ secrets, oauth, ...rest }) => ({
+      ...rest,
+      secretNames: Object.keys(secrets),
+      signedIn: !!oauth && this.holds(oauth),
+    }));
+  }
+
+  /** Whether a sign-in can still be used: its token has time left, or can be renewed. */
+  private holds(grant: OAuthGrant): boolean {
+    return !grant.expiresAt || !!grant.refreshToken || new Date(grant.expiresAt).getTime() > this.now().getTime();
+  }
+
+  /**
+   * Start signing in to a connector's server. Returns the provider's page for
+   * the user's browser; the browser comes back to `/oauth/callback` here.
+   */
+  async beginConnectorSignIn(workspaceId: string, connectorId: string): Promise<{ url: string }> {
+    this.state(workspaceId);
+    const connector = this.storedConnectors(workspaceId).find((c) => c.id === connectorId);
+    if (!connector?.url) throw new CoreError("bad_request", "Only a connector with an address can be signed in to.");
+    if (!this.bridge) throw new CoreError("internal", "The core does not know its own address.");
+    const state = randomBytes(32).toString("base64url");
+    try {
+      const { url, pending } = await beginSignIn(connector.url, `${this.bridge.url}/oauth/callback`, state);
+      for (const [key, entry] of this.signIns) if (entry.until < Date.now()) this.signIns.delete(key);
+      this.signIns.set(state, { workspaceId, connectorId, pending, until: Date.now() + SIGN_IN_WINDOW_MS });
+      return { url };
+    } catch (err) {
+      throw new CoreError("bad_request", (err as Error).message);
+    }
+  }
+
+  /** The browser came back: trade the code for tokens and give them to the connector. */
+  async finishConnectorSignIn(state: string, code: string): Promise<string> {
+    const entry = this.signIns.get(state);
+    this.signIns.delete(state);
+    if (!entry || entry.until < Date.now()) throw new CoreError("bad_request", "This sign-in is not one this app started, or it took too long.");
+    let grant: OAuthGrant;
+    try {
+      grant = await finishSignIn(entry.pending, code, this.now());
+    } catch (err) {
+      throw new CoreError("bad_request", (err as Error).message);
+    }
+    const name = this.keepGrant(entry.workspaceId, entry.connectorId, grant);
+    if (!name) throw new CoreError("not_found", "The connector was removed meanwhile.");
+    return name;
+  }
+
+  /** Store a sign-in with its connector, hand it to the team, and plan its renewal. */
+  private keepGrant(workspaceId: string, connectorId: string, grant: OAuthGrant | undefined): string | null {
+    const stored = this.storedConnectors(workspaceId);
+    const connector = stored.find((c) => c.id === connectorId);
+    if (!connector) return null;
+    this.storeConnectors(workspaceId, stored.map((c) => (c.id === connectorId ? { ...c, oauth: grant } : c)));
+    this.refreshSessions(workspaceId);
+    this.planRenewal(workspaceId, connectorId);
+    return connector.name;
+  }
+
+  /** Renew a connector's token a little before it runs out. */
+  private planRenewal(workspaceId: string, connectorId: string): void {
+    const key = `${workspaceId}/${connectorId}`;
+    clearTimeout(this.renewTimers.get(key));
+    this.renewTimers.delete(key);
+    const grant = this.storedConnectors(workspaceId).find((c) => c.id === connectorId)?.oauth;
+    if (!grant?.expiresAt || !grant.refreshToken) return;
+    const wait = Math.max(1000, new Date(grant.expiresAt).getTime() - this.now().getTime() - RENEW_EARLY_MS);
+    const timer = setTimeout(() => {
+      this.renewTimers.delete(key);
+      const current = this.storedConnectors(workspaceId).find((c) => c.id === connectorId)?.oauth;
+      if (!current) return;
+      refresh(current, this.now()).then(
+        (next) => void this.keepGrant(workspaceId, connectorId, next),
+        // The provider took the sign-in back: the user has to sign in again.
+        () => void this.keepGrant(workspaceId, connectorId, { ...current, refreshToken: null, expiresAt: new Date(0).toISOString() }),
+      );
+    }, Math.min(wait, 2 ** 31 - 1));
+    timer.unref?.();
+    this.renewTimers.set(key, timer);
   }
 
   /** Add a connector or replace the one with the same id. Agents get it when they next sit down. */
@@ -841,7 +931,8 @@ export class Core {
       if (value) secrets[name.trim()] = value;
       else delete secrets[name.trim()];
     }
-    const next: StoredConnector = { ...request, secrets };
+    // A sign-in belongs to the address it was made at.
+    const next: StoredConnector = { ...request, secrets, ...(before?.oauth && before.url === request.url && { oauth: before.oauth }) };
     this.storeConnectors(workspaceId, before ? stored.map((c) => (c.id === request.id ? next : c)) : [...stored, next]);
     // Which tools are free is read at each call; only a change to the server itself needs a fresh start.
     const same = before && before.command === next.command && before.url === next.url &&
@@ -889,7 +980,14 @@ export class Core {
       this.storedConnectors(state.workspace.id).map((connector) => [
         connector.id,
         connector.url
-          ? { type: "http" as const, url: connector.url, headers: connector.secrets }
+          ? {
+              type: "http" as const,
+              url: connector.url,
+              headers: {
+                ...connector.secrets,
+                ...(connector.oauth && this.holds(connector.oauth) && { Authorization: `Bearer ${connector.oauth.accessToken}` }),
+              },
+            }
           : { command: connector.command!, args: connector.args, env: connector.secrets },
       ]),
     );
@@ -1463,7 +1561,8 @@ export class Core {
   }
 
   async close(): Promise<void> {
-    for (const timer of [...this.limitTimers.values(), ...this.stallTimers.values()]) clearTimeout(timer);
+    for (const timer of [...this.limitTimers.values(), ...this.stallTimers.values(), ...this.renewTimers.values()]) clearTimeout(timer);
+    this.renewTimers.clear();
     this.limitTimers.clear();
     this.stallTimers.clear();
     await Promise.all([...this.sessions.values()].map((session) => session.stop()));

@@ -59,8 +59,9 @@ gösteriliyor. Kabuk komutları bu korumanın dışında; bu bir kum havuzu değ
 - Video, ses ve PDF önizleme: yapıldı (256 MB'a kadar).
 
 Araç listesi Ayarlar'da görünüyor ve işaretlenebiliyor; mühürde "bundan sonra
-sorma" seçeneği var; bağlayıcı değişikliği ekibe hemen ulaşıyor. Eksik kalan:
-tarayıcıdan giriş (OAuth) isteyen sunucular bağlanamıyor.
+sorma" seçeneği var; bağlayıcı değişikliği ekibe hemen ulaşıyor. Tarayıcıdan
+giriş (OAuth) isteyen sunucular da bağlanıyor; akış sahte bir sağlayıcıyla
+test edildi, gerçek bir hesapla henüz denenmedi. fal şablonu eklendi.
 
 ### 1. Sohbet her ekranda (O)
 

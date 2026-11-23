@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+**Signing in to a connector**
+- A connector whose server asks for a sign-in in the browser can now be
+  connected: "Sign in" opens the provider's own page, and the app keeps the
+  tokens with the connector's other secrets and renews them. The password
+  never passes through the app.
+- A fal template for image, video and sound generation.
+
 ## 0.3.0 — 2026-11-23
 
 **Update notice**

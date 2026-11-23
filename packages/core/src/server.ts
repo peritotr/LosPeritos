@@ -92,6 +92,8 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "GET /workspaces/:workspaceId/connectors": (p) => core.listConnectors(p.workspaceId!),
     "POST /workspaces/:workspaceId/connectors": (p, body) =>
       core.saveConnector(p.workspaceId!, parse(SaveConnectorRequest, body)),
+    "POST /workspaces/:workspaceId/connectors/:connectorId/signin": (p) =>
+      core.beginConnectorSignIn(p.workspaceId!, p.connectorId!),
     "GET /workspaces/:workspaceId/connectors/:connectorId/tools": (p) =>
       core.connectorTools(p.workspaceId!, p.connectorId!),
     "POST /workspaces/:workspaceId/connectors/:connectorId/remove": (p) =>
@@ -164,6 +166,23 @@ export function createServer(core: Core, token: string): Server {
         // Agents authenticate with their own token, not the user's.
         const command = parse(AgentCommand, await readBody(req));
         send(200, await core.agentCommand(bearer ?? "", command));
+        return;
+      }
+      if (req.method === "GET" && path === "/oauth/callback") {
+        // The browser arrives here from the provider, without the user's token; the one-time state stands in for it.
+        const page = (title: string, body: string) => {
+          const safe = (text: string) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(`<!doctype html><meta charset="utf-8"><title>LosPeritos</title><body style="font:16px system-ui;margin:15vh auto;max-width:28rem;padding:0 1rem"><h1 style="font-size:1.3rem">${safe(title)}</h1><p>${safe(body)}</p>`);
+        };
+        const failure = url.searchParams.get("error_description") ?? url.searchParams.get("error");
+        if (failure) return page("Sign-in did not go through", failure);
+        try {
+          const name = await core.finishConnectorSignIn(url.searchParams.get("state") ?? "", url.searchParams.get("code") ?? "");
+          page(`Signed in to ${name}`, "You can close this tab and go back to LosPeritos.");
+        } catch (err) {
+          page("Sign-in did not go through", (err as Error).message);
+        }
         return;
       }
       if (!tokenMatches(bearer, token)) throw new CoreError("unauthorized", "Missing or wrong token");
