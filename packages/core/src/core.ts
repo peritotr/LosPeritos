@@ -40,6 +40,7 @@ import { Notifier, type NotifyConfig } from "./notify.js";
 import { beginSignIn, finishSignIn, refresh, type OAuthGrant, type PendingSignIn } from "./oauth.js";
 import { AppStore, WorkspaceStore, type Collection } from "@losperitos/storage";
 import type { Adapter, AgentSession, McpServer, SessionEvent } from "@losperitos/adapters";
+import { RISKY_COMMANDS } from "@losperitos/adapters";
 
 export class CoreError extends Error {
   constructor(
@@ -1727,6 +1728,22 @@ export class Core {
       reversible: false,
     });
     return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
+  }
+
+  /**
+   * A tool call seen by a hook before it runs, for a tool that cannot ask by
+   * itself (Codex). Most calls go straight through; a command that publishes,
+   * deploys, destroys or reaches another machine waits for the user's seal.
+   */
+  screenToolCall(token: string, tool: string, input: Record<string, unknown>): Promise<"approved" | "rejected"> {
+    if (/^mcp__/.test(tool)) return this.requestPermission(token, tool, input);
+    const raw = input.command ?? input.cmd;
+    const command = (Array.isArray(raw) ? raw.join(" ") : typeof raw === "string" ? raw : "").trim();
+    // A shell wrapper hides the command it runs: look inside `bash -lc "<command>"` too.
+    const inner = /^(?:\S*\/)?(?:ba|z|da)?sh\s+-l?c\s+(.+)$/s.exec(command)?.[1]?.replace(/^["']|["']$/g, "") ?? command;
+    const risky = inner.split(/&&|\|\||;|\n|\|/).some((part) => RISKY_COMMANDS.some((prefix) => part.trim().startsWith(prefix)));
+    if (!risky) return Promise.resolve("approved");
+    return this.requestPermission(token, "Bash", { command: inner });
   }
 
   private requireBudget(state: WorkspaceState): void {

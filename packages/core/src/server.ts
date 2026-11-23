@@ -202,6 +202,13 @@ export function createServer(core: Core, token: string): Server {
         send(200, { decision: await core.requestPermission(bearer ?? "", request.tool, request.input) });
         return;
       }
+      if (req.method === "POST" && path === "/agent/hook") {
+        // A hook of the agent's tool shows a call before it runs; the answer may wait for the user.
+        req.socket.setTimeout(0);
+        const request = parse(PermissionRequest, await readBody(req));
+        send(200, { decision: await core.screenToolCall(bearer ?? "", request.tool, request.input) });
+        return;
+      }
       if (req.method === "POST" && path === "/agent") {
         // Agents authenticate with their own token, not the user's.
         const command = parse(AgentCommand, await readBody(req));

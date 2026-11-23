@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+**From your phone**
+- The phone's page is served encrypted, under a certificate the app makes for
+  itself; the phone warns once that it does not know it, and Settings shows
+  the fingerprint.
+- Nudges: Settings can send a notification through an ntfy server (ntfy.sh or
+  your own) when a question or a seal is raised. Only that fact goes out.
+
+**Coordinator**
+- A perito over all your bureaus, offered in the side bar once there are two:
+  give it a job and it hands each part to the bureau it belongs to. It opens
+  no dossiers and does no work itself.
+
+**Preview**
+- Mark a place to fix: drag over it, and a picture of the page with that area
+  outlined is attached to a message started for the lead (desktop app).
+
+**Connectors**
+- Sign-in works with servers that take no registration: the app introduces
+  itself with its public description, or uses an app you registered yourself
+  (a secret named OAUTH_CLIENT_ID). An ElevenLabs template uses the first.
+- The app listens on port 7423 when it is free, so a callback address
+  registered beforehand keeps matching.
+- Checked without an account: fal, Higgsfield, Runway and Kling register the
+  app and serve their sign-in page. Meta does not; its note says what to do.
+
+**Codex**
+- Tried against a real account: the command line is accepted and a usage
+  limit is recognised, with the day it lifts; a full turn could not be run
+  because that account was at its limit.
+- Each call is shown to a hook that holds risky commands for your seal. It
+  has not yet been seen firing on a real turn.
+
 ## 0.5.0 — 2026-11-23
 
 **Terminal**

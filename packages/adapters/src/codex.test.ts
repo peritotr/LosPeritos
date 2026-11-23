@@ -45,7 +45,9 @@ process.stdin.on("data", (chunk) => (prompt += chunk)).on("end", () => {
   say({ type: "thread.started", thread_id: id });
   say({ type: "turn.started" });
   if (prompt.includes("LIMIT")) {
-    say({ type: "turn.failed", error: { message: "You’ve hit your usage limit. Try again later." } });
+    // As the real command does: the same failure twice.
+    say({ type: "error", message: "You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/settings/usage to purchase more credits or try again at Nov 29th, 2026 12:29 AM." });
+    say({ type: "turn.failed", error: { message: "You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/settings/usage to purchase more credits or try again at Nov 29th, 2026 12:29 AM." } });
     process.exit(1);
   }
   if (prompt.includes("CRASH")) { console.error("Not logged in"); process.exit(1); }
@@ -114,8 +116,11 @@ test("the Codex adapter runs one command per turn and carries the conversation o
   // A usage limit and a command that dies both end the turn with an error, and the next turn still runs.
   later.send("LIMIT");
   await second.turns(2);
-  const limit = second.events.find((event) => event.type === "error");
-  assert.ok(limit?.type === "error" && limit.limit, "the usage limit is recognised");
+  const limits = second.events.filter((event) => event.type === "error");
+  assert.equal(limits.length, 1, "a failure Codex says twice is passed on once");
+  const limit = limits[0]!;
+  assert.ok(limit.type === "error" && limit.limit, "the usage limit is recognised");
+  assert.equal(limit.type === "error" && limit.limit!.resetAt, new Date(2026, 10, 29, 0, 29).toISOString(), "with the day and hour it lifts");
   later.send("CRASH");
   await second.turns(3);
   assert.ok(second.events.some((event) => event.type === "error" && event.message === "Not logged in"));

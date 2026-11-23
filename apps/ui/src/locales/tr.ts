@@ -353,7 +353,7 @@ export const tr: Strings = {
     codex: "Codex (deneysel)",
     agentToolHint: "Bu büronun heyeti Claude Code ile çalışıyor. Aracı değiştirmek heyetin konuşmalarını baştan başlatır; dosyalar ve defter kalır.",
     codexHint:
-      "Heyet senin Codex'inle çalışır; kurulu ve giriş yapılmış olmalı (codex login). Codex durup sormaz: hiçbir komut mührünü beklemez, onu çalışma klasörünün içinde tutan yalnızca kendi korumalı alanıdır. Codex heyetine bağlayıcılar verilmez ve harcama dolar değil token olarak sayılır. Bu, Codex'in belgelerine göre yazıldı ve henüz gerçek bir hesapla denenmedi.",
+      "Heyet senin Codex'inle çalışır; kurulu ve giriş yapılmış olmalı (codex login). Codex kendiliğinden durup sormaz. Her çağrı bir kancaya gösterilir; kanca yayınlayan, dağıtan ya da silen komutu mührün için bekletir. Codex'in bu kancayı çalıştırdığı henüz gerçek bir turda görülmedi; o zamana kadar onu çalışma klasöründe tutan korumalı alanına güven. Codex heyetine bağlayıcılar verilmez ve harcama dolar değil token olarak sayılır.",
     fullHint:
       "Peritolar dosya düzenler ve sıradan komutları sormadan çalıştırır. Birleştirmeler ile yayınlayan, deploy eden, silen ya da başka makinelere erişen komutlar mührünü bekler.",
     restrictedHint: "Peritolar klasörü serbestçe okur; her düzenleme ve her komuttan önce mührünü ister.",

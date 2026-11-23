@@ -118,7 +118,11 @@ const url = process.env.LOSPERITOS_URL;
 const token = process.env.LOSPERITOS_AGENT_TOKEN;
 if (!url || !token) fail("peritos only works inside an agent started by LosPeritos.");
 
-if (process.argv[2] === "mcp") {
+if (process.argv[2] === "hook") {
+  // Called by the agent tool before a tool runs, with the call as JSON on stdin (Codex's PreToolUse hook).
+  // Silence lets the call through; a refusal is said in the form the tool expects.
+  await runHook(url, token);
+} else if (process.argv[2] === "mcp") {
   // Not a one-shot command: serve permission requests until the agent's CLI closes the pipe.
   runPermissionBridge(url, token);
 } else {
@@ -145,4 +149,36 @@ try {
 } catch (err) {
   fail(`Cannot reach LosPeritos: ${(err as Error).message}`);
 }
+}
+
+async function runHook(url: string, token: string): Promise<void> {
+  let call: { tool_name?: unknown; tool_input?: unknown };
+  try {
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+    call = JSON.parse(Buffer.concat(chunks).toString() || "{}") as typeof call;
+  } catch {
+    return; // Not a call we can read: leave it to the tool's own guard.
+  }
+  const tool = typeof call.tool_name === "string" ? call.tool_name : "";
+  if (!tool) return;
+  const input = call.tool_input !== null && typeof call.tool_input === "object" ? (call.tool_input as Record<string, unknown>) : {};
+  let decision = "approved";
+  try {
+    const response = await fetch(`${url}/agent/hook`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ tool, input }),
+    });
+    if (response.ok) decision = ((await response.json()) as { decision?: string }).decision ?? "approved";
+  } catch {
+    return; // The core cannot be reached: the sandbox is still there.
+  }
+  if (decision === "rejected") {
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: "The user refused this. Do not try it another way; say what you wanted to do and stop." },
+      }) + "\n",
+    );
+  }
 }

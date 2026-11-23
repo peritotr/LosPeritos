@@ -1146,3 +1146,21 @@ test("sign-in falls back to an app of the user's own, or to this app's public de
   const given = adapter.starts.at(-1)!.connectors!.ads as { headers: Record<string, string> };
   assert.deepEqual(given.headers, { "X-Team": "blue" });
 });
+
+test("a tool call shown by a hook goes through unless it publishes, deploys or destroys; then it waits for a seal", async () => {
+  const { core, workspace, tokenOf } = setup({ repo: false });
+  const token = tokenOf(0);
+  assert.equal(await core.screenToolCall(token, "Bash", { command: "npm test" }), "approved");
+  assert.equal(await core.screenToolCall(token, "shell", { command: ["bash", "-lc", "ls -la && cat README.md"] }), "approved");
+  assert.equal(core.listApprovals(workspace.id).length, 0);
+
+  const held = core.screenToolCall(token, "shell", { command: ["bash", "-lc", "npm run build && git push origin main"] });
+  await tick();
+  const [seal] = core.listApprovals(workspace.id);
+  assert.equal(seal!.kind, "command");
+  assert.match(seal!.detail, /git push origin main/);
+  await core.decideApproval(seal!.id, "rejected");
+  assert.equal(await held, "rejected");
+  await assert.rejects(async () => core.screenToolCall("made-up", "Bash", { command: "git push" }), /Unknown agent token/);
+  await core.close();
+});

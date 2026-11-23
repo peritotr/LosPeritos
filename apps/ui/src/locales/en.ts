@@ -355,7 +355,7 @@ export const en = {
     codex: "Codex (experimental)",
     agentToolHint: "The team of this bureau runs on Claude Code. Changing the tool starts the team's conversations afresh; dossiers and the notebook stay.",
     codexHint:
-      "The team runs on your own Codex, which must be installed and signed in (codex login). Codex does not stop to ask: no command waits for your seal, only its own sandbox keeps it inside the working folder. Connectors are not given to a Codex team, and spending is counted in tokens, not dollars. This has been built from Codex's documentation and not yet tried against a real account.",
+      "The team runs on your own Codex, which must be installed and signed in (codex login). Codex does not stop to ask by itself. Each call is shown to a hook that holds a command which publishes, deploys or destroys for your seal; whether Codex runs that hook has not yet been seen on a real turn, so until then count on its sandbox, which keeps it inside the working folder. Connectors are not given to a Codex team, and spending is counted in tokens, not dollars.",
     fullHint:
       "Peritos edit files and run ordinary commands without asking. Merges, and commands that publish, deploy, delete or reach other machines, wait for your seal.",
     restrictedHint: "Peritos can read the folder freely, and ask for your seal before every edit and every command.",

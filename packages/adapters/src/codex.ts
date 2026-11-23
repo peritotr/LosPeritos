@@ -157,8 +157,17 @@ export class CodexAdapter implements Adapter {
       else config.push(`${key}.command=${toml(server.command)}`, `${key}.args=${toml(server.args)}`, `${key}.env=${toml(server.env)}`);
     }
 
+    // Codex cannot ask before a command, but it can show each call to a hook first: the bridge's own
+    // command, run as `hook`, holds the risky ones for the user's seal. Unknown settings are ignored by
+    // Codex, so where hooks do not run this changes nothing.
+    const hook = options.permissionBridge
+      ? [options.permissionBridge.command, ...options.permissionBridge.args.slice(0, -1), "hook"].map((word) => (/[^\w@%+=:,./-]/.test(word) ? `'${word.replace(/'/g, "'\\''")}'` : word)).join(" ")
+      : null;
+    if (hook) config.push(`hooks.PreToolUse=[{matcher=".*",hooks=[{type="command",command=${toml(hook)},timeout=604800}]}]`);
+
     const turn = (text: string) => {
       const args = ["exec", "--json", "--skip-git-repo-check", "-C", options.cwd, "-s", "workspace-write"];
+      if (hook) args.push("--dangerously-bypass-hook-trust");
       // A model name meant for another tool would be refused: only Codex's own are passed on.
       if (options.model && /^(gpt|o\d|codex)/i.test(options.model)) args.push("-m", options.model);
       for (const entry of config) args.push("-c", entry);
@@ -180,8 +189,10 @@ export class CodexAdapter implements Adapter {
           thread = { threadId: parsed.threadId, inputTokens: thread?.threadId === parsed.threadId ? thread.inputTokens : 0, outputTokens: thread?.threadId === parsed.threadId ? thread.outputTokens : 0 };
           if (options.sessionId) this.keep(options.sessionId, thread);
         }
+        // Codex says a failure twice, as an error and as a failed turn: once is enough.
+        const again = parsed.failed && failed;
         if (parsed.failed) failed = true;
-        parsed.events.forEach(emit);
+        if (!again) parsed.events.forEach(emit);
         if (parsed.usage) {
           // Codex counts for the whole thread: what this turn used is the difference.
           const input = Math.max(0, parsed.usage.input - (thread?.inputTokens ?? 0));

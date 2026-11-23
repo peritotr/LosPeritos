@@ -18,6 +18,16 @@ export function parseLimit(message: string, now = new Date()): { resetAt: string
   if (!/usage limit|hit your limit|limit reached|out of (extra )?usage|out of credits|quota exceeded|spend (cap|limit)/i.test(message)) return undefined;
   const epoch = /\|(\d{10})\b/.exec(message);
   if (epoch) return { resetAt: new Date(Number(epoch[1]) * 1000).toISOString() };
+  // Codex gives the day as well: "try again at Nov 29th, 2026 12:29 AM".
+  const dated = /try again at\s+([A-Z][a-z]{2})[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4}),?\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i.exec(message);
+  if (dated) {
+    const month = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].indexOf(dated[1]!.toLowerCase());
+    let hour = Number(dated[4]);
+    const half = dated[6]?.toLowerCase();
+    if (half === "pm" && hour < 12) hour += 12;
+    if (half === "am" && hour === 12) hour = 0;
+    if (month >= 0) return { resetAt: new Date(Number(dated[3]), month, Number(dated[2]), hour, Number(dated[5])).toISOString() };
+  }
   const clock = /(?:reset(?:s)?(?: at)?|try again at)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i.exec(message);
   if (clock) {
     let hour = Number(clock[1]);

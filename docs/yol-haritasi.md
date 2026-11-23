@@ -118,8 +118,9 @@ terminal sekmesi yapılmadı; ajan çıktısı hâlâ katlanabilir bloklarla gö
 
 Yapıldı, deneysel. Büro bazında seçilir (Ayarlar → Ajan aracı). Codex durup
 sormadığı için hiçbir komut mühür beklemez; Codex heyetine bağlayıcı
-verilmez. Codex'in kaynak ve belgelerine göre yazıldı, sahte bir `codex`
-komutuyla test edildi; gerçek hesapla denenmedi. Bir araç limite takılınca
+verilmez. Gerçek hesapla denendi: komut satırı kabul edildi ve kullanım
+limiti tanındı; hesap limitte olduğu için tam bir tur çalıştırılamadı. Riskli
+komutları mühre bağlayan kanca yazıldı ama gerçek bir turda tetiklendiği görülmedi. Bir araç limite takılınca
 diğerinin devralması, OpenCode ve Gemini CLI yapılmadı.
 
 ### 9. Kod ve Git paneli (O)
@@ -143,8 +144,8 @@ diğerinin devralması, OpenCode ve Gemini CLI yapılmadı.
 
 - Geliştirme sunucusunu uygulama içinde gösterme: yapıldı ("Önizleme" ekranı;
   masaüstü, tablet ve telefon genişliği; terminalin yazdığı adres tek tıkla açılır).
-- Ekrandan bir yeri işaretleyip "burayı düzelt" deme: yapılmadı; sayfa için
-  Baş Perito'ya not başlatılabiliyor.
+- Ekrandan bir yeri işaretleyip "burayı düzelt" deme: yapıldı (masaüstü
+  uygulamasında; işaretli alanın resmi Baş Perito'ya yazılan mesaja eklenir).
 - iOS simülatörü ve Android emülatörü daha sonra.
 
 ### 12. Yayın (B)
@@ -158,14 +159,17 @@ diğerinin devralması, OpenCode ve Gemini CLI yapılmadı.
 Yapıldı. Ayarlardan açılır; aynı ağdaki telefonda soruları yanıtlamak,
 mühürlemek ve Baş Perito'ya yazmak için küçük bir sayfa sunar. Anahtar
 adresin içindedir ve şifrelenmeden gider: yalnızca güvenilen ağ için.
-Uygulama kapalıyken bildirim ve ev dışından erişim (Tailscale dışında) yok.
+Sayfa uygulamanın kendi sertifikasıyla şifreli sunulur. Bildirim: ntfy
+sunucusu üzerinden, yalnızca "bir şey bekliyor" bilgisiyle. Ev dışından
+erişim için Tailscale gibi özel bir ağ gerekir.
 
 ### 14. Çok projeli koordinatör (O)
 
 Tüm büroların üstünde tek sohbet: yapıldı. Bürolar arası devir: yapıldı. Bir
 büronun başı diğer büroları görebilir (`peritos bureaus`) ve iş devredebilir
 (`peritos send --to bureau:<ad>`); altı devirden sonra kullanıcının o büroya
-yazması gerekir. Hepsinin üstünde ayrı bir koordinatör ajan yok.
+yazması gerekir. Koordinatör perito: yapıldı; iki büro olunca yan menüden eklenir, işi
+bürolara dağıtır, kendisi iş yapmaz (gerçek Claude ile bir kez denendi).
 
 ### 15. İlk kullanım (K)
 
