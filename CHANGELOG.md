@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Drafts that hold**
+- A member working in a draft cannot edit the project folder with its file
+  tools: the folder is read-only to it, and drafts are kept apart from the
+  project, with the machine's own state.
+- If files in the project change anyway while such a task runs, the seal and
+  the chat name them. They are shown, not undone, because the user may have
+  made those changes.
+
 **A team that does not go quiet**
 - A team member that stops with its task still open is reminded once to
   report or to ask. If it stops again, the user is asked in its name, with

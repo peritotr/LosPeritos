@@ -210,11 +210,60 @@ function filesUnder(dir: string): string[] {
   return out.sort();
 }
 
+/** Where the picture of the project taken when a draft was started is kept. */
+const snapshotOf = (draft: string) => `${draft}.snapshot.json`;
+
 /** Remove a task's worktree, or its draft folder when it has no branch. */
 async function dropWorkplace(repo: string, task: Task): Promise<void> {
   if (!task.worktree) return;
   if (task.branch) await git.removeWorktree(repo, task.worktree).catch(() => undefined);
-  else rmSync(task.worktree, { recursive: true, force: true });
+  else {
+    rmSync(task.worktree, { recursive: true, force: true });
+    rmSync(snapshotOf(task.worktree), { force: true });
+  }
+}
+
+const MAX_SNAPSHOT_FILES = 5000;
+
+/**
+ * Size and time of every file in a project folder, to tell later what
+ * changed. Null when the folder is too large to keep watch over this way.
+ */
+function fingerprint(root: string): Record<string, string> | null {
+  const out: Record<string, string> = {};
+  let count = 0;
+  const walk = (at: string): boolean => {
+    for (const entry of readdirSync(at, { withFileTypes: true })) {
+      if (entry.name === ".losperitos" || entry.name === ".git" || entry.name === "node_modules") continue;
+      const full = join(at, entry.name);
+      if (entry.isDirectory()) {
+        if (!walk(full)) return false;
+      } else if (entry.isFile()) {
+        if (++count > MAX_SNAPSHOT_FILES) return false;
+        const stat = statSync(full);
+        out[relative(root, full)] = `${stat.size}:${Math.round(stat.mtimeMs)}`;
+      }
+    }
+    return true;
+  };
+  try {
+    return walk(root) ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Files of the project that were added, changed or removed since the picture was taken. */
+function strayed(root: string, draft: string): string[] {
+  let before: Record<string, string>;
+  try {
+    before = JSON.parse(readFileSync(snapshotOf(draft), "utf8"));
+  } catch {
+    return [];
+  }
+  const now = fingerprint(root);
+  if (!now) return [];
+  return [...new Set([...Object.keys(before), ...Object.keys(now)])].filter((file) => before[file] !== now[file]).sort();
 }
 
 /** Git repos at the folder itself and one level below it. */
@@ -1056,6 +1105,15 @@ export class Core {
           for (const file of changed) files.add(file);
         }
         const needsSeal = needsMerge || !!draft?.length;
+        // The project is read-only to a member working in a draft; anything that changed there anyway
+        // is shown, not undone: the user may have been editing the same folder.
+        const outside = draft ? strayed(state.workspace.path, task.worktree!) : [];
+        const outsideNote = outside.length
+          ? `Changed in the project outside the draft while this task ran: ${outside.slice(0, 20).join(", ")}${outside.length > 20 ? ` and ${outside.length - 20} more` : ""}`
+          : null;
+        if (outsideNote) {
+          this.addMessage(state, { author: { kind: "system" }, toAgentId: null, taskId: task.id, body: `Task #${task.number}: ${outsideNote}`, question: null });
+        }
         const reported = state.tasks.put({
           ...task,
           report: { ...command.report, files: [...files] },
@@ -1076,6 +1134,7 @@ export class Core {
             ...command.report.done.map((line) => `Done: ${line}`),
             ...command.report.tested.map((line) => `Tested: ${line}`),
             ...command.report.notVerified.map((line) => `Not verified: ${line}`),
+            ...(outsideNote ? [outsideNote] : []),
           ].join("\n"),
           steps: draft
             ? [...draft.map((file) => `${existsSync(join(state.workspace.path, file)) ? "Replace" : "Add"} ${file}`), "Remove the draft"]
@@ -1235,9 +1294,13 @@ export class Core {
         }
         // Outside git, documents are written to a draft folder, so that they too wait for the user.
         if (!worktree && (state.workspace.kind ?? "software") !== "software") {
-          worktree = join(state.store.dir, "drafts", `task-${task.number}`);
+          // Kept apart from the project, which the member may read but not edit.
+          worktree = join(this.options.dataDir, "drafts", state.workspace.id, `task-${task.number}`);
           rmSync(worktree, { recursive: true, force: true });
           mkdirSync(worktree, { recursive: true });
+          const picture = fingerprint(state.workspace.path);
+          if (picture) writeFileSync(snapshotOf(worktree), JSON.stringify(picture));
+          else rmSync(snapshotOf(worktree), { force: true });
         }
         const started = state.tasks.put({
           ...task,
@@ -1483,6 +1546,7 @@ export class Core {
         model: agent.role === "member" ? MODEL_FOR[task?.effort ?? "normal"] : undefined,
         // A draft folder holds only new work; the project itself is read from beside it.
         addDirs: [this.attachmentsDir(state), ...(task?.worktree && !task.branch ? [state.workspace.path] : [])],
+        readOnlyDirs: agent.role === "member" && task?.worktree && !task.branch ? [state.workspace.path] : [],
         ...(this.bridge && {
           permissionBridge: {
             command: process.execPath,

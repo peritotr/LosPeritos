@@ -36,8 +36,10 @@ Birinci adım (O), yalnızca dosya üreten işler:
 
 Birinci adım yapıldı. Git olmayan klasörde yazılım dışı bürolar taslak
 klasöründe çalışır; dosyalar mühürden sonra klasöre kopyalanır. Pazarlama
-ve içerik büroları gerçek Claude ile uçtan uca denendi. Eksik kalan: taslak
-yalıtımı talimata dayanıyor, teknik olarak zorlanmıyor.
+ve içerik büroları gerçek Claude ile uçtan uca denendi. Taslak yalıtımı artık
+zorlanıyor: proje klasörü peritonun dosya araçlarına salt okunur, taslaklar
+proje dışında tutuluyor ve klasörde taslak dışında değişen dosyalar mühürde
+gösteriliyor. Kabuk komutları bu korumanın dışında; bu bir kum havuzu değil.
 
 İkinci adım (B):
 

@@ -436,6 +436,7 @@ export const tr: Strings = {
     toggleTheme: "Temayı değiştir",
   },
   core: [
+    [/^(?:Task #(\d+): )?Changed in the project outside the draft while this task ran: (.*)$/, "Bu dosya çalışırken proje klasöründe taslağın dışında değişenler: $2"],
     [/^Task #(\d+) stopped without a report\. Last said:$/, "#$1 numaralı dosya rapor verilmeden durdu. Son söylediği:"],
     [/^Task #(\d+) stopped without a report\.$/, "#$1 numaralı dosya rapor verilmeden durdu."],
     [/^Today's budget is spent\.$/, "Bugünkü bütçe doldu."],

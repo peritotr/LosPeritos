@@ -620,3 +620,29 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   assert.deepEqual((adapter.starts.at(-1)!.connectors!.shop as { args: string[] }).args, [serverFile, "--v2"]);
   await core.close();
 });
+
+test("a draft is kept apart from the project, which is read-only to it; what changes there anyway is shown", async () => {
+  const { core, adapter, folder, workspace, dataDir, as } = setup({ repo: false });
+  core.updateWorkspace(workspace.id, { kind: "marketing" });
+  writeFileSync(join(folder, "brief.md"), "old\n");
+  await as(0, { command: "task.create", title: "Keyword plan", specialty: "seo" });
+  const [task] = core.listTasks(workspace.id);
+  assert.ok(task!.worktree!.startsWith(join(dataDir, "drafts")), "the draft is outside the project folder");
+  assert.deepEqual(adapter.starts[1]!.readOnlyDirs, [folder]);
+  assert.deepEqual(adapter.starts[0]!.readOnlyDirs, [], "the lead works in the folder itself");
+
+  // The member writes one file where it should, and two straight into the project.
+  writeFileSync(join(task!.worktree!, "keywords.md"), "# Keywords\n");
+  writeFileSync(join(folder, "brief.md"), "changed in place, and longer\n");
+  writeFileSync(join(folder, "stray.md"), "x\n");
+  await as(1, { command: "task.done", report: { done: ["plan"], tested: [], notVerified: [] } });
+  const [approval] = core.waiting().approvals;
+  assert.match(approval!.detail, /Changed in the project outside the draft while this task ran: brief\.md, stray\.md$/);
+  assert.ok(core.listMessages(workspace.id).some((m) => m.author.kind === "system" && /^Task #1: Changed in the project outside the draft/.test(m.body)));
+  assert.deepEqual(approval!.steps, ["Add keywords.md", "Remove the draft"]);
+  // Shown, not undone: the user may have made those changes.
+  assert.equal(readFileSync(join(folder, "brief.md"), "utf8"), "changed in place, and longer\n");
+  await core.decideApproval(approval!.id, "approved");
+  assert.ok(existsSync(join(folder, "keywords.md")));
+  assert.ok(!existsSync(task!.worktree!) && !existsSync(task!.worktree! + ".snapshot.json"), "draft and its picture removed");
+});

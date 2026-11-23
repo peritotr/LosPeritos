@@ -59,6 +59,11 @@ export interface StartOptions {
   connectors?: Record<string, McpServer>;
   /** Folders outside `cwd` the agent may read, e.g. where attachments are kept. */
   addDirs?: string[];
+  /**
+   * Folders the agent may read but must not write to with its file tools.
+   * Shell commands are not held back by this; it is a guard, not a sandbox.
+   */
+  readOnlyDirs?: string[];
   /** Extra environment for the agent process, on top of the core's own. */
   env?: Record<string, string>;
 }

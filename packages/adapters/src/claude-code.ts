@@ -179,11 +179,15 @@ export class ClaudeCodeAdapter implements Adapter {
         "--permission-prompt-tool",
         "mcp__peritos__approve",
       );
-      // An "ask" rule wins over the broad Bash allowance above, so these always go to the user.
-      if (options.trustMode === "full") {
-        args.push("--settings", JSON.stringify({ permissions: { ask: RISKY_COMMANDS.map((prefix) => `Bash(${prefix}:*)`) } }));
-      }
     }
+    const permissions: { ask?: string[]; deny?: string[] } = {};
+    // An "ask" rule wins over the broad Bash allowance above, so these always go to the user.
+    if (options.permissionBridge && options.trustMode === "full") {
+      permissions.ask = RISKY_COMMANDS.map((prefix) => `Bash(${prefix}:*)`);
+    }
+    // A "deny" rule wins over everything: these folders are read, never edited. `//` marks an absolute path.
+    if (options.readOnlyDirs?.length) permissions.deny = options.readOnlyDirs.map((dir) => `Edit(/${dir}/**)`);
+    if (permissions.ask || permissions.deny) args.push("--settings", JSON.stringify({ permissions }));
 
     const child = spawn(this.bin, args, {
       cwd: options.cwd,
