@@ -17,6 +17,7 @@ import type {
   ToolOutcome,
   WorkspaceKind,
   Connector,
+  Page,
   RepoState,
   ConnectorTool,
   SaveConnectorRequest,
@@ -316,6 +317,11 @@ export interface Actions {
   repoFiles(workspaceId: string, repo?: string | null): Promise<{ files: string[]; more: boolean }>;
   repoFile(workspaceId: string, path: string, repo?: string | null): Promise<TaskFile>;
   repoSearch(workspaceId: string, query: string, repo?: string | null): Promise<Array<{ path: string; line: number; text: string }>>;
+  /** The bureau's notebook, newest first. */
+  pages(workspaceId: string): Promise<Page[]>;
+  removePage(pageId: string): Promise<Page[]>;
+  /** Markdown files of the project folder. */
+  docs(workspaceId: string): Promise<string[]>;
   connectors(workspaceId: string): Promise<Connector[]>;
   connectorTools(workspaceId: string, connectorId: string): Promise<ConnectorTool[]>;
   /** The provider's page to open in the browser to sign in to a connector. */
@@ -478,6 +484,9 @@ export function useCore(): [State, Actions] {
     repoFile: (workspaceId, path, repo) => post<TaskFile>(`/workspaces/${workspaceId}/repo/file${query({ path, repo })}`, undefined, "GET"),
     repoSearch: async (workspaceId, words, repo) =>
       (await post<{ hits: Array<{ path: string; line: number; text: string }> }>(`/workspaces/${workspaceId}/repo/search${query({ q: words, repo })}`, undefined, "GET")).hits,
+    pages: (workspaceId) => post<Page[]>(`/workspaces/${workspaceId}/pages`, undefined, "GET"),
+    removePage: (pageId) => post<Page[]>(`/pages/${pageId}/remove`, {}),
+    docs: async (workspaceId) => (await post<{ files: string[] }>(`/workspaces/${workspaceId}/docs`, undefined, "GET")).files,
     connectors: (workspaceId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, undefined, "GET"),
     connectorTools: async (workspaceId, connectorId) =>
       (await post<{ tools: ConnectorTool[] }>(`/workspaces/${workspaceId}/connectors/${connectorId}/tools`, undefined, "GET")).tools,

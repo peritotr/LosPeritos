@@ -3,6 +3,7 @@
  * `peritos` — how an agent talks to the LosPeritos core.
  * The core starts each agent with LOSPERITOS_URL and LOSPERITOS_AGENT_TOKEN set.
  */
+import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import type { AgentCommandInput } from "@losperitos/protocol";
 import { runPermissionBridge } from "./mcp.js";
@@ -14,7 +15,8 @@ const USAGE = `Usage:
   peritos send --to <agent name|lead|user> <message>
   peritos ask <question> [--option <o>...] [--recommend <o>]
   peritos approval --title <t> [--kind deploy|command|other] [--detail <d>] [--step <s>...] [--irreversible]
-  peritos lesson <text>`;
+  peritos lesson <text>
+  peritos page --title <t> (--file <markdown file> | <markdown text>)`;
 
 function fail(message: string): never {
   console.error(message);
@@ -89,6 +91,18 @@ function build(argv: string[]): AgentCommandInput {
       };
     case "lesson":
       return { command: "lesson", text };
+    case "page": {
+      const [file] = values.file ?? [];
+      let body = text;
+      if (file) {
+        try {
+          body = readFileSync(file, "utf8");
+        } catch {
+          fail(`Cannot read ${file}`);
+        }
+      }
+      return { command: "page", title: values.title ?? "", body };
+    }
     default:
       fail(USAGE);
   }

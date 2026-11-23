@@ -129,7 +129,9 @@ devralabilir. Sonra OpenCode ve Gemini CLI.
 
 ### 10. Belgeler (B)
 
-- Proje sayfaları ve wiki (Markdown).
+- Proje sayfaları ve wiki (Markdown): yapıldı. "Belgeler" ekranı büro
+  defterini (heyetin yazdığı sayfalar), klasördeki Markdown dosyalarını ve
+  dersleri bir arada gösteriyor. Sayfaları kullanıcı düzenleyemiyor, yalnızca siliyor.
 - Özellik planı sayfası: plan, görevleri, kararları tek yerde.
 - Diyagramlar; ajan çizer, sen onaylarsın.
 - Arşivdeki dersleri bu bölüme taşıma.

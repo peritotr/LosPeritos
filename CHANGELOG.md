@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Documents**
+- A Documents screen gathers what there is to read about a bureau: the
+  notebook its team keeps, the Markdown files of the project folder, and the
+  lessons you have admitted.
+- The team can keep pages in the notebook (`peritos page`): a plan, a decision
+  and its reasons, findings worth keeping. A page is the bureau's own, not a
+  file of the project, and you can delete it.
+
 **Several repositories in one folder**
 - When a folder holds several git repositories rather than being one, a task
   can name the one it works in and gets its own branch there; the lead is told

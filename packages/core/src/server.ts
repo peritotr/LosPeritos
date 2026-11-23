@@ -94,6 +94,9 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "GET /workspaces/:workspaceId/repo/diff": async (p, _body, query) => ({
       diff: await core.repoDiff(p.workspaceId!, query.get("commit"), query.get("repo")),
     }),
+    "GET /workspaces/:workspaceId/pages": (p) => core.listPages(p.workspaceId!),
+    "POST /pages/:pageId/remove": (p) => core.removePage(p.pageId!),
+    "GET /workspaces/:workspaceId/docs": (p) => core.listDocs(p.workspaceId!),
     "GET /workspaces/:workspaceId/connectors": (p) => core.listConnectors(p.workspaceId!),
     "POST /workspaces/:workspaceId/connectors": (p, body) =>
       core.saveConnector(p.workspaceId!, parse(SaveConnectorRequest, body)),

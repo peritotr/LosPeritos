@@ -17,6 +17,7 @@ import type {
   EventEnvelope,
   Lesson,
   Message,
+  Page,
   RepoState,
   Run,
   SaveConnectorRequest,
@@ -64,6 +65,7 @@ interface WorkspaceState {
   messages: Collection<Message>;
   approvals: Collection<Approval>;
   lessons: Collection<Lesson>;
+  pages: Collection<Page>;
   runs: Collection<Run>;
   /** Tail of the chain that serialises task starts in this workspace. */
   queue: Promise<void>;
@@ -76,6 +78,8 @@ const BRIDGE_PROMPT =
   "requests the user's approval before anything that deploys, publishes, deletes data or cannot be undone; then stop and wait.\n" +
   "- `peritos send --to <agent name|lead|user> \"<message>\"` messages a teammate.\n" +
   "- `peritos lesson \"<rule>\"` proposes a lasting rule for this project.\n" +
+  "- `peritos page --title \"<title>\" --file <markdown file>` keeps a page in the bureau's notebook for the user to read: " +
+  "a plan, a decision and its reasons, findings worth keeping. A page with the same title is replaced. It is not a file of the project.\n" +
   "- `peritos task list` shows all tasks.\n" +
   "If something you cannot fix stops you (a missing key or access, an account without credit, a call that was refused), " +
   "do not end with a message about it: ask the user for what you need with `peritos ask`, then stop and wait.\n";
@@ -645,6 +649,7 @@ export class Core {
       messages: store.collection("messages"),
       approvals: store.collection("approvals"),
       lessons: store.collection("lessons"),
+      pages: store.collection("pages"),
       runs: store.collection("runs"),
       queue: Promise.resolve(),
     };
@@ -806,6 +811,43 @@ export class Core {
 
   listApprovals(workspaceId: string): Approval[] {
     return this.state(workspaceId).approvals.all();
+  }
+
+  /** The bureau's notebook, most recently written first. */
+  listPages(workspaceId: string): Page[] {
+    return this.state(workspaceId)
+      .pages.all()
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  removePage(pageId: string): Page[] {
+    const { state } = this.find((s) => s.pages, pageId, "page");
+    state.pages.remove(pageId);
+    return this.listPages(state.workspace.id);
+  }
+
+  /** Markdown files of the project folder, a few levels deep, for reading beside the notebook. */
+  listDocs(workspaceId: string): { files: string[] } {
+    const root = this.state(workspaceId).workspace.path;
+    const files: string[] = [];
+    const walk = (dir: string, depth: number) => {
+      let entries;
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (files.length >= 300) return;
+        if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (depth < 5) walk(full, depth + 1);
+        } else if (/\.(md|markdown)$/i.test(entry.name)) files.push(relative(root, full));
+      }
+    };
+    walk(root, 0);
+    return { files: files.sort() };
   }
 
   listLessons(workspaceId: string): Lesson[] {
@@ -1398,6 +1440,21 @@ export class Core {
         });
         this.emit({ type: "lesson.updated", lesson });
         return say("Lesson proposed; the user decides whether to keep it.");
+      }
+      case "page": {
+        const now = this.now().toISOString();
+        const before = state.pages.all().find((page) => page.title.toLowerCase() === command.title.toLowerCase());
+        state.pages.put({
+          id: before?.id ?? randomUUID(),
+          workspaceId: state.workspace.id,
+          title: command.title,
+          body: command.body,
+          authorAgentId: agent.id,
+          taskId: agent.taskId,
+          createdAt: before?.createdAt ?? now,
+          updatedAt: now,
+        });
+        return say(before ? `Page "${command.title}" replaced.` : `Page "${command.title}" kept in the notebook.`);
       }
     }
   }

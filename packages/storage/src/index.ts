@@ -47,6 +47,11 @@ export class Collection<T extends { id: string }> {
     writeJson(this.file, this.items);
     return item;
   }
+
+  remove(id: string): void {
+    this.items = this.items.filter((item) => item.id !== id);
+    writeJson(this.file, this.items);
+  }
 }
 
 export class WorkspaceStore {

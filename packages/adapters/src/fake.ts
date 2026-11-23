@@ -142,6 +142,15 @@ export class FakeAdapter implements Adapter {
           ],
         };
         const tasks = jobs[kind];
+        // The plan goes into the bureau's notebook, where the user can read it later.
+        await bridge({
+          command: "page",
+          title: "Plan for the demo job",
+          body:
+            "# Plan for the demo job\n\nThe job is split into three dossiers, each for one perito.\n\n" +
+            tasks.map(([title, specialty, description], index) => `${index + 1}. **${title}** (${specialty}): ${description.replace(/ \[demo:\w+\]/, "")}`).join("\n") +
+            "\n\n> Nothing reaches the project without your seal.\n",
+        });
         for (const [title, specialty, description] of tasks) {
           await bridge({ command: "task.create", title, specialty, description });
           await type("…");

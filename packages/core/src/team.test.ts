@@ -823,3 +823,27 @@ test("in a folder that holds several repositories, a task works on a branch of t
   await assert.rejects(core.repo(workspace.id, "../elsewhere"), /No repository/);
   await assert.rejects(core.repo(workspace.id), /not a git repository/);
 });
+
+test("the team keeps pages in the bureau's notebook, and the project's Markdown files are listed beside them", async () => {
+  const { core, folder, workspace, as } = setup({ repo: false });
+  const kept = await as(0, { command: "page", title: "Launch plan", body: "# Plan\n\n1. Write\n" });
+  assert.match(kept.message, /kept in the notebook/);
+  await tick();
+  const replaced = await as(0, { command: "page", title: "launch plan", body: "# Plan\n\n1. Write\n2. Review\n" });
+  assert.match(replaced.message, /replaced/);
+  const [page] = core.listPages(workspace.id);
+  assert.equal(core.listPages(workspace.id).length, 1, "the same title, in any case, is one page");
+  assert.match(page!.body, /2\. Review/);
+  assert.equal(page!.authorAgentId, core.listAgents(workspace.id)[0]!.id);
+  assert.ok(!existsSync(join(folder, "Launch plan.md")), "a page is not a file of the project");
+
+  sh(folder, "mkdir", "-p", "docs/guides", "node_modules/x", ".hidden");
+  for (const file of ["README.md", "docs/guides/setup.md", "docs/notes.txt", "node_modules/x/README.md", ".hidden/secret.md"]) {
+    writeFileSync(join(folder, file), "# x\n");
+  }
+  assert.deepEqual(core.listDocs(workspace.id).files, ["README.md", "docs/guides/setup.md"]);
+  assert.equal(core.repoFile(workspace.id, "docs/guides/setup.md").mime, "text/markdown");
+
+  assert.deepEqual(core.removePage(page!.id), []);
+  assert.throws(() => core.removePage(page!.id), /No page/);
+});

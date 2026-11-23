@@ -23,11 +23,13 @@ import {
   WifiOff,
   Wrench,
   ChevronsDown,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 import { Chat } from "./Chat";
 import { UpdateNotice, useUpdates } from "./updates";
 import { Code } from "./code";
+import { Docs } from "./docs";
 import { openQuestions, pendingApprovals, type Ctx, type Route } from "./context";
 import { Archive, Awaiting, BudgetBar, Ledger, SealToast, Settings, Setup } from "./screens-desk";
 import { Bench, Correspondence, FileDetail, Files, PeritoDetail } from "./screens-work";
@@ -42,7 +44,7 @@ const BUREAU_KEY = "losperitos.bureau";
 const CHAT_KEY = "losperitos.chat";
 const MODE_KEY = "losperitos.mode";
 /** Screens the plain view leaves out of the side bar. */
-const ADVANCED_ONLY: ReadonlySet<string> = new Set(["code", "mail", "archive", "ledger"]);
+const ADVANCED_ONLY: ReadonlySet<string> = new Set(["code", "docs", "mail", "archive", "ledger"]);
 
 function stored(key: string): string | null {
   try {
@@ -59,11 +61,12 @@ function store(key: string, value: string) {
   }
 }
 
-type NavScreen = "bench" | "files" | "code" | "mail" | "awaiting" | "archive" | "ledger";
+type NavScreen = "bench" | "files" | "code" | "docs" | "mail" | "awaiting" | "archive" | "ledger";
 const NAV: Array<[NavScreen, string, LucideIcon]> = [
   ["bench", T.nav.bench, LayoutGrid],
   ["files", T.nav.files, FilesIcon],
   ["code", T.nav.code, GitBranch],
+  ["docs", T.nav.docs, BookOpen],
   ["mail", T.nav.correspondence, MessagesSquare],
   ["awaiting", T.nav.awaiting, Inbox],
   ["archive", T.nav.archive, ArchiveIcon],
@@ -351,6 +354,8 @@ export function App() {
               <Awaiting ctx={ctx} selectedId={screen.id} />
             ) : screen.screen === "archive" ? (
               <Archive {...ctx} />
+            ) : screen.screen === "docs" ? (
+              <Docs {...ctx} />
             ) : screen.screen === "code" ? (
               <Code {...ctx} />
             ) : screen.screen === "ledger" ? (

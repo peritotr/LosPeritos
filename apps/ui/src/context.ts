@@ -3,7 +3,7 @@ import type { Actions, State } from "./store";
 import type { Updates } from "./updates";
 
 export type Route =
-  | { screen: "bench" | "files" | "code" | "mail" | "archive" | "ledger" | "settings" | "setup" }
+  | { screen: "bench" | "files" | "code" | "docs" | "mail" | "archive" | "ledger" | "settings" | "setup" }
   | { screen: "file"; id: string }
   | { screen: "perito"; id: string }
   /** `id` selects one seal or question. */

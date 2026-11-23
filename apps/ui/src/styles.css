@@ -652,3 +652,5 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .code-tree { max-height: 420px; overflow: auto; margin-top: 8px; }
 .code-tree .code-row { padding-top: 3px; padding-bottom: 3px; }
 .code-text .diff-line { grid-template-columns: 48px 6px 1fr; }
+.docs-body { max-height: none; font-size: 14px; line-height: 1.6; max-width: 760px; }
+.code-side h5 { display: flex; align-items: center; gap: 6px; }

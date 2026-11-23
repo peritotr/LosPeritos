@@ -222,6 +222,27 @@ export const Lesson = z.object({
   createdAt: timestamp,
 });
 
+// ── Page ────────────────────────────────────────────────────────────────────
+
+/**
+ * A page in the bureau's notebook: a plan, a decision, findings worth
+ * keeping. Written by the team for the user to read; it is the bureau's own
+ * and not a file of the project.
+ */
+export const Page = z.object({
+  id,
+  workspaceId: id,
+  title: z.string(),
+  /** Markdown. */
+  body: z.string(),
+  authorAgentId: id.nullable(),
+  /** The task it was written for, if any. */
+  taskId: id.nullable(),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+});
+export const MAX_PAGE_CHARS = 200_000;
+
 // ── Run & budget ────────────────────────────────────────────────────────────
 
 export const Run = z.object({
@@ -441,6 +462,11 @@ export const routes = {
   repoFile: "GET /workspaces/:workspaceId/repo/file",
   /** `?q=`: `{ hits: [{ path, line, text }] }`, lines of text files containing the words, any case. */
   repoSearch: "GET /workspaces/:workspaceId/repo/search",
+  /** The bureau's notebook, newest first. */
+  pages: "GET /workspaces/:workspaceId/pages",
+  removePage: "POST /pages/:pageId/remove",
+  /** `{ files: string[] }`: Markdown files of the project folder, to read beside the notebook. */
+  docs: "GET /workspaces/:workspaceId/docs",
   connectors: "GET /workspaces/:workspaceId/connectors",
   saveConnector: "POST /workspaces/:workspaceId/connectors",
   removeConnector: "POST /workspaces/:workspaceId/connectors/:connectorId/remove",
@@ -519,6 +545,8 @@ export const AgentCommand = z.discriminatedUnion("command", [
     reversible: z.boolean().default(true),
   }),
   z.object({ command: z.literal("lesson"), text: z.string().min(1) }),
+  /** Keep a page in the bureau's notebook; a page with the same title is replaced. */
+  z.object({ command: z.literal("page"), title: z.string().trim().min(1).max(120), body: z.string().min(1).max(MAX_PAGE_CHARS) }),
 ]);
 export type AgentCommand = z.infer<typeof AgentCommand>;
 /** What the CLI sends: defaults not yet applied. */
@@ -601,6 +629,7 @@ export type SaveConnectorRequest = z.infer<typeof SaveConnectorRequest>;
 export type ApprovalStatus = z.infer<typeof ApprovalStatus>;
 export type Approval = z.infer<typeof Approval>;
 export type LessonStatus = z.infer<typeof LessonStatus>;
+export type Page = z.infer<typeof Page>;
 export type Lesson = z.infer<typeof Lesson>;
 export type Run = z.infer<typeof Run>;
 export type BudgetState = z.infer<typeof BudgetState>;
