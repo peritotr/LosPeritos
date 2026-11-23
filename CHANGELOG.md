@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 — 2026-11-23
 
 **A lead that decides the routine**
 - A bureau can leave routine decisions to its lead (Settings → Who seals).
