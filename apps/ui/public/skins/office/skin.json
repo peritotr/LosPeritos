@@ -240,6 +240,53 @@
       }
     }
   ],
+  "lead": {
+    "src": "character-lead.png",
+    "frameWidth": 20,
+    "frameHeight": 26,
+    "clips": {
+      "idle": {
+        "row": 0,
+        "frames": [
+          0,
+          1
+        ],
+        "secondsPerFrame": 0.9
+      },
+      "working": {
+        "row": 0,
+        "frames": [
+          0,
+          1
+        ],
+        "secondsPerFrame": 0.22
+      },
+      "asking": {
+        "row": 0,
+        "frames": [
+          0,
+          2
+        ],
+        "secondsPerFrame": 0.3
+      },
+      "awaiting_seal": {
+        "row": 0,
+        "frames": [
+          0,
+          1
+        ],
+        "secondsPerFrame": 0.9
+      },
+      "error": {
+        "row": 0,
+        "frames": [
+          0
+        ],
+        "secondsPerFrame": 1
+      },
+      "off_duty": null
+    }
+  },
   "pets": {
     "frenchBulldog": {
       "src": "pet-french-bulldog.png",

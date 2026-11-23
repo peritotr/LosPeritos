@@ -50,7 +50,7 @@ const socialCard = `(() => {
 const frame = (index) => join(work, `frame-${String(index).padStart(2, "0")}.png`);
 const steps = [
   // The floor in motion: chat closed so the room has the width, then the demo job.
-  { run: settings({ lang: "en", theme: "light", chat: "closed" }), waitMs: 3000, file: join(work, "discard.png") },
+  { run: settings({ lang: "en", theme: "light", chat: "closed", tour: "1" }), waitMs: 3000, file: join(work, "discard.png") },
   { run: click("Run the demo job"), waitMs: 400, file: join(work, "discard.png") },
   ...Array.from({ length: FRAMES }, (_, index) => ({ run: floorArea, waitMs: FRAME_MS, file: frame(index) })),
   // Still screens, with the correspondence panel open.

@@ -5,6 +5,7 @@
 //   node scripts/skins/build-office.mjs
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { LEAD } from "./lead.mjs";
 import { PETS, renderPet } from "./pets.mjs";
 import { readPng, writePng } from "./png.mjs";
 
@@ -32,27 +33,43 @@ const clips = {
   off_duty: null,
 };
 
-const characters = CHARACTERS.map((box, index) => {
+/**
+ * One still figure of `w` × `h` pixels becomes a sheet of three frames.
+ * `pixel(x, y)` gives its colour as [r, g, b, a], or null where it is empty.
+ */
+function writeSheet(src, { w, h }, pixel) {
   const out = Buffer.alloc(CELL.w * FRAMES.length * CELL.h * 4);
-  const left = Math.floor((CELL.w - box.w) / 2);
-  const top = CELL.h - box.h; // feet on the bottom edge
+  const left = Math.floor((CELL.w - w) / 2);
+  const top = CELL.h - h; // feet on the bottom edge
   FRAMES.forEach((frame, f) => {
-    for (let y = 0; y < box.h; y++) {
-      const feet = y >= box.h - FEET_ROWS;
+    for (let y = 0; y < h; y++) {
+      const feet = y >= h - FEET_ROWS;
       // breathe: everything above the feet sinks a pixel; hop: the whole figure rises one.
       const dy = frame === "breathe" && !feet ? 1 : frame === "hop" ? -1 : 0;
-      if (frame === "breathe" && y === box.h - FEET_ROWS - 1) continue; // the row the body sinks into
-      for (let x = 0; x < box.w; x++) {
-        const from = ((box.y + y) * sheet.w + box.x + x) * 4;
-        if (sheet.data[from + 3] === 0) continue;
-        const to = ((top + y + dy) * CELL.w * FRAMES.length + f * CELL.w + left + x) * 4;
-        sheet.data.copy(out, to, from, from + 4);
+      if (frame === "breathe" && y === h - FEET_ROWS - 1) continue; // the row the body sinks into
+      for (let x = 0; x < w; x++) {
+        const colour = pixel(x, y);
+        if (!colour) continue;
+        out.set(colour, ((top + y + dy) * CELL.w * FRAMES.length + f * CELL.w + left + x) * 4);
       }
     }
   });
-  const src = `character-${index + 1}.png`;
   writePng(dir + src, CELL.w * FRAMES.length, CELL.h, out);
   return { src, frameWidth: CELL.w, frameHeight: CELL.h, clips };
+}
+
+const characters = CHARACTERS.map((box, index) =>
+  writeSheet(`character-${index + 1}.png`, box, (x, y) => {
+    const from = ((box.y + y) * sheet.w + box.x + x) * 4;
+    return sheet.data[from + 3] === 0 ? null : sheet.data.subarray(from, from + 4);
+  }),
+);
+
+// The Lead Perito is this project's own drawing (see lead.mjs), not part of the pack.
+const rgba = (hex) => [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16)).concat(255);
+const lead = writeSheet("character-lead.png", { w: LEAD.rows[0].length, h: LEAD.rows.length }, (x, y) => {
+  const key = LEAD.rows[y][x];
+  return key === "." ? null : rgba(LEAD.palette[key]);
 });
 
 // The office dogs are this project's own drawings (see pets.mjs), not part of the pack.
@@ -74,6 +91,7 @@ fs.writeFileSync(
       source: "https://2dpig.itch.io/pixel-office",
       scale: 3,
       characters,
+      lead,
       pets,
       // Furniture, plants and pets, cut straight from the source sheet: [x, y, width, height].
       props: {

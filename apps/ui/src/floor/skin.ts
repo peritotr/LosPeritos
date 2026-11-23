@@ -32,6 +32,8 @@ export interface FloorSkin {
   license: string;
   /** One sheet per look; peritos are spread across them. */
   characters: CharacterSheet[];
+  /** The Lead Perito's own look, when the skin has one. */
+  lead?: CharacterSheet;
   /** How many screen pixels one art pixel covers on the 1200-unit floor. */
   scale: number;
   /** Furniture and plants by name. The floor draws the ones it knows and a skin has. */
@@ -67,6 +69,7 @@ interface SkinFile {
   source?: string;
   scale?: number;
   characters: Array<{ src: string; frameWidth: number; frameHeight: number; clips: Record<Pose, Clip | null> }>;
+  lead?: { src: string; frameWidth: number; frameHeight: number; clips: Record<Pose, Clip | null> };
   /** Optional. `items` maps a prop name to [x, y, width, height] on `sheet`. */
   props?: { sheet: string; items: Record<string, [number, number, number, number]> };
   pets?: Record<string, Omit<PetSheet, "image"> & { src: string }>;
@@ -95,7 +98,7 @@ export async function loadSkin(name: string): Promise<FloorSkin | null> {
     if (!response.ok || !response.headers.get("content-type")?.includes("json")) return null;
     const file = (await response.json()) as SkinFile;
     if (!file.characters?.length) return null;
-    for (const sheet of file.characters) {
+    for (const sheet of [...file.characters, ...(file.lead ? [file.lead] : [])]) {
       const missing = POSES.filter((pose) => !(pose in sheet.clips));
       if (missing.length) throw new Error(`skin "${name}": ${sheet.src} has no clip for ${missing.join(", ")}`);
     }
@@ -113,7 +116,8 @@ export async function loadSkin(name: string): Promise<FloorSkin | null> {
     for (const [kind, pet] of Object.entries(file.pets ?? {})) {
       pets[kind] = { ...pet, image: await loadImage(base + pet.src) };
     }
-    return { name: file.name, license: file.license, characters, scale: file.scale ?? 3, props, pets };
+    const lead = file.lead && { ...file.lead, image: await loadImage(base + file.lead.src) };
+    return { name: file.name, license: file.license, characters, lead, scale: file.scale ?? 3, props, pets };
   } catch (err) {
     console.warn(err);
     return null;

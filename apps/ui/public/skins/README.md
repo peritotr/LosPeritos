@@ -7,7 +7,9 @@ in code.
 `office/` currently holds the Pixel Office pack by 2dPig (CC0). Its character
 sheets and `skin.json` are generated from `office/source/PixelOfficeAssets.png`
 by `node scripts/skins/build-office.mjs`; edit that script rather than the
-generated files. The two office dogs are this project's own pixel drawings
+generated files. The Lead Perito is this project's own pixel drawing (MIT),
+kept as an editable map in `scripts/skins/lead.mjs` and listed under `lead` in
+`skin.json`; a skin without `lead` gives the lead one of its `characters`. The two office dogs are this project's own pixel drawings
 (MIT), kept as editable maps in `scripts/skins/pets.mjs`; their names and
 lanes are in `apps/ui/src/floor/decor.ts`. Furniture and plants are listed under `props` in
 `skin.json` as rectangles of the source sheet; where they stand on the floor

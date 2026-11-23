@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**The Lead Perito**
+- The lead at the head of every bureau floor is now the figure of Alpaslan
+  Yılmaz, drawn from the portrait in the README. The pictures in the README
+  were taken again.
+
 **Video, sound and PDF**
 - A file a task handed in opens in place when it is a video (mp4, m4v, webm,
   mov), a sound (mp3, m4a, wav, ogg) or a PDF, up to 256 MB.

@@ -190,7 +190,7 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
       const afoot: Array<{ actor: Actor; sheet: CharacterSheet; at: Point; moving: boolean }> = [];
       let lounging = 0;
       current.actors.forEach((actor, index) => {
-        const sheet = skin.characters[index % skin.characters.length]!;
+        const sheet = (actor.agent.role === "lead" && skin.lead) || skin.characters[index % skin.characters.length]!;
         const walker = walkers.get(actor.agent.id)!;
         const cheering = seconds < walker.cheerUntil;
         const away = walker.travelled > 0.5;
