@@ -11,6 +11,7 @@ import type {
   Task,
   ToolCheck,
   Workspace,
+  Estimate,
   TaskFile,
   ToolCall,
   ToolOutcome,
@@ -80,6 +81,7 @@ export interface NewTask {
   effort?: Task["effort"];
   priority?: Task["priority"];
   dependsOn?: string[];
+  labels?: string[];
   /** Queue it straight away; otherwise it is kept as a draft. */
   start?: boolean;
 }
@@ -278,6 +280,8 @@ export interface Actions {
   renameAgent(agentId: string, nickname: string | null): Promise<void>;
   checkTools(): Promise<ToolCheck[]>;
   taskDiff(taskId: string): Promise<string>;
+  /** What a new file is likely to cost, by effort. */
+  estimate(workspaceId: string): Promise<Estimate>;
   taskFile(taskId: string, path: string): Promise<TaskFile>;
   flightDone(id: string): void;
   stampDone(id: string): void;
@@ -416,6 +420,7 @@ export function useCore(): [State, Actions] {
     renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
     checkTools: () => post<ToolCheck[]>("/setup", undefined, "GET"),
     taskFile: (taskId, path) => post<TaskFile>(`/tasks/${taskId}/file?path=${encodeURIComponent(path)}`, undefined, "GET"),
+    estimate: (workspaceId) => post<Estimate>(`/workspaces/${workspaceId}/estimate`, undefined, "GET"),
     taskDiff: async (taskId) => (await post<{ diff: string }>(`/tasks/${taskId}/diff`, undefined, "GET")).diff,
     flightDone: (id) => dispatch({ type: "flight_done", id }),
     stampDone: (id) => dispatch({ type: "stamp_done", id }),

@@ -87,6 +87,18 @@ export type TaskEffort = z.infer<typeof TaskEffort>;
 export const TaskPriority = z.enum(["low", "normal", "high"]);
 export type TaskPriority = z.infer<typeof TaskPriority>;
 
+export const TaskLabels = z.array(z.string().trim().toLowerCase().min(1).max(24)).max(8);
+
+/** What a task of each effort is likely to cost, from this workspace's own closed tasks. */
+export const Estimate = z.record(
+  TaskEffort,
+  z.object({
+    usd: z.number().nonnegative(),
+    /** Closed tasks the figure is the median of; 0 means it is a built-in guess. */
+    tasks: z.number().int().nonnegative(),
+  }),
+);
+
 export const TaskReport = z.object({
   done: z.array(z.string()),
   tested: z.array(z.string()),
@@ -121,6 +133,8 @@ export const Task = z.object({
   priority: TaskPriority.optional(),
   /** Tasks that must be closed before this one is handed out. */
   dependsOn: z.array(id).optional(),
+  /** Free-form tags for grouping and filtering, e.g. "launch", "blog". */
+  labels: TaskLabels.optional(),
   branch: z.string().nullable(),
   /** Branch the task branch forked from and merges back into. */
   baseBranch: z.string().nullable(),
@@ -252,6 +266,7 @@ export const CreateTaskRequest = z.object({
   effort: TaskEffort.default("normal"),
   priority: TaskPriority.default("normal"),
   dependsOn: z.array(id).default([]),
+  labels: TaskLabels.default([]),
   /** Queue it for the team straight away; otherwise it is kept as a draft. */
   start: z.boolean().default(true),
 });
@@ -263,6 +278,7 @@ export const UpdateTaskRequest = z.object({
   effort: TaskEffort.optional(),
   priority: TaskPriority.optional(),
   dependsOn: z.array(id).optional(),
+  labels: TaskLabels.optional(),
   status: z.enum(["draft", "queued", "cancelled"]).optional(),
 });
 
@@ -338,6 +354,8 @@ export const routes = {
   lessons: "GET /workspaces/:workspaceId/lessons",
   decideLesson: "POST /lessons/:lessonId/decision",
   budget: "GET /workspaces/:workspaceId/budget",
+  /** An Estimate: the likely cost of a new task, by effort. */
+  estimate: "GET /workspaces/:workspaceId/estimate",
   /** Today's finished agent turns, for per-agent spend. */
   runs: "GET /workspaces/:workspaceId/runs",
   /** Everything waiting on the user, across all workspaces. */
@@ -386,6 +404,7 @@ export const AgentCommand = z.discriminatedUnion("command", [
     priority: TaskPriority.default("normal"),
     /** Numbers of tasks that must be closed first. */
     after: z.array(z.number().int().positive()).default([]),
+    labels: TaskLabels.default([]),
   }),
   z.object({ command: z.literal("task.list") }),
   /** Member only: hand the task in for review and merge. */
@@ -479,6 +498,7 @@ export type TaskStatus = z.infer<typeof TaskStatus>;
 export type TaskReport = z.infer<typeof TaskReport>;
 export type Task = z.infer<typeof Task>;
 export type TaskFile = z.infer<typeof TaskFile>;
+export type Estimate = z.infer<typeof Estimate>;
 export type MessageAuthor = z.infer<typeof MessageAuthor>;
 export type Message = z.infer<typeof Message>;
 export type ApprovalKind = z.infer<typeof ApprovalKind>;

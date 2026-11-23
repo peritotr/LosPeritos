@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { Issue, Task, WorkspaceKind } from "@losperitos/protocol";
+import type { Estimate, Issue, Task, WorkspaceKind } from "@losperitos/protocol";
 import type { Ctx } from "./context";
 import { T } from "./strings";
-import { Corners, fileRef, kindOf } from "./ui";
+import { Corners, fileRef, kindOf, money } from "./ui";
 
 /** The tools above the list of files: writing one yourself, and importing GitHub issues. */
 
@@ -20,6 +20,12 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
   const [effort, setEffort] = useState<NonNullable<Task["effort"]>>("normal");
   const [priority, setPriority] = useState<NonNullable<Task["priority"]>>("normal");
   const [after, setAfter] = useState("");
+  const [labels, setLabels] = useState("");
+  const [estimate, setEstimate] = useState<Estimate | null>(null);
+  useEffect(() => {
+    ctx.actions.estimate(ctx.bureau.id).then(setEstimate, () => setEstimate(null));
+  }, [ctx.bureau.id]);
+  const cost = estimate?.[effort];
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Only files that are not closed yet are worth waiting for.
@@ -38,6 +44,7 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
         effort,
         priority,
         dependsOn: after ? [after] : [],
+        labels: [...new Set(labels.split(",").map((label) => label.trim().toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8),
         start,
       });
       onClose();
@@ -121,6 +128,21 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
           </select>
         </div>
       </div>
+      <div className="field">
+        <label htmlFor="nf-labels">{T.files.form.labels}</label>
+        <input
+          id="nf-labels"
+          className="input"
+          value={labels}
+          onChange={(event) => setLabels(event.target.value)}
+          placeholder={T.files.form.labelsPlaceholder}
+        />
+      </div>
+      {cost && (
+        <p className="muted" style={{ fontSize: 12 }}>
+          {cost.tasks ? T.files.form.estimate(money(cost.usd), cost.tasks) : T.files.form.estimateGuess(money(cost.usd))}
+        </p>
+      )}
       {error && <p className="err">{error}</p>}
       <div className="row">
         <button className="btn btn-primary" disabled={busy || !title.trim()}>

@@ -36,8 +36,7 @@ Birinci adım (O), yalnızca dosya üreten işler:
 
 Birinci adım yapıldı. Git olmayan klasörde yazılım dışı bürolar taslak
 klasöründe çalışır; dosyalar mühürden sonra klasöre kopyalanır. Pazarlama
-bürosu gerçek Claude ile uçtan uca denendi. Eksik kalanlar: önizleme rapor
-sütununda dar duruyor; içerik bürosu gerçek Claude ile denenmedi; taslak
+ve içerik büroları gerçek Claude ile uçtan uca denendi. Eksik kalan: taslak
 yalıtımı talimata dayanıyor, teknik olarak zorlanmıyor.
 
 İkinci adım (B), önce tasarım kararı ister:
@@ -155,13 +154,18 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 
 ## Tamamlananlar
 
-1 (sohbet her ekranda), 2 ("Sen yokken" özeti), 3 (büro katı cilası; yakınlaştırma ve gerçek yürüme kareleri hariç) 4 (kararlar ve gerçek güvenlik; önerileri toplu kabul hariç) 5 (takılmayan ekip) ve 6 (görev yönetimi; etiketler ve maliyet tahmini hariç) yapıldı. 5. maddede limit sonrası devam gerçek bir limitle denenemedi; yalnızca otomatik testle doğrulandı.
+- 1 (sohbet her ekranda), 2 ("Sen yokken" özeti), 5 (takılmayan ekip): yapıldı.
+  5. maddede limit sonrası devam gerçek bir limitle denenemedi; yalnızca
+  otomatik testle doğrulandı.
+- 3 (büro katı cilası): yakınlaştırma ve gerçek yürüme kareleri hariç yapıldı.
+- 4 (kararlar ve gerçek güvenlik) ve 6 (görev yönetimi): yapıldı; etiketler,
+  kaba maliyet tahmini ve önerileri toplu kabul 0.2.0 ile geldi.
+- 7(a) (zengin ajan çıktısı): yapıldı. Araç çağrıları katlanabilir blok olarak
+  görünüyor. Gerçek terminal sekmesi (7b) yapılmadı.
+- 15 (ilk kullanım): tur ve ilk iş kartları yapıldı; sade / gelişmiş mod yapılmadı.
+- 16 (büro türleri): birinci adım yapıldı.
 
 ## Önerilen sıra
 
-Yapılanlar: 1 → 2 → 3 → imzalama → 4 → 5 → 6.
-
-Yapılan: 16 (birinci adım).
-
-Sıradaki: 7(a) → 8 → 9. 16'nın ikinci adımı ve sonrası,
-birinci adımdan çıkan sonuca ve kullanıcı geri bildirimine göre.
+Sıradaki: 16'nın ikinci adımı (bağlayıcılar; önce tasarım kararı) → 8 (Codex)
+→ 9 (kod ve Git paneli). Sonrası kullanıcı geri bildirimine göre.

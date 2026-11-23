@@ -598,3 +598,9 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .starter span { font-size: 12px; line-height: 1.4; }
 .starter:hover { border-color: var(--st-act); }
 @media (max-width: 720px) { .starter-grid { grid-template-columns: 1fr; } }
+
+/* ── Labels ─────────────────────────────────────────────────────────────── */
+.tag.label { font-family: var(--lp-mono); text-transform: none; }
+.label-filter { gap: 6px; margin: 0 0 12px; }
+.label-filter .tag { cursor: pointer; background: none; font-family: var(--lp-mono); text-transform: none; }
+.label-filter .tag[aria-pressed="true"] { border-color: var(--st-act); color: var(--st-act); }

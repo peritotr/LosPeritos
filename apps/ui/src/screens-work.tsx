@@ -305,11 +305,15 @@ export function Files(ctx: Ctx) {
   /** "waits for F-0003" for a file that depends on ones not yet closed. */
   const waitsFor = (task: Task) => {
     const blocking = (task.dependsOn ?? [])
-      .map((id) => tasks.find((t) => t.id === id))
+      .map((id) => ctx.tasks.find((t) => t.id === id))
       .filter((t): t is Task => !!t && t.status !== "done");
     return blocking.length ? T.files.waitsFor(blocking.map(fileRef).join(", ")) : null;
   };
-  const { tasks, agents } = ctx;
+  const { agents } = ctx;
+  /** Show only files carrying this label. */
+  const [label, setLabel] = useState<string | null>(null);
+  const labels = [...new Set(ctx.tasks.flatMap((task) => task.labels ?? []))].sort();
+  const tasks = label && labels.includes(label) ? ctx.tasks.filter((task) => task.labels?.includes(label)) : ctx.tasks;
   const who = (task: Task) => {
     const agent = agents.find((a) => a.id === task.assigneeId);
     return agent ? perito(agent, agents).who : null;
@@ -359,6 +363,15 @@ export function Files(ctx: Ctx) {
       {tool === "new" && <NewFileForm ctx={ctx} onClose={() => setTool(null)} />}
       {tool === "issues" && <IssueImport ctx={ctx} onClose={() => setTool(null)} />}
 
+      {labels.length > 0 && (
+        <div className="row wrap label-filter" role="group" aria-label={T.files.form.labels}>
+          {labels.map((name) => (
+            <button key={name} className="tag" aria-pressed={label === name} onClick={() => setLabel(label === name ? null : name)}>
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
       {tasks.length === 0 ? (
         <Empty icon={FileText} title={T.files.emptyTitle}>
           {T.files.emptyBody}
@@ -380,6 +393,7 @@ export function Files(ctx: Ctx) {
                 <span className="ellipsis">{task.title}</span>
                 {task.priority === "high" && <span className="tag act">{T.files.priority.high}</span>}
                 {waitsFor(task) && <span className="tag">{waitsFor(task)}</span>}
+                {task.labels?.map((name) => <span key={name} className="tag label">{name}</span>)}
               </span>
               <Badge meta={TASK_STATUS[task.status]} />
               <span className={who(task) ? "ellipsis" : "muted"}>{who(task) ?? T.file.unassigned}</span>
@@ -572,6 +586,7 @@ export function FileDetail({ ctx, id }: { ctx: Ctx; id: string }) {
                 {branchText(ctx.bureau, task, "")}
               </span>
             )}
+            {task.labels?.map((name) => <span key={name} className="tag label">{name}</span>)}
           </div>
         </div>
       </header>

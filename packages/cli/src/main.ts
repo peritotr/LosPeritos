@@ -8,7 +8,7 @@ import type { AgentCommandInput } from "@losperitos/protocol";
 import { runPermissionBridge } from "./mcp.js";
 
 const USAGE = `Usage:
-  peritos task create --title <t> [--description <d>] [--specialty <s>] [--effort small|normal|large] [--priority low|normal|high] [--after <n>...]   (lead)
+  peritos task create --title <t> [--description <d>] [--specialty <s>] [--effort small|normal|large] [--priority low|normal|high] [--after <n>...] [--label <tag>...]   (lead)
   peritos task list
   peritos task done --done <text>... [--tested <text>...] [--not-verified <text>...] [--file <path>...]
   peritos send --to <agent name|lead|user> <message>
@@ -32,6 +32,7 @@ function build(argv: string[]): AgentCommandInput {
       effort: { type: "string" },
       priority: { type: "string" },
       after: { type: "string", multiple: true },
+      label: { type: "string", multiple: true },
       done: { type: "string", multiple: true },
       tested: { type: "string", multiple: true },
       "not-verified": { type: "string", multiple: true },
@@ -57,6 +58,7 @@ function build(argv: string[]): AgentCommandInput {
         effort: values.effort as "small" | "normal" | "large" | undefined,
         priority: values.priority as "low" | "normal" | "high" | undefined,
         after: values.after?.map(Number),
+        labels: values.label,
       };
     case "task.list":
       return { command: "task.list" };

@@ -76,6 +76,7 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "POST /lessons/:lessonId/decision": (p, body) =>
       core.decideLesson(p.lessonId!, parse(DecideLessonRequest, body).decision),
     "GET /workspaces/:workspaceId/budget": (p) => core.budget(p.workspaceId!),
+    "GET /workspaces/:workspaceId/estimate": (p) => core.estimate(p.workspaceId!),
     "GET /workspaces/:workspaceId/runs": (p) => core.listRuns(p.workspaceId!),
     "GET /waiting": () => core.waiting(),
   };

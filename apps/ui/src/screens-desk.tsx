@@ -452,6 +452,20 @@ export function Archive(ctx: Ctx) {
         <section>
           <div className="section-label">{T.archive.proposed}</div>
           {proposed.length === 0 && <div className="empty"><p>{T.archive.noProposals}</p></div>}
+          {proposed.length > 1 && (
+            <button
+              className="btn btn-secondary"
+              style={{ marginBottom: 12 }}
+              onClick={() =>
+                Promise.all(proposed.map((lesson) => ctx.actions.decideLesson(lesson.id, "accepted"))).then(
+                  () => ctx.note(T.archive.admittedAll(proposed.length)),
+                  (err: Error) => ctx.note(err.message),
+                )
+              }
+            >
+              {T.archive.addAll(proposed.length)}
+            </button>
+          )}
           {proposed.map((lesson) => (
             <article key={lesson.id} className="card blueprint lesson">
               <Corners />

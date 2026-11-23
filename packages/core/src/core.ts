@@ -10,6 +10,7 @@ import type {
   ApiError,
   Approval,
   BudgetState,
+  Estimate,
   Event,
   EventEnvelope,
   Lesson,
@@ -111,7 +112,7 @@ function leadPrompt(kind: WorkspaceKind): string {
     `You are the lead of a small team of ${k.team} working in this folder. ` +
     k.lead +
     "Small jobs you do yourself. Larger jobs you split into independent tasks and hand out with " +
-    `\`peritos task create --title "<title>" --description "<everything the teammate needs>" --specialty <${k.specialties}> --effort <small|normal|large> [--priority high] [--after <task number>]\`. ` +
+    `\`peritos task create --title "<title>" --description "<everything the teammate needs>" --specialty <${k.specialties}> --effort <small|normal|large> [--priority high] [--after <task number>] [--label <tag>]\`. ` +
     "Use --after N (repeatable) when a task must wait until task #N is closed. " +
     "Use --effort small for mechanical work and large for work that needs hard thinking; it decides which model the teammate runs on. " +
     "Each task goes to a teammate who works apart from you, on a separate git branch when the folder is a repository, and cannot see this conversation, " +
@@ -153,6 +154,9 @@ const MIME: Record<string, string> = {
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
   pdf: "application/pdf",
 };
+
+/** A starting guess at what a task costs, used until the workspace has closed tasks of its own. */
+const GUESS_USD = { small: 0.1, normal: 0.4, large: 1.5 };
 
 /** Small tasks run on a cheap model, large ones on the biggest; the rest on the tool's default. */
 const MODEL_FOR: Record<"small" | "normal" | "large", string | undefined> = {
@@ -350,6 +354,7 @@ export class Core {
       effort: Task["effort"];
       priority: Task["priority"];
       dependsOn: string[];
+      labels?: string[];
       start: boolean;
     },
   ): Promise<Task> {
@@ -361,7 +366,7 @@ export class Core {
 
   private addTask(
     state: WorkspaceState,
-    fields: Pick<Task, "title" | "description" | "specialty" | "effort" | "priority" | "dependsOn" | "status">,
+    fields: Pick<Task, "title" | "description" | "specialty" | "effort" | "priority" | "dependsOn" | "labels" | "status">,
   ): Task {
     for (const dependency of fields.dependsOn ?? []) {
       if (!state.tasks.get(dependency)) throw new CoreError("bad_request", `No task ${dependency} to wait for.`);
@@ -391,7 +396,7 @@ export class Core {
    */
   async updateTask(
     taskId: string,
-    patch: Partial<Pick<Task, "title" | "description" | "specialty" | "effort" | "priority" | "dependsOn">> & {
+    patch: Partial<Pick<Task, "title" | "description" | "specialty" | "effort" | "priority" | "dependsOn" | "labels">> & {
       status?: "draft" | "queued" | "cancelled";
     },
   ): Promise<Task> {
@@ -609,6 +614,30 @@ export class Core {
     return this.state(workspaceId)
       .runs.all()
       .filter((run) => localDate(new Date(run.startedAt)) === today);
+  }
+
+  /**
+   * What a new task is likely to cost: the median of this workspace's closed
+   * tasks of the same effort, or a built-in guess until there are any.
+   */
+  estimate(workspaceId: string): Estimate {
+    const state = this.state(workspaceId);
+    const spent = new Map<string, number>();
+    for (const run of state.runs.all()) {
+      if (run.taskId) spent.set(run.taskId, (spent.get(run.taskId) ?? 0) + run.costUsd);
+    }
+    const out = {} as Estimate;
+    for (const effort of ["small", "normal", "large"] as const) {
+      const costs = state.tasks
+        .all()
+        .filter((task) => task.status === "done" && (task.effort ?? "normal") === effort && spent.has(task.id))
+        .map((task) => spent.get(task.id)!)
+        .sort((a, b) => a - b);
+      const middle = costs.length >> 1;
+      const median = costs.length % 2 ? costs[middle]! : (costs[middle - 1]! + costs[middle]!) / 2;
+      out[effort] = costs.length ? { usd: median, tasks: costs.length } : { usd: GUESS_USD[effort], tasks: 0 };
+    }
+    return out;
   }
 
   budget(workspaceId: string): BudgetState {
@@ -849,6 +878,7 @@ export class Core {
           effort: command.effort,
           priority: command.priority,
           dependsOn,
+          labels: command.labels,
           status: "queued",
         });
         await this.startQueued(state);

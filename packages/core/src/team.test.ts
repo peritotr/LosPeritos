@@ -429,3 +429,25 @@ test("a rejected draft goes back to its writer, and nothing reaches the project"
   assert.equal(core.listTasks(workspace.id)[1]!.status, "done");
   assert.equal(core.waiting().approvals.length, 0);
 });
+
+test("tasks carry labels, and the estimate learns from what closed tasks cost", async () => {
+  const { core, workspace, as } = setup({ repo: false });
+  const guess = core.estimate(workspace.id);
+  assert.deepEqual(guess.small, { usd: 0.1, tasks: 0 }, "a built-in guess until something has closed");
+
+  await as(0, { command: "task.create", title: "Tagged", effort: "small", labels: ["Launch", " blog "] });
+  const [task] = core.listTasks(workspace.id);
+  assert.deepEqual(task!.labels, ["launch", "blog"], "labels are tidied");
+  await tick();
+  await as(1, { command: "task.done", report: { done: ["x"], tested: [], notVerified: [] } });
+  await tick();
+  const learned = core.estimate(workspace.id);
+  assert.equal(learned.small!.tasks, 1);
+  assert.ok(learned.small!.usd > 0 && learned.small!.usd < 0.1, "the fake agent's turns cost a cent each");
+  assert.equal(learned.large!.tasks, 0);
+
+  const draft = await core.createTask(workspace.id, {
+    title: "Later", description: "", specialty: "developer", effort: "normal", priority: "normal", dependsOn: [], labels: ["q3"], start: false,
+  });
+  assert.deepEqual((await core.updateTask(draft.id, { labels: ["q4"] })).labels, ["q4"]);
+});
