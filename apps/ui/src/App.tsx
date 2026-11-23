@@ -313,7 +313,7 @@ export function App() {
             {bureau && (
               <span className="chip" title={bureau.path}>
                 <I icon={GitBranch} size={13} />
-                <span className="ellipsis">{bureau.repos[0]?.branch ?? (kindOf(bureau) === "software" ? T.top.noBranch : T.kinds[kindOf(bureau)].name)}</span>
+                <span className="ellipsis">{bureau.repos[0]?.branch ?? (kindOf(bureau) === "software" ? T.top.noBranch : (bureau.charter?.title ?? T.kinds[kindOf(bureau)].name))}</span>
               </span>
             )}
             <span className="grow" />

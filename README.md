@@ -101,6 +101,8 @@ a file yourself, set its priority, make it wait for another, or cancel it.
 | 💰 **A daily budget** | Per project, with a warning at 80% and no new work once it is spent. |
 | ⌨️ **Terminal and preview** | Real shells in the bureau's folder, and the running site in a frame at desk, tablet or phone width. |
 | 📱 **From your phone** | On the same network: answer questions, seal, write to a lead. Off until you switch it on. |
+| 🗂️ **Bureaus of your own** | Software, marketing, content, research, design, data analysis, customer support, operations, or an empty office whose job you write yourself. |
+| ⏰ **Jobs that come round** | A brief the lead gets every day, week or month, without you writing it again. |
 | 🤝 **A lead you can trust with the routine** | Leave routine seals to the lead: it reviews teammates' reversible work and seals it or sends it back. Publishing, spending and anything that cannot be undone stay yours. |
 | 🔁 **Staying on the job** | Conversations survive a restart. A perito that hits your usage limit waits and carries on by itself. |
 | 🌍 **Two languages** | English and Turkish, light and dark. |

@@ -19,6 +19,7 @@ import {
   SavePageRequest,
   OpenTerminalRequest,
   SetPhoneRequest,
+  SaveRoutineRequest,
   TreatRequest,
   SetNotifyRequest,
   TerminalInput,
@@ -54,7 +55,7 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "GET /workspaces": () => core.listWorkspaces(),
     "POST /workspaces": (_p, body) => {
       const request = parse(OpenWorkspaceRequest, body);
-      return core.openWorkspace(request.path, request.kind);
+      return core.openWorkspace(request.path, request.kind, request.charter);
     },
     "PATCH /workspaces/:workspaceId": (p, body) =>
       core.updateWorkspace(p.workspaceId!, parse(UpdateWorkspaceRequest, body)),
@@ -119,6 +120,10 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
       const name = (body as { name?: unknown } | undefined)?.name;
       return core.openCoordinator(typeof name === "string" && name.trim() ? name.trim().slice(0, 60) : undefined);
     },
+    "GET /workspaces/:workspaceId/routines": (p) => core.listRoutines(p.workspaceId!),
+    "POST /workspaces/:workspaceId/routines": (p, body) => core.saveRoutine(p.workspaceId!, parse(SaveRoutineRequest, body)),
+    "POST /routines/:routineId/remove": (p) => core.removeRoutine(p.routineId!),
+    "POST /routines/:routineId/run": (p) => core.runRoutine(p.routineId!),
     "GET /workspaces/:workspaceId/folder": (p) => core.listFolder(p.workspaceId!),
     "GET /messages/:messageId/pictures": (p) => core.messagePictures(p.messageId!),
     "GET /phone": () => core.phone.status(),

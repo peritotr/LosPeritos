@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+**Bureaus of your own making**
+- A bureau can work by a charter you write: what the job is, who is on the
+  team, what handed-in work looks like, what must hold before it is handed
+  in, and what is never done without asking you. The team is told exactly
+  that, in place of a built-in kind's description.
+- Five ready-made types that are charters already filled in, each editable
+  before you open the bureau: research, design, data analysis, customer
+  support and operations. And an empty office, where you write it all.
+- A charter can be written or rewritten later from Settings; the team works
+  by it from its next start.
+
+**Jobs that come round**
+- A routine gives the lead its brief every day, every week on a weekday or
+  every month on a day, at an hour (Settings → Jobs that come round). It runs
+  while the app is open; one missed while it was closed runs once when the
+  app opens. It can be run by hand, switched off or removed.
+
 ## 0.9.0 — 2026-11-23
 
 **Finding what the team made**

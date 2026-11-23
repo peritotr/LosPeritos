@@ -12,8 +12,8 @@ import { request as httpsRequest } from "node:https";
 import { createHash } from "node:crypto";
 import { FakeAdapter, type SessionEvent } from "@losperitos/adapters";
 import { MAX_AGENTS_PER_WORKSPACE, type AgentCommandInput, OpenTerminalRequest } from "@losperitos/protocol";
-import { AgentCommand, SaveConnectorRequest } from "@losperitos/protocol";
-import { Core, CoreError } from "./core.js";
+import { AgentCommand, Charter, SaveConnectorRequest, SaveRoutineRequest } from "@losperitos/protocol";
+import { Core, CoreError, nextRun } from "./core.js";
 import { createServer } from "./server.js";
 import { CLIENT_METADATA_URL } from "./oauth.js";
 
@@ -1451,5 +1451,86 @@ test("the bureau's folder can be listed whole, git or not, so that what was made
   assert.ok(listed.files.every((file) => file.size === 1 && !Number.isNaN(Date.parse(file.modifiedAt))));
   assert.equal(core.folderFileAt(workspace.id, "teslim/hafta-1-yayina-hazir.md").mime, "text/markdown");
   assert.throws(() => core.folderFileAt(workspace.id, "../outside.txt"), /./);
+  await core.close();
+});
+
+test("a bureau with a charter of the user's own tells its team that job, those roles, checks and limits", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "lp-data-"));
+  const folder = realpathSync(mkdtempSync(join(tmpdir(), "lp-ws-")));
+  const adapter = new FakeAdapter();
+  const core = new Core({ dataDir, adapters: [adapter], leadAdapter: "fake" });
+  const charter = Charter.parse({
+    template: "research",
+    title: "Research bureau",
+    job: "We answer questions about the camper-van market in Türkiye with sourced reports for the founder.",
+    specialties: ["Researcher", "Fact checker", "Data analyst"],
+    deliverable: "A Markdown report: the answer in three lines first, then findings, each with its source link.",
+    done: ["Every claim has a source that was opened and read", "Numbers carry their date"],
+    seal: ["Contacting a person or company", "Buying a report or data"],
+  });
+  assert.throws(() => Charter.parse({ ...charter, job: "too short" }), /./, "a job in a few words is not a charter");
+  const workspace = core.openWorkspace(folder, "content", charter);
+  assert.equal(workspace.charter!.title, "Research bureau");
+
+  core.sendMessage(workspace.id, { body: "go", toAgentId: null, taskId: null });
+  const lead = adapter.starts[0]!.systemPrompt!;
+  assert.match(lead, /a bureau the user set up as "Research bureau"/);
+  assert.match(lead, /camper-van market in Türkiye/);
+  assert.match(lead, /--specialty <researcher\|fact-checker\|data-analyst\|\.\.\.>/);
+  assert.match(lead, /- Every claim has a source that was opened and read/);
+  assert.match(lead, /without asking the user first[^]*- Buying a report or data/);
+  assert.doesNotMatch(lead, /writers and editors/, "the built-in kind's words are replaced");
+
+  await core.createTask(workspace.id, { title: "Market size", description: "", specialty: "researcher", effort: undefined, priority: undefined, dependsOn: [], start: true });
+  for (let i = 0; i < 50 && adapter.starts.length < 2; i++) await tick();
+  const member = adapter.starts.at(-1)!.systemPrompt!;
+  assert.match(member, /each with its source link/);
+  assert.match(member, /--tested "<which of the bureau's checks you made, and how>"/);
+  assert.match(member, /in a draft folder of your own/, "how work is handed in stays the kind's");
+
+  // Rewriting the charter reaches the team at its next start.
+  core.updateWorkspace(workspace.id, { charter: { ...charter, job: charter.job + " We also follow three competitors every month." } });
+  for (let i = 0; i < 100 && core.listAgents(workspace.id)[0]!.status === "working"; i++) await tick();
+  core.sendMessage(workspace.id, { body: "again", toAgentId: null, taskId: null });
+  assert.match(adapter.starts.at(-1)!.systemPrompt!, /three competitors every month/);
+  await core.close();
+});
+
+test("a routine comes round by the clock, runs once for a time it missed, and gives the lead its brief", async () => {
+  // Monday 23 November 2026, 10:30 by this machine's clock.
+  const at = (day: number, hour: number, minute = 0) => new Date(2026, 10, day, hour, minute);
+  assert.equal(nextRun({ every: "day", weekday: 0, day: 1, hour: 9 }, at(23, 10, 30)).getTime(), at(24, 9).getTime());
+  assert.equal(nextRun({ every: "day", weekday: 0, day: 1, hour: 14 }, at(23, 10, 30)).getTime(), at(23, 14).getTime());
+  assert.equal(nextRun({ every: "week", weekday: 1, day: 1, hour: 9 }, at(23, 10, 30)).getTime(), at(30, 9).getTime(), "this Monday's hour has passed: next Monday");
+  assert.equal(nextRun({ every: "week", weekday: 5, day: 1, hour: 9 }, at(23, 10, 30)).getTime(), at(27, 9).getTime());
+  assert.equal(nextRun({ every: "month", weekday: 0, day: 1, hour: 9 }, at(23, 10, 30)).getTime(), new Date(2026, 11, 1, 9).getTime());
+
+  let now = at(23, 10, 30);
+  const dataDir = mkdtempSync(join(tmpdir(), "lp-data-"));
+  const folder = realpathSync(mkdtempSync(join(tmpdir(), "lp-ws-")));
+  const adapter = new FakeAdapter();
+  const core = new Core({ dataDir, adapters: [adapter], leadAdapter: "fake", now: () => now });
+  const workspace = core.openWorkspace(folder, "marketing");
+  const [routine] = core.saveRoutine(workspace.id, SaveRoutineRequest.parse({ title: "Haftalık takvim", brief: "Gelecek haftanın paylaşım takvimini çıkar.", every: "week", weekday: 1, hour: 9 }));
+  assert.equal(new Date(routine!.nextRunAt).getTime(), at(30, 9).getTime());
+  assert.equal(routine!.lastRunAt, null);
+
+  // The app is closed over the hour it was due; opening it later runs it once.
+  now = at(30, 13);
+  core.setBridge("http://127.0.0.1:1", "cli.js");
+  for (let i = 0; i < 50 && !adapter.sent.some((text) => text.includes("come round again")); i++) await tick();
+  assert.match(adapter.sent.find((text) => text.includes("come round again"))!, /"Haftalık takvim"\.\n\nGelecek haftanın paylaşım takvimini çıkar\./);
+  const ran = core.listRoutines(workspace.id)[0]!;
+  assert.equal(new Date(ran.lastRunAt!).getTime(), at(30, 13).getTime());
+  assert.equal(new Date(ran.nextRunAt).getTime(), new Date(2026, 11, 7, 9).getTime(), "then it waits for the next Monday");
+  assert.ok(core.listMessages(workspace.id).some((message) => message.author.kind === "system" && message.body === "Routine: Haftalık takvim"));
+
+  // Switched off it stays quiet; run by hand it goes whatever the hour; removed it is gone.
+  core.saveRoutine(workspace.id, SaveRoutineRequest.parse({ id: ran.id, title: ran.title, brief: ran.brief, every: "day", hour: 9, enabled: false }));
+  const before = adapter.sent.length;
+  core.runRoutine(ran.id);
+  for (let i = 0; i < 50 && adapter.sent.length === before; i++) await tick();
+  assert.equal(adapter.sent.length, before + 1);
+  assert.deepEqual(core.removeRoutine(ran.id), []);
   await core.close();
 });

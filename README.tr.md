@@ -102,6 +102,8 @@ Ekran görüntüleri İngilizce arayüzden alındı; arayüzün tamamı Türkçe
 | 💰 **Günlük bütçe** | Proje başına; %80'de uyarı, dolunca yeni iş yok. |
 | ⌨️ **Terminal ve önizleme** | Büro klasöründe gerçek kabuklar ve çalışan site; masaüstü, tablet ya da telefon genişliğinde. |
 | 📱 **Telefondan** | Aynı ağda: soruları yanıtla, mühürle, Baş Perito'ya yaz. Sen açana kadar kapalı. |
+| 🗂️ **Kendi büron** | Yazılım, pazarlama, içerik, araştırma, tasarım, veri analizi, müşteri desteği, operasyon ya da iş tanımını senin yazdığın boş bir ofis. |
+| ⏰ **Tekrarlayan işler** | Baş Perito'ya her gün, her hafta ya da her ay, sen yeniden yazmadan verilen iş. |
 | 🤝 **Rutini devredebileceğin bir Baş Perito** | Rutin mühürleri Baş Perito'ya bırak: ekip üyelerinin geri alınabilir işlerini inceler, mühürler ya da geri gönderir. Yayın, harcama ve geri alınamayan her şey sende kalır. |
 | 🔁 **Takılmayan ekip** | Konuşmalar yeniden başlatmada sürer. Kullanım limitine takılan perito bekler ve kendiliğinden devam eder. |
 | 🌍 **İki dil** | Türkçe ve İngilizce, açık ve koyu tema. |

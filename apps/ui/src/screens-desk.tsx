@@ -1,3 +1,4 @@
+import { BUREAU_TYPES, CharterForm, Routines, type BureauType } from "./charter";
 import { Attachments, MentionedPictures } from "./attachments";
 import { ReportFiles } from "./preview";
 import { PhoneSettings } from "./phone";
@@ -18,7 +19,7 @@ import {
   Wifi,
   WifiOff, Eye,
 } from "lucide-react";
-import type { Approval, Message, ToolCheck, Workspace, WorkspaceKind } from "@losperitos/protocol";
+import type { Approval, Charter, Message, ToolCheck, Workspace, WorkspaceKind } from "@losperitos/protocol";
 
 const KINDS = ["software", "marketing", "content"] as const satisfies readonly WorkspaceKind[];
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
@@ -810,11 +811,15 @@ export function Setup({
 }) {
   const [path, setPath] = useState("");
   const [kind, setKind] = useState<WorkspaceKind>("software");
+  /** A ready-made type with a charter, or the empty office; null for one of the three built-in kinds. */
+  const [type, setType] = useState<BureauType | null>(null);
+  const [charter, setCharter] = useState<Charter | null>(null);
   const [error, setError] = useState<string | null>(null);
   const openPath = async (folder: string) => {
     setError(null);
+    if (type && !charter) return setError(T.charters.short);
     try {
-      onOpened(await ctx.actions.openWorkspace(folder, kind));
+      onOpened(await ctx.actions.openWorkspace(folder, kind, type ? charter! : undefined));
       setPath("");
     } catch (err) {
       setError((err as Error).message);
@@ -852,14 +857,29 @@ export function Setup({
         <p className="muted">{T.setup.step2Body}</p>
         <div className="kinds" role="radiogroup" aria-label={T.kinds.label}>
           {KINDS.map((key) => (
-            <button key={key} type="button" role="radio" aria-checked={kind === key} className="kind" onClick={() => setKind(key)}>
+            <button key={key} type="button" role="radio" aria-checked={!type && kind === key} className="kind" onClick={() => (setType(null), setKind(key))}>
               <strong>{T.kinds[key].name}</strong>
               <span className="muted">{T.kinds[key].hint}</span>
             </button>
           ))}
+          {BUREAU_TYPES.map((item) => (
+            <button key={item.id} type="button" role="radio" aria-checked={type?.id === item.id} className="kind" onClick={() => (setType(item), setKind(item.base as WorkspaceKind))}>
+              <strong>{item.name}</strong>
+              <span className="muted">{item.hint}</span>
+            </button>
+          ))}
         </div>
+        {type && (
+          <CharterForm
+            start={type}
+            template={type.id}
+            base={type.base as WorkspaceKind}
+            chooseBase={type.id === "custom"}
+            onChange={(next, base) => (setCharter(next), setKind(base))}
+          />
+        )}
         {shell ? (
-          <button className="btn btn-primary blueprint" style={{ alignSelf: "flex-start" }} onClick={choose}>
+          <button className="btn btn-primary blueprint" style={{ alignSelf: "flex-start" }} disabled={!!type && !charter} onClick={choose}>
             <Corners />
             <I icon={FolderOpen} />
             {T.setup.chooseNative}
@@ -873,7 +893,7 @@ export function Setup({
             placeholder={T.setup.pathPlaceholder}
             aria-label={T.setup.pathLabel}
           />
-          <button className="btn btn-primary blueprint" disabled={!path.trim()}>
+          <button className="btn btn-primary blueprint" disabled={!path.trim() || (!!type && !charter)}>
             <Corners />
             <I icon={FolderOpen} />
             {T.setup.choose}
@@ -891,6 +911,39 @@ export function Setup({
 }
 
 // ── Settings ───────────────────────────────────────────────────────────────
+
+/** Write or rewrite the bureau's charter from Settings. */
+function CharterEditor({ ctx }: { ctx: Ctx }) {
+  const { bureau, actions } = ctx;
+  const [open, setOpen] = useState(false);
+  const [charter, setCharter] = useState<Charter | null>(bureau.charter ?? null);
+  useEffect(() => setOpen(false), [bureau.id]);
+  const custom = BUREAU_TYPES.find((item) => item.id === "custom")!;
+  if (!open) {
+    return (
+      <button className="btn btn-secondary" style={{ alignSelf: "flex-start", marginTop: 8 }} onClick={() => setOpen(true)}>
+        {bureau.charter ? T.charters.edit : T.charters.write}
+      </button>
+    );
+  }
+  return (
+    <>
+      <CharterForm start={bureau.charter ?? custom} template={bureau.charter?.template ?? "custom"} base={kindOf(bureau)} onChange={(next) => setCharter(next)} />
+      <div className="row">
+        <button
+          className="btn btn-primary"
+          disabled={!charter}
+          onClick={() => charter && actions.updateWorkspace(bureau.id, { charter }).then(() => (setOpen(false), ctx.note(T.charters.saved)), (err: Error) => ctx.note(err.message))}
+        >
+          {T.charters.save}
+        </button>
+        <button className="btn btn-ghost" onClick={() => setOpen(false)}>
+          {T.charters.cancel}
+        </button>
+      </div>
+    </>
+  );
+}
 
 export function Settings(ctx: Ctx) {
   const { bureau, actions, state } = ctx;
@@ -939,18 +992,27 @@ export function Settings(ctx: Ctx) {
           </form>
           <div className="field">
             <label>{T.kinds.label}</label>
-            <Segmented
-              label={T.kinds.label}
-              value={kindOf(bureau)}
-              onChange={(kind) => void actions.updateWorkspace(bureau.id, { kind })}
-              options={KINDS.map((key) => ({ value: key, label: T.kinds[key].name }))}
-            />
-            <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-              {T.kinds[kindOf(bureau)].hint}
-            </p>
+            {bureau.charter ? (
+              <p style={{ margin: "0 0 8px" }}>
+                <strong>{bureau.charter.title}</strong> <span className="muted">· {T.kinds[kindOf(bureau)].name}</span>
+              </p>
+            ) : (
+              <>
+                <Segmented
+                  label={T.kinds.label}
+                  value={kindOf(bureau)}
+                  onChange={(kind) => void actions.updateWorkspace(bureau.id, { kind })}
+                  options={KINDS.map((key) => ({ value: key, label: T.kinds[key].name }))}
+                />
+                <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+                  {T.kinds[kindOf(bureau)].hint}
+                </p>
+              </>
+            )}
             <p className="muted" style={{ fontSize: 12 }}>
               {T.kinds.note}
             </p>
+            <CharterEditor ctx={ctx} />
           </div>
           <div className="field">
             <label>{T.settings.delegation}</label>
@@ -1007,6 +1069,7 @@ export function Settings(ctx: Ctx) {
         </section>
 
         {!ctx.simple && <Connectors ctx={ctx} />}
+        <Routines ctx={ctx} />
         <PhoneSettings ctx={ctx} />
 
         <section className="panel blueprint">

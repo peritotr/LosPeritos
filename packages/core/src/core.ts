@@ -4,6 +4,9 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, readFileSync, r
 import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import type {
+  Routine,
+  SaveRoutineRequest,
+  Charter,
   FolderFile,
   Agent,
   AgentAdapter,
@@ -75,6 +78,7 @@ interface WorkspaceState {
   approvals: Collection<Approval>;
   lessons: Collection<Lesson>;
   pages: Collection<Page>;
+  routines: Collection<Routine>;
   runs: Collection<Run>;
   /** Tail of the chain that serialises task starts in this workspace. */
   queue: Promise<void>;
@@ -141,8 +145,51 @@ const KINDS: Record<WorkspaceKind, { team: string; specialties: string; lead: st
   },
 };
 
-function leadPrompt(kind: WorkspaceKind): string {
-  const k = KINDS[kind];
+/** When a routine next comes due after `from`, by this machine's clock. */
+export function nextRun(routine: Pick<Routine, "every" | "weekday" | "day" | "hour">, from: Date): Date {
+  const at = new Date(from);
+  at.setHours(routine.hour, 0, 0, 0);
+  if (routine.every === "week") at.setDate(at.getDate() + ((routine.weekday - at.getDay() + 7) % 7));
+  if (routine.every === "month") at.setDate(routine.day);
+  if (at <= from) {
+    if (routine.every === "day") at.setDate(at.getDate() + 1);
+    else if (routine.every === "week") at.setDate(at.getDate() + 7);
+    else at.setMonth(at.getMonth() + 1);
+  }
+  return at;
+}
+
+type KindSpec = (typeof KINDS)[WorkspaceKind];
+
+/**
+ * What the team is told about its bureau: the built-in kind's words, or, where
+ * the user wrote a charter, the user's. A charter replaces the description of
+ * the work; how work is handed in (branch, draft, folder) stays the kind's.
+ */
+function specOf(workspace: Workspace): KindSpec {
+  const kind = workspace.kind ?? "software";
+  const charter = workspace.charter;
+  if (!charter) return KINDS[kind];
+  const list = (items: string[]) => items.map((item) => `- ${item}`).join("\n");
+  const rules =
+    (charter.done.length ? `Before any work is handed in, all of this holds:\n${list(charter.done)}\n` : "") +
+    (charter.seal.length ? `Nobody on the team does any of these without asking the user first (\`peritos ask\` or \`peritos approval\`):\n${list(charter.seal)}\n` : "");
+  return {
+    team: `specialists (${charter.specialties.join(", ")}) in a bureau the user set up as "${charter.title}"`,
+    specialties: `${charter.specialties.map((role) => role.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "")).join("|")}|...`,
+    lead:
+      `\nThe bureau's job, in the user's words:\n${charter.job}\n\nWhat handed-in work looks like:\n${charter.deliverable}\n${rules}` +
+      (kind === "software" ? "" : "Nobody on the team can publish or send anything outside; the user does that with the files you hand over. ") +
+      "Give every teammate what it needs from the above in its task: it cannot see this.\n",
+    member:
+      `\nThe bureau's job, in the user's words:\n${charter.job}\n\nWhat your handed-in work looks like:\n${charter.deliverable}\n${rules}` +
+      (kind === "software" ? "" : "Your deliverable is one or more files, in a subfolder that fits the work. You cannot publish or send anything outside, so never report that something is live. "),
+    checked: charter.done.length ? "which of the bureau's checks you made, and how" : KINDS[kind].checked,
+  };
+}
+
+function leadPrompt(workspace: Workspace): string {
+  const k = specOf(workspace);
   return (
     `You are the lead of a small team of ${k.team} working in this folder. ` +
     k.lead +
@@ -223,8 +270,8 @@ const COORDINATOR_PROMPT =
  */
 type Workplace = { on: "branch" } | { on: "draft"; project: string } | { on: "folder" };
 
-function memberPrompt(kind: WorkspaceKind, place: Workplace): string {
-  const k = KINDS[kind];
+function memberPrompt(workspace: Workspace, place: Workplace): string {
+  const k = specOf(workspace);
   const ownBranch = place.on === "branch";
   return (
     `You are a member of a small team of ${k.team}. You work on one task` +
@@ -446,6 +493,7 @@ export class Core {
   private readonly signIns = new Map<string, { workspaceId: string; connectorId: string; pending: PendingSignIn; until: number }>();
   /** Timers that renew connector sign-ins before they run out. */
   private readonly renewTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private routineTimer: ReturnType<typeof setInterval> | undefined;
   /** Timers that look in on a team member who went idle with its task still open. */
   private readonly stallTimers = new Map<string, ReturnType<typeof setTimeout>>();
   /** Tasks whose member has already been reminded once to report or ask. */
@@ -486,7 +534,13 @@ export class Core {
     const first = !this.bridge;
     this.bridge = { url, binDir, cliEntry };
     // Only now can an agent be started again: pick up whoever the last closing cut off.
-    if (first) queueMicrotask(() => this.resumeInterrupted());
+    if (first) {
+      queueMicrotask(() => this.resumeInterrupted());
+      // Jobs that come round again are looked at once a minute, and once now for any missed while the app was closed.
+      queueMicrotask(() => this.runDueRoutines());
+      this.routineTimer = setInterval(() => this.runDueRoutines(), 60_000);
+      this.routineTimer.unref?.();
+    }
   }
 
   // ── Events ────────────────────────────────────────────────────────────────
@@ -537,7 +591,7 @@ export class Core {
     return [...this.workspaces.values()].map((state) => state.workspace);
   }
 
-  openWorkspace(path: string, kind?: WorkspaceKind): Workspace {
+  openWorkspace(path: string, kind?: WorkspaceKind, charter?: Charter): Workspace {
     const full = resolve(path);
     if (!existsSync(full) || !statSync(full).isDirectory()) {
       throw new CoreError("bad_request", `Not a folder: ${full}`);
@@ -546,8 +600,8 @@ export class Core {
     if (existing) return existing.workspace;
     const state = this.load(full);
     // The kind is chosen once, when a folder first becomes a workspace; later it changes from settings.
-    if (kind && !state.workspace.kind) {
-      state.workspace = { ...state.workspace, kind };
+    if ((kind && !state.workspace.kind) || (charter && !state.workspace.charter)) {
+      state.workspace = { ...state.workspace, ...(kind && !state.workspace.kind && { kind }), ...(charter && !state.workspace.charter && { charter }) };
       state.store.writeDoc("workspace", state.workspace);
     }
     this.app.addWorkspacePath(full);
@@ -577,6 +631,65 @@ export class Core {
           );
         } catch {
           // The tool is not there this time: the task stays open for the user to see.
+        }
+      }
+    }
+  }
+
+  // ── Routines ──────────────────────────────────────────────────────────────
+
+  listRoutines(workspaceId: string): Routine[] {
+    return this.state(workspaceId)
+      .routines.all()
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  saveRoutine(workspaceId: string, request: SaveRoutineRequest): Routine[] {
+    const state = this.state(workspaceId);
+    const before = request.id ? state.routines.get(request.id) : undefined;
+    if (request.id && !before) throw new CoreError("not_found", `No routine ${request.id}`);
+    const now = this.now();
+    const { id: _id, ...fields } = request;
+    state.routines.put({
+      id: before?.id ?? randomUUID(),
+      workspaceId,
+      ...fields,
+      lastRunAt: before?.lastRunAt ?? null,
+      nextRunAt: nextRun(fields, now).toISOString(),
+      createdAt: before?.createdAt ?? now.toISOString(),
+    });
+    return this.listRoutines(workspaceId);
+  }
+
+  removeRoutine(routineId: string): Routine[] {
+    const { state } = this.find((s) => s.routines, routineId, "routine");
+    state.routines.remove(routineId);
+    return this.listRoutines(state.workspace.id);
+  }
+
+  /** Give the lead a routine's brief now, as the user's standing order. */
+  runRoutine(routineId: string): Routine {
+    const { state, item } = this.find((s) => s.routines, routineId, "routine");
+    const lead = state.agents.all().find((agent) => agent.role === "lead");
+    if (!lead) throw new CoreError("internal", "The bureau has no lead.");
+    this.requireBudget(state);
+    const now = this.now();
+    this.addMessage(state, { author: { kind: "system" }, toAgentId: lead.id, taskId: null, body: `Routine: ${item.title}`, question: null });
+    this.deliver(state, lead, `A job the user set to come round again is due now: "${item.title}".\n\n${item.brief}`);
+    return state.routines.put({ ...item, lastRunAt: now.toISOString(), nextRunAt: nextRun(item, now).toISOString() });
+  }
+
+  /** Run whatever has come due. One that cannot run now (the bureau is paused, the budget is spent) stays due. */
+  private runDueRoutines(): void {
+    const now = this.now().getTime();
+    for (const state of this.workspaces.values()) {
+      if (state.workspace.dispatchPaused) continue;
+      for (const routine of state.routines.all()) {
+        if (!routine.enabled || new Date(routine.nextRunAt).getTime() > now) continue;
+        try {
+          this.runRoutine(routine.id);
+        } catch {
+          // Tried again at the next look.
         }
       }
     }
@@ -613,17 +726,20 @@ export class Core {
 
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused" | "agentTool" | "freeTools" | "language" | "delegation">>,
+    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused" | "agentTool" | "freeTools" | "language" | "delegation" | "charter">>,
   ): Workspace {
     const state = this.state(workspaceId);
     if (patch.agentTool && !this.adapters.has(patch.agentTool)) throw new CoreError("bad_request", `No agent tool "${patch.agentTool}" here.`);
     const before = this.toolOf(state.workspace);
     const languageBefore = state.workspace.language;
+    const charterBefore = state.workspace.charter;
     const delegationBefore = state.workspace.delegation;
     state.workspace = { ...state.workspace, ...patch };
     state.store.writeDoc("workspace", state.workspace);
     // The team is told the language when it sits down: a change reaches it at its next start.
     if (patch.language && patch.language !== languageBefore) this.refreshSessions(workspaceId);
+    // A rewritten charter is what the team works by from its next start.
+    if (patch.charter && JSON.stringify(patch.charter) !== JSON.stringify(charterBefore)) this.refreshSessions(workspaceId);
     if (patch.delegation && patch.delegation !== (delegationBefore ?? "none")) {
       this.refreshSessions(workspaceId);
       // Taking the seals back: what the lead had not yet decided waits for the user again.
@@ -844,6 +960,7 @@ export class Core {
       approvals: store.collection("approvals"),
       lessons: store.collection("lessons"),
       pages: store.collection("pages"),
+      routines: store.collection("routines"),
       runs: store.collection("runs"),
       queue: Promise.resolve(),
     };
@@ -2278,6 +2395,7 @@ export class Core {
 
   async close(): Promise<void> {
     for (const timer of [...this.limitTimers.values(), ...this.stallTimers.values(), ...this.renewTimers.values()]) clearTimeout(timer);
+    clearInterval(this.routineTimer);
     this.renewTimers.clear();
     this.limitTimers.clear();
     this.stallTimers.clear();
@@ -2387,9 +2505,9 @@ export class Core {
           (agent.role === "lead"
             ? state.workspace.coordinator
               ? COORDINATOR_PROMPT
-              : leadPrompt(state.workspace.kind ?? "software") + this.reposPrompt(state) + (state.workspace.delegation === "routine" ? INITIATIVE_PROMPT : "")
+              : leadPrompt(state.workspace) + this.reposPrompt(state) + (state.workspace.delegation === "routine" ? INITIATIVE_PROMPT : "")
             : memberPrompt(
-                state.workspace.kind ?? "software",
+                state.workspace,
                 !task?.worktree
                   ? { on: "folder" }
                   : task.branch

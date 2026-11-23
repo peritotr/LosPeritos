@@ -19,6 +19,11 @@ bilen günlük kullanıcı) en çok değeri en erken verecek şekilde.
 
 ### 16. Büro türleri: yazılım dışı işler (O, sonra B)
 
+Özel büro: yapıldı. Kullanıcı bir görev tanımı (iş, roller, teslim biçimi, kontrol
+listesi, sormadan yapılmayacaklar) yazabiliyor; araştırma, tasarım, veri analizi,
+müşteri desteği ve operasyon hazır tipleri bu tanımın doldurulmuş hâlleri.
+Tekrarlayan işler: yapıldı (gün, hafta, ay; uygulama açıkken çalışır).
+
 Büro bugün yazılım işine göre döşenmiş: roller, liderin talimatı ve ekran dili
 (dal, birleştir, diff) geliştiriciye göre. Omurga ise yazılıma özel değil;
 uzmanlık serbest metin ve klasörün git deposu olması şart değil. Reklam, SEO,

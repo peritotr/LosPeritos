@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { FolderFile, NotifySettings, PhoneAccess, Terminal,
+import type { Charter, FolderFile, NotifySettings, Routine, PhoneAccess, Terminal,
   Agent,
   Approval,
   BudgetState,
@@ -27,6 +27,9 @@ declare const __CORE_URL__: string;
 declare const __CORE_TOKEN__: string;
 
 /** What the desktop shell's preload script provides; absent in a plain browser. */
+/** A routine as the form sends it. */
+export type SaveRoutineInput = Pick<Routine, "title" | "brief" | "every" | "weekday" | "day" | "hour" | "enabled"> & { id?: string };
+
 export interface Shell {
   coreUrl: string;
   token: string;
@@ -288,12 +291,16 @@ function reduce(state: State, action: Action): State {
 export interface Actions {
   setToken(token: string): void;
   reconnect(): void;
-  openWorkspace(path: string, kind?: WorkspaceKind): Promise<Workspace>;
+  openWorkspace(path: string, kind?: WorkspaceKind, charter?: Charter): Promise<Workspace>;
+  routines(workspaceId: string): Promise<Routine[]>;
+  saveRoutine(workspaceId: string, routine: SaveRoutineInput): Promise<Routine[]>;
+  removeRoutine(routineId: string): Promise<Routine[]>;
+  runRoutine(routineId: string): Promise<Routine>;
   /** Open the bureau whose lead places work with the others. */
   openCoordinator(name: string): Promise<Workspace>;
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "kind" | "dispatchPaused" | "agentTool" | "freeTools" | "language" | "delegation">>,
+    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "kind" | "dispatchPaused" | "agentTool" | "freeTools" | "language" | "delegation" | "charter">>,
   ): Promise<void>;
   createTask(workspaceId: string, task: NewTask): Promise<void>;
   updateTask(taskId: string, patch: Partial<NewTask> & { status?: "draft" | "queued" | "cancelled" }): Promise<void>;
@@ -473,8 +480,12 @@ export function useCore(): [State, Actions] {
       dispatch({ type: "phase", phase: "connecting" });
     },
     reconnect: () => reconnectNow.current(),
-    async openWorkspace(path, kind) {
-      const workspace = await post<Workspace>("/workspaces", { path, kind });
+    routines: (workspaceId) => post<Routine[]>(`/workspaces/${workspaceId}/routines`, undefined, "GET"),
+    saveRoutine: (workspaceId, routine) => post<Routine[]>(`/workspaces/${workspaceId}/routines`, routine),
+    removeRoutine: (routineId) => post<Routine[]>(`/routines/${routineId}/remove`, {}),
+    runRoutine: (routineId) => post<Routine>(`/routines/${routineId}/run`, {}),
+    async openWorkspace(path, kind, charter) {
+      const workspace = await post<Workspace>("/workspaces", { path, kind, charter });
       dispatch({ type: "workspace", data: await loadWorkspaces([workspace]) });
       return workspace;
     },

@@ -18,6 +18,30 @@ export const TrustMode = z.enum(["full", "restricted"]);
 export const WorkspaceKind = z.enum(["software", "marketing", "content"]);
 export type WorkspaceKind = z.infer<typeof WorkspaceKind>;
 
+/**
+ * What a bureau is for, in the user's own words: the job, who is on the team,
+ * what handed-in work looks like, what has to hold before it is handed in, and
+ * what always waits for the user. A bureau without one is one of the three
+ * built-in kinds; with one, the team is told this instead.
+ */
+export const Charter = z.object({
+  /** The ready-made type it started from ("research", "design", …) or "custom". */
+  template: z.string().trim().min(1).max(40),
+  /** What the bureau is called as a type: "Research bureau". */
+  title: z.string().trim().min(2).max(80),
+  /** The job: what this bureau does and for whom. */
+  job: z.string().trim().min(30).max(4000),
+  /** The roles on the team, as the lead will name them when handing out work. */
+  specialties: z.array(z.string().trim().min(2).max(40)).min(1).max(12),
+  /** What a piece of work looks like when it is handed in. */
+  deliverable: z.string().trim().min(10).max(2000),
+  /** What every teammate checks before handing in. */
+  done: z.array(z.string().trim().min(3).max(300)).max(12).default([]),
+  /** What nobody on the team does without asking the user first. */
+  seal: z.array(z.string().trim().min(3).max(300)).max(12).default([]),
+});
+export type Charter = z.infer<typeof Charter>;
+
 export const Workspace = z.object({
   id,
   name: z.string(),
@@ -35,6 +59,8 @@ export const Workspace = z.object({
    * this bureau) that may go ahead unasked, by their full name.
    */
   freeTools: z.array(z.string()).optional(),
+  /** What the bureau is for, when it is not simply one of the built-in kinds. */
+  charter: Charter.optional(),
   /**
    * How much the user leaves to the lead. "routine": the lead seals teammates'
    * work that can be undone, look-ups go ahead unasked, and the lead settles
@@ -260,6 +286,45 @@ export const Lesson = z.object({
   createdAt: timestamp,
 });
 
+// ── Routine ─────────────────────────────────────────────────────────────────
+
+/**
+ * A job that comes round again: every day, every week on a weekday, or every
+ * month on a day, at an hour. When it is due the lead is given its brief as
+ * if the user had just written it. It runs while the app is open; one missed
+ * while it was closed runs once when it opens.
+ */
+export const Routine = z.object({
+  id,
+  workspaceId: id,
+  title: z.string(),
+  /** What the lead is told to do each time. */
+  brief: z.string(),
+  every: z.enum(["day", "week", "month"]),
+  /** For "week": 0 is Sunday. */
+  weekday: z.number().int().min(0).max(6),
+  /** For "month": 1 to 28, so that every month has it. */
+  day: z.number().int().min(1).max(28),
+  /** The hour of the day, by this machine's clock. */
+  hour: z.number().int().min(0).max(23),
+  enabled: z.boolean(),
+  lastRunAt: timestamp.nullable(),
+  nextRunAt: timestamp,
+  createdAt: timestamp,
+});
+export const SaveRoutineRequest = z.object({
+  id: id.optional(),
+  title: z.string().trim().min(2).max(120),
+  brief: z.string().trim().min(10).max(4000),
+  every: z.enum(["day", "week", "month"]),
+  weekday: z.number().int().min(0).max(6).default(1),
+  day: z.number().int().min(1).max(28).default(1),
+  hour: z.number().int().min(0).max(23).default(9),
+  enabled: z.boolean().default(true),
+});
+export type Routine = z.infer<typeof Routine>;
+export type SaveRoutineRequest = z.infer<typeof SaveRoutineRequest>;
+
 // ── Page ────────────────────────────────────────────────────────────────────
 
 /**
@@ -424,7 +489,7 @@ export const SaveConnectorRequest = Connector.omit({ secretNames: true, signedIn
   .refine((value) => !!value.command !== !!value.url, "Give either a command or a URL");
 
 /** `kind` applies only when the folder has not been opened before. */
-export const OpenWorkspaceRequest = z.object({ path: z.string(), kind: WorkspaceKind.optional() });
+export const OpenWorkspaceRequest = z.object({ path: z.string(), kind: WorkspaceKind.optional(), charter: Charter.optional() });
 export const UpdateWorkspaceRequest = Workspace.pick({
   name: true,
   trustMode: true,
@@ -435,6 +500,7 @@ export const UpdateWorkspaceRequest = Workspace.pick({
   freeTools: true,
   language: true,
   delegation: true,
+  charter: true,
 }).partial();
 
 /** A task the user writes themselves, rather than the lead. */
@@ -539,6 +605,12 @@ export const routes = {
   sendMessage: "POST /workspaces/:workspaceId/messages",
   /** Store a file so the next message can attach it. */
   uploadAttachment: "POST /workspaces/:workspaceId/attachments",
+  routines: "GET /workspaces/:workspaceId/routines",
+  /** SaveRoutineRequest; answers with the bureau's routines. */
+  saveRoutine: "POST /workspaces/:workspaceId/routines",
+  removeRoutine: "POST /routines/:routineId/remove",
+  /** Run it now, whatever its hour; answers with the routine. */
+  runRoutine: "POST /routines/:routineId/run",
   /** `{ files: [{ path, size, modifiedAt }], more }`: everything in the bureau's folder, git or not. */
   folder: "GET /workspaces/:workspaceId/folder",
   /** `?path=`: the bytes of one file of the bureau's folder, for showing it. */
