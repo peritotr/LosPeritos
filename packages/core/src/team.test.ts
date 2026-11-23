@@ -646,3 +646,30 @@ test("a draft is kept apart from the project, which is read-only to it; what cha
   assert.ok(existsSync(join(folder, "keywords.md")));
   assert.ok(!existsSync(task!.worktree!) && !existsSync(task!.worktree! + ".snapshot.json"), "draft and its picture removed");
 });
+
+test("the code panel reads the repository: branch, commits, task branches and uncommitted changes", async () => {
+  const { core, folder, workspace, as } = setup();
+  writeFileSync(join(folder, "a.txt"), "one\n");
+  sh(folder, "git", "add", ".");
+  sh(folder, "git", "-c", "user.name=Ada", "-c", "user.email=a@a", "commit", "-q", "-m", "Add a");
+  await as(0, { command: "task.create", title: "Add b", specialty: "developer" });
+  const [task] = core.listTasks(workspace.id);
+  writeFileSync(join(task!.worktree!, "b.txt"), "two\n");
+  sh(task!.worktree!, "git", "add", ".");
+  sh(task!.worktree!, "git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "Add b");
+  writeFileSync(join(folder, "a.txt"), "one\nmore\n");
+  writeFileSync(join(folder, "new file.txt"), "x\n");
+
+  const repo = await core.repo(workspace.id);
+  assert.equal(repo.branch, "main");
+  assert.deepEqual(repo.commits.map((c) => [c.subject, c.author]), [["Add a", "Ada"], ["init", "t"]]);
+  assert.deepEqual(repo.changes, [{ path: "a.txt", status: " M" }, { path: "new file.txt", status: "??" }]);
+  assert.deepEqual(repo.branches.find((b) => b.name === task!.branch), { name: task!.branch, ahead: 1, taskId: task!.id });
+  assert.equal(repo.branches.find((b) => b.name === "main")!.ahead, 0);
+  assert.match(await core.repoDiff(workspace.id, null), /\+more/);
+  assert.match(await core.repoDiff(workspace.id, repo.commits[0]!.hash), /\+one/);
+  await assert.rejects(core.repoDiff(workspace.id, "HEAD; rm -rf x"), /Not a commit hash/);
+
+  const plain = setup({ repo: false });
+  await assert.rejects(plain.core.repo(plain.workspace.id), /not a git repository/);
+});

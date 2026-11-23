@@ -17,6 +17,7 @@ import type {
   EventEnvelope,
   Lesson,
   Message,
+  RepoState,
   Run,
   SaveConnectorRequest,
   Task,
@@ -642,6 +643,37 @@ export class Core {
     if (!item.branch || !item.baseBranch) return "";
     try {
       return await git.diff(state.workspace.path, item.baseBranch, item.branch);
+    } catch (err) {
+      throw new CoreError("conflict", (err as Error).message);
+    }
+  }
+
+  /** Branch, recent commits, other branches and uncommitted changes of the workspace's repository. */
+  async repo(workspaceId: string): Promise<RepoState> {
+    const state = this.state(workspaceId);
+    const root = state.workspace.path;
+    const branch = await git.currentBranch(root);
+    if (!branch) throw new CoreError("conflict", "This folder is not a git repository.");
+    try {
+      const [commits, changes, branches] = await Promise.all([git.log(root, 40), git.status(root), git.branches(root, branch)]);
+      const tasks = state.tasks.all();
+      return {
+        branch,
+        commits,
+        changes,
+        branches: branches.map((b) => ({ ...b, taskId: tasks.find((task) => task.branch === b.name)?.id ?? null })),
+      };
+    } catch (err) {
+      throw new CoreError("conflict", (err as Error).message);
+    }
+  }
+
+  /** The patch of one commit, or of the uncommitted changes when no commit is named. */
+  async repoDiff(workspaceId: string, commit: string | null): Promise<string> {
+    const state = this.state(workspaceId);
+    if (commit !== null && !/^[0-9a-f]{7,40}$/.test(commit)) throw new CoreError("bad_request", "Not a commit hash.");
+    try {
+      return commit ? await git.show(state.workspace.path, commit) : await git.workingDiff(state.workspace.path);
     } catch (err) {
       throw new CoreError("conflict", (err as Error).message);
     }

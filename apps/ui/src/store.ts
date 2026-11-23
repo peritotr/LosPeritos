@@ -17,6 +17,7 @@ import type {
   ToolOutcome,
   WorkspaceKind,
   Connector,
+  RepoState,
   ConnectorTool,
   SaveConnectorRequest,
 } from "@losperitos/protocol";
@@ -288,6 +289,9 @@ export interface Actions {
   taskFile(taskId: string, path: string): Promise<TaskFile>;
   /** The bytes of a video, sound or PDF a task handed in. */
   taskMedia(taskId: string, path: string): Promise<Blob>;
+  repo(workspaceId: string): Promise<RepoState>;
+  /** The patch of one commit, or of the uncommitted changes when `commit` is null. */
+  repoDiff(workspaceId: string, commit: string | null): Promise<string>;
   connectors(workspaceId: string): Promise<Connector[]>;
   connectorTools(workspaceId: string, connectorId: string): Promise<ConnectorTool[]>;
   saveConnector(workspaceId: string, request: SaveConnectorRequest): Promise<Connector[]>;
@@ -441,6 +445,9 @@ export function useCore(): [State, Actions] {
       }
       return response.blob();
     },
+    repo: (workspaceId) => post<RepoState>(`/workspaces/${workspaceId}/repo`, undefined, "GET"),
+    repoDiff: async (workspaceId, commit) =>
+      (await post<{ diff: string }>(`/workspaces/${workspaceId}/repo/diff${commit ? `?commit=${commit}` : ""}`, undefined, "GET")).diff,
     connectors: (workspaceId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, undefined, "GET"),
     connectorTools: async (workspaceId, connectorId) =>
       (await post<{ tools: ConnectorTool[] }>(`/workspaces/${workspaceId}/connectors/${connectorId}/tools`, undefined, "GET")).tools,

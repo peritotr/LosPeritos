@@ -2,7 +2,7 @@ import type { Agent, Approval, Message, Task, Workspace } from "@losperitos/prot
 import type { Actions, State } from "./store";
 
 export type Route =
-  | { screen: "bench" | "files" | "mail" | "archive" | "ledger" | "settings" | "setup" }
+  | { screen: "bench" | "files" | "code" | "mail" | "archive" | "ledger" | "settings" | "setup" }
   | { screen: "file"; id: string }
   | { screen: "perito"; id: string }
   /** `id` selects one seal or question. */

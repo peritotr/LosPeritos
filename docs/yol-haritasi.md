@@ -121,7 +121,8 @@ devralabilir. Sonra OpenCode ve Gemini CLI.
 ### 9. Kod ve Git paneli (O)
 
 - Dosya ağacı ve dosyalarda arama.
-- Son commit'ten beri değişenler.
+- Son commit'ten beri değişenler: yapıldı. "Kod" ekranı dalı, commit edilmemiş
+  değişiklikleri, diğer dalları ve son commit'leri gösteriyor (yalnızca okur).
 - Tek klasörde birden çok depo (bugün yalnızca klasörün kendisi depo ise dal açılıyor).
 
 ### 10. Belgeler (B)

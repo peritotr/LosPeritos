@@ -253,6 +253,18 @@ export const ToolCheck = z.object({
 
 // ── Requests ────────────────────────────────────────────────────────────────
 
+// ── Repository ──────────────────────────────────────────────────────────────
+
+/** Where a software bureau's repository stands, for the code panel. */
+export const RepoState = z.object({
+  branch: z.string(),
+  /** Local branches; `ahead` counts commits the checked-out branch lacks. */
+  branches: z.array(z.object({ name: z.string(), ahead: z.number().int().nonnegative(), taskId: id.nullable() })),
+  commits: z.array(z.object({ hash: z.string(), subject: z.string(), author: z.string(), date: z.string() })),
+  /** Files that differ from the last commit, with git's two-letter status. */
+  changes: z.array(z.object({ path: z.string(), status: z.string() })),
+});
+
 // ── Connector ───────────────────────────────────────────────────────────────
 
 /**
@@ -409,6 +421,10 @@ export const routes = {
   runs: "GET /workspaces/:workspaceId/runs",
   /** Everything waiting on the user, across all workspaces. */
   waiting: "GET /waiting",
+  /** A RepoState; 409 when the folder is not a git repository. */
+  repo: "GET /workspaces/:workspaceId/repo",
+  /** `{ diff }`: `?commit=<hash>` for one commit, without it the uncommitted changes. */
+  repoDiff: "GET /workspaces/:workspaceId/repo/diff",
   connectors: "GET /workspaces/:workspaceId/connectors",
   saveConnector: "POST /workspaces/:workspaceId/connectors",
   removeConnector: "POST /workspaces/:workspaceId/connectors/:connectorId/remove",
@@ -556,6 +572,7 @@ export type Estimate = z.infer<typeof Estimate>;
 export type MessageAuthor = z.infer<typeof MessageAuthor>;
 export type Message = z.infer<typeof Message>;
 export type ApprovalKind = z.infer<typeof ApprovalKind>;
+export type RepoState = z.infer<typeof RepoState>;
 export type Connector = z.infer<typeof Connector>;
 export type ConnectorTool = z.infer<typeof ConnectorTool>;
 export type SaveConnectorRequest = z.infer<typeof SaveConnectorRequest>;

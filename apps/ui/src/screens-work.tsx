@@ -510,12 +510,17 @@ function Changes({ ctx, task }: { ctx: Ctx; task: Task }) {
     setError(null);
     if (task.branch) ctx.actions.taskDiff(task.id).then(setDiff, (err: Error) => setError(err.message));
   }, [task.id, task.branch, task.updatedAt]);
-  const files = useMemo(() => (diff ? parseDiff(diff) : []), [diff]);
 
   if (!task.branch) return <p className="muted">{kindOf(ctx.bureau) === "software" ? T.files.noBranch : T.files.noDraft}</p>;
   if (error) return <p className="err">{error}</p>;
   if (diff === null) return <p className="muted">{T.files.loading}</p>;
-  if (files.length === 0) return <p className="muted">{T.files.noChanges}</p>;
+  return <DiffView diff={diff} empty={T.files.noChanges} />;
+}
+
+/** A patch, file by file. */
+export function DiffView({ diff, empty }: { diff: string; empty: string }) {
+  const files = useMemo(() => parseDiff(diff), [diff]);
+  if (files.length === 0) return <p className="muted">{empty}</p>;
   return (
     <>
       {files.map((file) => (
