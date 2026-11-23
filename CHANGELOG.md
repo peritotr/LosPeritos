@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+**Windows, as a trial**
+- The app can be built for Windows: `npm run package` there gives an unsigned
+  zip of the app's folder. The tests run on Windows in CI, and a separate
+  workflow builds the package and starts it once with the demo bureau. It has
+  not been tried by a person on a real Windows machine with real agents yet;
+  it does not update itself, and Windows asks before running it the first
+  time because it is not signed.
+- Agent tools installed through npm (`claude.cmd`, `codex.cmd`, `npx.cmd`) are
+  started without going through `cmd`, so prompts with quotes and line breaks
+  arrive whole. The `peritos` command is there for PowerShell and `cmd` as
+  well as Git Bash, and the phone's door finds the `openssl` that Git brings.
+- File lists use forward slashes on every system.
+
 ## 0.10.1 — 2026-11-24
 
 **Signing in, from the app**

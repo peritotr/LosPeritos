@@ -69,7 +69,7 @@ fs.cpSync(path.join(root, "apps/ui/dist"), path.join(stage, "ui"), { recursive: 
 fs.copyFileSync(path.join(root, "LICENSE"), path.join(stage, "LICENSE"));
 fs.writeFileSync(
   path.join(stage, "package.json"),
-  JSON.stringify({ name: "losperitos", productName: "LosPeritos", version: manifest.version, license: "MIT", type: "module", main: "main.js" }, null, 2),
+  JSON.stringify({ name: "losperitos", productName: "LosPeritos", version: manifest.version, author: "The LosPeritos contributors", license: "MIT", type: "module", main: "main.js" }, null, 2),
 );
 
 /** The Developer ID to sign with, or null when this Mac has none. */
@@ -103,6 +103,8 @@ const [appPath] = await packager({
   name: "LosPeritos",
   appBundleId: "com.perito.losperitos",
   appVersion: manifest.version,
+  // What Windows shows for the program in its properties and in the task manager.
+  win32metadata: { CompanyName: "LosPeritos", FileDescription: "LosPeritos", ProductName: "LosPeritos", InternalName: "LosPeritos" },
   electronVersion: require("electron/package.json").version,
   icon: path.join(desktop, "assets/icon"), // packager adds .icns or .ico
   // Kept as plain files: agents run cli/main.js with Electron acting as Node.
