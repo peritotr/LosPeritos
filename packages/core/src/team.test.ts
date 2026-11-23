@@ -298,7 +298,8 @@ test("the user can write tasks, order them, pause the hand-out and cancel", asyn
   await assert.rejects(core.updateTask(later.id, { dependsOn: [later.id] }), /wait for itself/);
 
   core.updateWorkspace(workspace.id, { dispatchPaused: false });
-  for (let i = 0; i < 50 && status(high.id) !== "in_progress"; i++) await tick();
+  // Tasks are handed out one after another, so wait for the last of them.
+  for (let i = 0; i < 50 && status(low.id) !== "in_progress"; i++) await tick();
   assert.equal(status(high.id), "in_progress");
   assert.equal(status(low.id), "in_progress");
   assert.equal(status(later.id), "queued", "waits for the task it depends on");
