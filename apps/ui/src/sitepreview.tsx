@@ -3,7 +3,8 @@
  * running dev server in a frame, at the width of a desk, a tablet or a phone.
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ExternalLink, Eye, MessageSquarePlus, Monitor, RefreshCw, Smartphone, Tablet } from "lucide-react";
+import { Crosshair, ExternalLink, Eye, MessageSquarePlus, Monitor, RefreshCw, Smartphone, Tablet } from "lucide-react";
+import { shell } from "./store";
 import type { Ctx } from "./context";
 import { T } from "./strings";
 import { Empty, I, PageHead, Segmented } from "./ui";
@@ -39,6 +40,26 @@ export function SitePreview({ ctx, url: asked }: { ctx: Ctx; url?: string }) {
   const [turn, setTurn] = useState(0);
   const [bad, setBad] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
+  /** While marking: the corner where the drag began and where it is now, in the stage's own pixels. */
+  const [marking, setMarking] = useState(false);
+  const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const at = (event: { clientX: number; clientY: number }) => {
+    const bounds = stage.current!.getBoundingClientRect();
+    return { x: Math.max(0, Math.min(bounds.width, event.clientX - bounds.left)), y: Math.max(0, Math.min(bounds.height, event.clientY - bounds.top)) };
+  };
+  const finish = async () => {
+    const drawn = box;
+    if (!drawn || !url || !shell?.capture || Math.abs(drawn.x1 - drawn.x0) < 6 || Math.abs(drawn.y1 - drawn.y0) < 6) return (setBox(null), setMarking(false));
+    // Let the outline be painted, then take the stage with it drawn on.
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    const bounds = stage.current!.getBoundingClientRect();
+    const picture = await shell.capture({ x: bounds.left, y: bounds.top, width: bounds.width, height: bounds.height }).catch(() => null);
+    setBox(null);
+    setMarking(false);
+    if (picture) ctx.compose(T.sitePreview.marked(url), { name: "preview-mark.png", data: picture });
+    else ctx.note(T.sitePreview.markFailed);
+  };
 
   useEffect(() => {
     const next = asked ?? remembered();
@@ -88,13 +109,40 @@ export function SitePreview({ ctx, url: asked }: { ctx: Ctx; url?: string }) {
         <button className="btn btn-ghost" type="button" disabled={!url} aria-label={T.sitePreview.browser} title={T.sitePreview.browser} onClick={() => url && window.open(url, "_blank", "noopener")}>
           <I icon={ExternalLink} size={14} />
         </button>
+        {shell?.capture && (
+          <button className={`btn ${marking ? "btn-secondary" : "btn-ghost"}`} type="button" disabled={!url} aria-pressed={marking} title={T.sitePreview.mark} aria-label={T.sitePreview.mark} onClick={() => (setBox(null), setMarking(!marking))}>
+            <I icon={Crosshair} size={14} />
+          </button>
+        )}
         <button className="btn btn-ghost" type="button" disabled={!url} title={T.sitePreview.tell} aria-label={T.sitePreview.tell} onClick={() => url && ctx.compose(T.sitePreview.told(url))}>
           <I icon={MessageSquarePlus} size={14} />
         </button>
       </form>
       {bad && <p className="err">{T.sitePreview.bad}</p>}
       {url ? (
-        <div className="site-stage">
+        <div className="site-stage" ref={stage}>
+          {marking && (
+            <div
+              className="site-mark"
+              onPointerDown={(event) => {
+                try {
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                } catch {
+                  // A pointer that cannot be captured still draws while it stays over the page.
+                }
+                const point = at(event);
+                setBox({ x0: point.x, y0: point.y, x1: point.x, y1: point.y });
+              }}
+              onPointerMove={(event) => box && setBox({ ...box, x1: at(event).x, y1: at(event).y })}
+              onPointerUp={() => void finish()}
+            >
+              {box ? (
+                <div className="site-mark-box" style={{ left: Math.min(box.x0, box.x1), top: Math.min(box.y0, box.y1), width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) }} />
+              ) : (
+                <span className="site-mark-hint">{T.sitePreview.markHint}</span>
+              )}
+            </div>
+          )}
           <iframe
             key={`${url}#${turn}`}
             ref={frame}

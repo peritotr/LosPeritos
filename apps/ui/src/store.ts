@@ -32,6 +32,8 @@ export interface Shell {
   token: string;
   platform: string;
   pickFolder(): Promise<string | null>;
+  /** A PNG (base64) of a rectangle of the window. Absent in a browser. */
+  capture?(rect: { x: number; y: number; width: number; height: number }): Promise<string | null>;
   /** Present when the app can fetch a newer release and replace itself with it. */
   update?: {
     state(): Promise<SelfUpdate>;

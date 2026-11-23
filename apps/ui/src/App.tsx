@@ -105,7 +105,7 @@ export function App() {
   const [tour, closeTour] = useTour(state.loaded && state.workspaces.length > 0);
   // The correspondence panel stays open across screens; on a narrow window it starts closed.
   const [chatOpen, setChatOpenState] = useState(() => (stored(CHAT_KEY) ?? (innerWidth >= 1280 ? "open" : "closed")) === "open");
-  const [composed, setComposed] = useState<{ text: string; n: number } | null>(null);
+  const [composed, setComposed] = useState<{ text: string; n: number; file?: { name: string; data: string } } | null>(null);
   const setChatOpen = (open: boolean) => {
     setChatOpenState(open);
     store(CHAT_KEY, open ? "open" : "closed");
@@ -178,9 +178,9 @@ export function App() {
         approvals: state.approvals.filter((a) => a.workspaceId === bureau.id),
         go: setRoute,
         openBureau: pickBureau,
-        compose(text) {
+        compose(text, file) {
           setChatOpen(true);
-          setComposed((before) => ({ text, n: (before?.n ?? 0) + 1 }));
+          setComposed((before) => ({ text, file, n: (before?.n ?? 0) + 1 }));
         },
         composed,
         note(text) {

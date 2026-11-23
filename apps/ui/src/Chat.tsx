@@ -58,11 +58,6 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
   const approvals = all ? ctx.state.approvals : ctx.approvals;
   const bureauName = (workspaceId: string) => bureaus.find((item) => item.id === workspaceId)?.name ?? "";
   const [text, setText] = useState("");
-  // Another screen put words in the box: take them once, and leave the user to finish.
-  const asked = ctx.composed?.n;
-  useEffect(() => {
-    if (ctx.composed) setText((before) => (before.trim() ? `${before}\n${ctx.composed!.text}` : ctx.composed!.text));
-  }, [asked]);
   const [toId, setToId] = useState<string | null>(null);
   const [files, setFiles] = useState<Pending[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +102,22 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
     setText("");
     input.current?.focus();
   };
+
+  // Another screen put words in the box, perhaps with a picture: take them once, and leave the user to finish.
+  const asked = ctx.composed?.n;
+  useEffect(() => {
+    const composed = ctx.composed;
+    if (!composed) return;
+    setText((before) => (before.trim() ? `${before}\n${composed.text}` : composed.text));
+    if (composed.file) {
+      const { name, data } = composed.file;
+      actions.upload(target, name, data).then(
+        (stored) => setFiles((current) => [...current, { name: stored, label: name }]),
+        (err: Error) => setError(`${name}: ${err.message}`),
+      );
+    }
+    input.current?.focus();
+  }, [asked]);
 
   const attach = async (list: Iterable<File>) => {
     setError(null);

@@ -27,9 +27,9 @@ export interface Ctx {
   /** Show a short confirmation at the bottom of the window. */
   note(text: string): void;
   /** Put words in the chat's box for the user to finish and send. */
-  compose(text: string): void;
-  /** What `compose` last put there; `n` tells one request from the next. */
-  composed: { text: string; n: number } | null;
+  compose(text: string, file?: { name: string; data: string }): void;
+  /** What `compose` last put there, with a file (base64) to attach if any; `n` tells one request from the next. */
+  composed: { text: string; n: number; file?: { name: string; data: string } } | null;
   /** Seal requests the user put off with "Not now"; they stay pending. */
   deferred: ReadonlySet<string>;
   defer(approvalId: string): void;

@@ -253,6 +253,12 @@ async function start(): Promise<void> {
   });
 
   setUpSelfUpdate();
+  // A picture of part of the window, for "fix this here" in the preview. Only the app's own page can ask.
+  ipcMain.handle("losperitos:capture", async (_event, rect: { x: number; y: number; width: number; height: number }) => {
+    if (!window || ![rect?.x, rect?.y, rect?.width, rect?.height].every((value) => Number.isFinite(value)) || rect.width < 1 || rect.height < 1) return null;
+    const area = { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) };
+    return (await window.webContents.capturePage(area)).toPNG().toString("base64");
+  });
   ipcMain.handle("losperitos:pick-folder", async () => {
     const result = await dialog.showOpenDialog(window!, { properties: ["openDirectory", "createDirectory"] });
     return result.canceled ? null : (result.filePaths[0] ?? null);
