@@ -45,7 +45,7 @@ satmaz, seninle sağlayıcın arasına girmez.
 ### Yerel
 
 Kayıt yok, veri toplama yok. Proje verisi `<klasörün>/.losperitos/` içinde durur.
-Uygulama günde bir kez GitHub'a yeni sürüm olup olmadığını sorar; Ayarlar'dan kapatılabilir.
+Uygulama günde bir kez GitHub'a yeni sürüm olup olmadığını sorar, varsa indirir ve yeniden başlatınca kurar; Ayarlar'dan kapatılabilir.
 
 </td>
 <td width="33%" valign="top">

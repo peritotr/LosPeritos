@@ -113,6 +113,19 @@ if (process.platform === "darwin") {
     execFileSync("xcrun", ["stapler", "staple", dmg], { stdio: "inherit" });
   }
   console.log("Disk image:", dmg);
+
+  // For the app replacing itself: the app as a zip, and a list that says where the zip is.
+  // Both go up beside the disk image; the app reads the list at
+  // github.com/<repo>/releases/latest/download/releases.json.
+  const zipName = `LosPeritos-${manifest.version}-${process.arch}-mac.zip`;
+  execFileSync("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", path.join(appPath, "LosPeritos.app"), path.join(release, zipName)]);
+  const base = process.env.LP_UPDATE_BASE ?? `https://github.com/peritotr/LosPeritos/releases/download/v${manifest.version}`;
+  const entry = { version: manifest.version, name: manifest.version, pub_date: new Date().toISOString(), notes: "", url: `${base}/${zipName}` };
+  fs.writeFileSync(
+    path.join(release, "releases.json"),
+    JSON.stringify({ currentRelease: manifest.version, releases: [{ version: manifest.version, updateTo: entry }] }, null, 2) + "\n",
+  );
+  console.log("Update files:", zipName, "and releases.json");
   console.log(
     profile
       ? "Signed and notarised: opens without a warning on any Mac."

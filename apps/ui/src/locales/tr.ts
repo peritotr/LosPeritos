@@ -429,6 +429,9 @@ export const tr: Strings = {
     failed: "GitHub'a ulaşılamadı.",
     available: (v) => `${v} sürümü çıktı — indir`,
     skip: "Bu sürümü atla",
+    hintSelf: "Günde bir kez GitHub'a son sürüm sorulur; başka hiçbir bilgi gönderilmez. Yeni sürüm arka planda iner ve sen yeniden başlatınca kurulur; çalışırken hiçbir şey değişmez.",
+    downloading: "Yeni sürüm indiriliyor…",
+    restart: (v) => (v ? `${v} hazır — yeniden başlat` : "Güncelleme hazır — yeniden başlat"),
   },
   mode: {
     label: "Görünüm düzeyi",

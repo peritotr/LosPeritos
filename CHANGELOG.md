@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Updates that install themselves**
+- From this release on, the Mac app fetches a newer release in the background
+  and installs it when you restart; the side bar says when one is ready.
+  Nothing changes while you work, and Settings still turns the daily check off.
+  Earlier releases only tell you and link to the download.
+
 **Signing in to a connector**
 - A connector whose server asks for a sign-in in the browser can now be
   connected: "Sign in" opens the provider's own page, and the app keeps the

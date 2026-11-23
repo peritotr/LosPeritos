@@ -16,4 +16,18 @@ contextBridge.exposeInMainWorld("losperitos", {
   platform: process.platform,
   /** Resolves to the chosen folder's path, or null if the dialog was cancelled. */
   pickFolder: () => ipcRenderer.invoke("losperitos:pick-folder"),
+  /** Present when this app can fetch a newer release and replace itself with it. */
+  ...(arg("self-update") && {
+    update: {
+      state: () => ipcRenderer.invoke("losperitos:update-state"),
+      check: () => ipcRenderer.invoke("losperitos:update-check"),
+      install: () => ipcRenderer.invoke("losperitos:update-install"),
+      /** Calls back whenever the state changes; returns a function that stops it. */
+      onState: (listener) => {
+        const handler = (_event, state) => listener(state);
+        ipcRenderer.on("losperitos:update", handler);
+        return () => ipcRenderer.removeListener("losperitos:update", handler);
+      },
+    },
+  }),
 });

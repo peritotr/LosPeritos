@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { app, BrowserWindow, dialog, ipcMain, net, powerSaveBlocker, protocol, shell } from "electron";
+import { app, autoUpdater, BrowserWindow, dialog, ipcMain, net, powerSaveBlocker, protocol, shell } from "electron";
 import { startCore, type RunningCore } from "@losperitos/core";
 
 /**
@@ -13,9 +13,11 @@ import { startCore, type RunningCore } from "@losperitos/core";
  *
  *   --fake    scripted agents and a demo bureau; spends nothing
  *   --smoke   load, report what rendered as JSON, save a screenshot, quit
+ *   --self-update   check for a newer release at once, say what happens, install it and quit
  *   --shots   run the steps in the file named by LP_SHOT_STEPS, saving a screenshot after each, quit
  *
  * LP_DATA_DIR overrides where machine-level state is kept.
+ * LP_UPDATE_FEED overrides where newer releases are looked for.
  */
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -31,6 +33,13 @@ const icon = packaged ? join(root, "icon.png") : join(root, "assets/icon.png");
 const fake = process.argv.includes("--fake");
 const smoke = process.argv.includes("--smoke");
 const shots = process.argv.includes("--shots");
+const selfUpdateNow = process.argv.includes("--self-update");
+/**
+ * A list of releases kept as a file beside the newest release on GitHub; see
+ * scripts/package-desktop.mjs. Only a packaged Mac app can replace itself.
+ */
+const updateFeed = process.env.LP_UPDATE_FEED ?? "https://github.com/peritotr/LosPeritos/releases/latest/download/releases.json";
+const canSelfUpdate = app.isPackaged && process.platform === "darwin";
 /** Point the window at a running Vite dev server instead of the built UI. */
 const devUrl = process.env.LP_UI_DEV_URL;
 
@@ -99,7 +108,7 @@ async function openWindow(core: RunningCore): Promise<void> {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      additionalArguments: [`--lp-core-url=${core.url}`, `--lp-token=${core.token}`],
+      additionalArguments: [`--lp-core-url=${core.url}`, `--lp-token=${core.token}`, ...(canSelfUpdate ? ["--lp-self-update=1"] : [])],
     },
   });
   // The window shows this app and nothing else: links open in the browser.
@@ -133,6 +142,55 @@ async function runShots(target: BrowserWindow): Promise<void> {
     console.log("SHOT " + step.file);
   }
   app.quit();
+}
+
+/** Where a self-update stands; `version` is known once it has been downloaded. */
+type UpdateState = { state: "idle" | "checking" | "downloading" | "ready" | "current" | "failed"; version?: string; error?: string };
+let updateState: UpdateState = { state: "idle" };
+
+/**
+ * Let the app fetch a newer release and replace itself with it on restart.
+ * The UI decides when to look (the user can switch looking off) and when to
+ * restart; nothing is installed while the app is in use.
+ */
+function setUpSelfUpdate(): void {
+  const tell = (next: UpdateState) => {
+    updateState = next;
+    window?.webContents.send("losperitos:update", next);
+    if (selfUpdateNow) console.log("UPDATE " + JSON.stringify(next));
+  };
+  ipcMain.handle("losperitos:update-state", () => updateState);
+  ipcMain.handle("losperitos:update-check", () => {
+    if (canSelfUpdate && updateState.state !== "checking" && updateState.state !== "downloading" && updateState.state !== "ready") {
+      autoUpdater.checkForUpdates();
+    }
+  });
+  ipcMain.handle("losperitos:update-install", () => {
+    if (updateState.state === "ready") autoUpdater.quitAndInstall();
+  });
+  if (!canSelfUpdate) return;
+  try {
+    autoUpdater.setFeedURL({ url: updateFeed, serverType: "json" });
+  } catch (err) {
+    tell({ state: "failed", error: (err as Error).message });
+    return;
+  }
+  autoUpdater.on("checking-for-update", () => tell({ state: "checking" }));
+  autoUpdater.on("update-available", () => tell({ state: "downloading" }));
+  autoUpdater.on("update-not-available", () => {
+    tell({ state: "current" });
+    if (selfUpdateNow) app.quit();
+  });
+  autoUpdater.on("update-downloaded", (_event, _notes, name) => {
+    tell({ state: "ready", version: name });
+    // Quitting is enough: the fetched release is put in place once the app has gone.
+    if (selfUpdateNow) app.quit();
+  });
+  autoUpdater.on("error", (err) => {
+    tell({ state: "failed", error: err.message });
+    if (selfUpdateNow) app.exit(1);
+  });
+  if (selfUpdateNow) autoUpdater.checkForUpdates();
 }
 
 /** Check that the UI came up and is talking to the core, then quit. */
@@ -181,6 +239,7 @@ async function start(): Promise<void> {
     return net.fetch(pathToFileURL(extname(file) ? file : join(file, "index.html")).toString());
   });
 
+  setUpSelfUpdate();
   ipcMain.handle("losperitos:pick-folder", async () => {
     const result = await dialog.showOpenDialog(window!, { properties: ["openDirectory", "createDirectory"] });
     return result.canceled ? null : (result.filePaths[0] ?? null);

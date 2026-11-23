@@ -1,11 +1,13 @@
 /**
- * Telling the user a newer release exists. The app asks GitHub for the latest
- * release once a day and compares it with its own version; it installs
- * nothing. This is the one request the app makes to anything but the local
- * core, so it can be switched off, and says so where it is switched.
+ * Newer releases. Once a day the app asks GitHub whether one is out. The
+ * packaged Mac app fetches it and installs it when the user restarts; anywhere
+ * else the user is told and given the link. This is the one request the app
+ * makes to anything but the local core, so it can be switched off, and says
+ * so where it is switched.
  */
 import { useEffect, useState } from "react";
-import { Download, X } from "lucide-react";
+import { Download, RotateCw, X } from "lucide-react";
+import { shell, type SelfUpdate } from "./store";
 import { T } from "./strings";
 import { I } from "./ui";
 
@@ -65,6 +67,10 @@ export interface Updates {
   state: "idle" | "checking" | "current" | "failed";
   check(): void;
   skip(): void;
+  /** In the packaged app: where fetching the newer release stands. Null elsewhere. */
+  self: SelfUpdate | null;
+  /** Restart into the release that has been fetched. */
+  install(): void;
 }
 
 export function useUpdates(): Updates {
@@ -72,7 +78,15 @@ export function useUpdates(): Updates {
   const [found, setFound] = useState<Release | null>(null);
   const [skipped, setSkipped] = useState(() => read(SKIPPED_KEY));
   const [state, setState] = useState<Updates["state"]>("idle");
+  const native = shell?.update;
+  const [self, setSelf] = useState<SelfUpdate | null>(native ? { state: "idle" } : null);
+  useEffect(() => {
+    if (!native) return;
+    void native.state().then(setSelf);
+    return native.onState(setSelf);
+  }, []);
   const check = () => {
+    if (native) return void native.check();
     setState("checking");
     latestRelease().then(
       (release) => {
@@ -97,7 +111,9 @@ export function useUpdates(): Updates {
       if (!next) setFound(null);
     },
     available: found && found.version !== skipped ? found : null,
-    state,
+    state: self ? (self.state === "downloading" || self.state === "ready" ? "idle" : self.state) : state,
+    self,
+    install: () => void native?.install(),
     check,
     skip() {
       if (!found) return;
@@ -110,6 +126,23 @@ export function useUpdates(): Updates {
 /** The line in the side bar that says a newer release is out. */
 export function UpdateNotice({ updates }: { updates: Updates }) {
   const release = updates.available;
+  if (updates.self?.state === "ready") {
+    return (
+      <div className="update-notice">
+        <button className="grow update-restart" onClick={updates.install}>
+          <I icon={RotateCw} size={14} />
+          {T.updates.restart(updates.self.version ?? "")}
+        </button>
+      </div>
+    );
+  }
+  if (updates.self?.state === "downloading") {
+    return (
+      <div className="update-notice">
+        <span className="muted">{T.updates.downloading}</span>
+      </div>
+    );
+  }
   if (!release) return null;
   return (
     <div className="update-notice">
@@ -134,14 +167,20 @@ export function UpdateSettings({ updates }: { updates: Updates }) {
         <span>{T.updates.toggle}</span>
       </label>
       <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-        {T.updates.hint}
+        {updates.self ? T.updates.hintSelf : T.updates.hint}
       </p>
       <div className="row wrap" style={{ fontSize: 13 }}>
         <span className="mono muted">{T.updates.version(APP_VERSION)}</span>
         <button className="btn btn-ghost" disabled={updates.state === "checking"} onClick={updates.check}>
           {T.updates.check}
         </button>
-        {updates.available ? (
+        {updates.self?.state === "ready" ? (
+          <button className="btn btn-secondary" onClick={updates.install}>
+            {T.updates.restart(updates.self.version ?? "")}
+          </button>
+        ) : updates.self?.state === "downloading" ? (
+          <span className="muted">{T.updates.downloading}</span>
+        ) : updates.available ? (
           <a href={updates.available.url} target="_blank" rel="noreferrer">
             {T.updates.available(updates.available.version)}
           </a>

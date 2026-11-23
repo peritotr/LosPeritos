@@ -431,6 +431,9 @@ export const en = {
     failed: "GitHub could not be reached.",
     available: (v: string) => `${v} is out — download`,
     skip: "Skip this release",
+    hintSelf: "Once a day GitHub is asked for the latest release; nothing else is sent. A newer release is fetched in the background and installed when you restart; nothing changes while you work.",
+    downloading: "Fetching the new release…",
+    restart: (v: string) => (v ? `${v} is ready — restart` : "Update ready — restart"),
   },
   mode: {
     label: "How much to show",

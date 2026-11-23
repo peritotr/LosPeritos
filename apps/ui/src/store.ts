@@ -31,6 +31,18 @@ export interface Shell {
   token: string;
   platform: string;
   pickFolder(): Promise<string | null>;
+  /** Present when the app can fetch a newer release and replace itself with it. */
+  update?: {
+    state(): Promise<SelfUpdate>;
+    check(): Promise<void>;
+    install(): Promise<void>;
+    onState(listener: (state: SelfUpdate) => void): () => void;
+  };
+}
+/** Where a self-update stands; `version` is known once it has been downloaded. */
+export interface SelfUpdate {
+  state: "idle" | "checking" | "downloading" | "ready" | "current" | "failed";
+  version?: string;
 }
 declare global {
   interface Window {
