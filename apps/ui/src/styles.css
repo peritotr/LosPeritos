@@ -697,3 +697,9 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .site-mark { position: absolute; inset: 0; z-index: 2; cursor: crosshair; background: rgba(0, 0, 0, 0.04); touch-action: none; }
 .site-mark-box { position: absolute; border: 3px solid #e5484d; box-shadow: 0 0 0 1px #fff; pointer-events: none; }
 .site-mark-hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 4px 10px; font-size: 12px; background: var(--color-surface); border: 1px solid var(--color-divider); pointer-events: none; }
+
+/* An answer offered as a button can be a whole sentence: it wraps inside its card instead of pushing the panel wide. */
+.reply-card { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.msg > :last-child { min-width: 0; }
+.btn-act { white-space: normal; text-align: left; justify-content: flex-start; max-width: 100%; line-height: 1.35; overflow-wrap: anywhere; }
+.reply-card .row > input, .reply-card .row > textarea { min-width: 0; }

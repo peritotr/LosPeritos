@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- A question whose offered answers are whole sentences no longer pushes the
+  correspondence panel wide: the answers wrap inside their card.
+
 ## 0.6.1 — 2026-11-23
 
 **Language**
