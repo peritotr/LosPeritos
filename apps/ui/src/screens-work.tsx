@@ -30,6 +30,7 @@ import { SvgFloor } from "./floor/SvgFloor";
 import { SpriteLayer } from "./floor/SpriteLayer";
 import { buildFloor } from "./floor/model";
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
+import { ReportFiles } from "./preview";
 import { T } from "./strings";
 import {
   AGENT_STATUS,
@@ -43,7 +44,9 @@ import {
   TASK_STATUS,
   ago,
   clock,
+  branchText,
   fileRef,
+  kindOf,
   money,
   perito,
 } from "./ui";
@@ -258,7 +261,7 @@ function PeritoCard({ ctx, agent }: { ctx: Ctx; agent: Agent }) {
       <div className="last">{last}</div>
       <div className="row">
         <span className="mono muted ellipsis grow" style={{ fontSize: 11 }}>
-          {task?.branch ?? T.bench.noBranch}
+          {branchText(ctx.bureau, task, T.bench.noBranch)}
         </span>
         <span className="mono" style={{ fontSize: 12 }}>
           {money(spendOf(ctx, agent.id))}
@@ -350,7 +353,7 @@ export function Files(ctx: Ctx) {
       ) : view === "list" ? (
         <div className="table">
           <div className="table-row head">
-            {T.files.cols.map((col) => (
+            {T.files.cols.map((col, index) => (index === 4 && kindOf(ctx.bureau) !== "software" ? T.files.draft : col)).map((col) => (
               <span key={col}>{col}</span>
             ))}
           </div>
@@ -368,7 +371,7 @@ export function Files(ctx: Ctx) {
               <Badge meta={TASK_STATUS[task.status]} />
               <span className={who(task) ? "ellipsis" : "muted"}>{who(task) ?? T.file.unassigned}</span>
               <span className="mono muted ellipsis" style={{ fontSize: 12 }}>
-                {task.branch ?? "—"}
+                {branchText(ctx.bureau, task, "—")}
               </span>
               <span className="muted" style={{ fontSize: 12 }}>
                 {ago(task.updatedAt)}
@@ -476,7 +479,7 @@ function Changes({ ctx, task }: { ctx: Ctx; task: Task }) {
   }, [task.id, task.branch, task.updatedAt]);
   const files = useMemo(() => (diff ? parseDiff(diff) : []), [diff]);
 
-  if (!task.branch) return <p className="muted">{T.files.noBranch}</p>;
+  if (!task.branch) return <p className="muted">{kindOf(ctx.bureau) === "software" ? T.files.noBranch : T.files.noDraft}</p>;
   if (error) return <p className="err">{error}</p>;
   if (diff === null) return <p className="muted">{T.files.loading}</p>;
   if (files.length === 0) return <p className="muted">{T.files.noChanges}</p>;
@@ -551,7 +554,7 @@ export function FileDetail({ ctx, id }: { ctx: Ctx; id: string }) {
             {task.branch && (
               <span className="row mono muted" style={{ fontSize: 12, gap: 6 }}>
                 <I icon={GitBranch} size={13} />
-                {task.branch}
+                {branchText(ctx.bureau, task, "")}
               </span>
             )}
           </div>
@@ -631,6 +634,7 @@ export function FileDetail({ ctx, id }: { ctx: Ctx; id: string }) {
                   )}
                 </section>
               ))}
+              <ReportFiles ctx={ctx} task={task} />
             </div>
           ) : (
             <div className="empty">
@@ -749,7 +753,7 @@ export function Correspondence(ctx: Ctx) {
                 <I icon={Terminal} />
                 <span className="grow ellipsis">
                   {perito(followed, agents).who}
-                  <span className="mono muted"> {ctx.tasks.find((t) => t.id === followed.taskId)?.branch ?? ""}</span>
+                  <span className="mono muted"> {branchText(ctx.bureau, ctx.tasks.find((t) => t.id === followed.taskId), "")}</span>
                 </span>
                 <Badge meta={AGENT_STATUS[followed.status]} />
                 <button className="btn btn-secondary" onClick={() => ctx.go({ screen: "perito", id: followed.id })}>
@@ -863,7 +867,7 @@ export function PeritoDetail({ ctx, id }: { ctx: Ctx; id: string }) {
           <Corners />
           <header>
             <I icon={GitBranch} size={13} />
-            <span className="mono grow ellipsis">{task?.branch ?? T.bench.noBranch}</span>
+            <span className="mono grow ellipsis">{branchText(ctx.bureau, task, T.bench.noBranch)}</span>
             <span className="live" style={{ color: agent.status === "working" ? "var(--st-work)" : "var(--lp-muted)" }}>
               {live}
             </span>
@@ -919,7 +923,7 @@ export function PeritoDetail({ ctx, id }: { ctx: Ctx; id: string }) {
               <dt>{T.peritoDetail.turns}</dt>
               <dd>{runs.length}</dd>
               <dt>{T.peritoDetail.branch}</dt>
-              <dd>{task?.branch ?? T.peritoDetail.none}</dd>
+              <dd>{branchText(ctx.bureau, task, T.peritoDetail.none)}</dd>
             </dl>
           </div>
         </aside>

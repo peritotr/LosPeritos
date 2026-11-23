@@ -15,11 +15,13 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import type { Approval, Message, ToolCheck, Workspace } from "@losperitos/protocol";
+import type { Approval, Message, ToolCheck, Workspace, WorkspaceKind } from "@losperitos/protocol";
+
+const KINDS = ["software", "marketing", "content"] as const satisfies readonly WorkspaceKind[];
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
 import { CORE_URL, shell } from "./store";
 import { LANGUAGES, T, dateLocale, language, setLanguage, type Language } from "./strings";
-import { Corners, Emblem, Empty, I, PageHead, Segmented, Stamp, ago, fileRef, money, pad, perito, questionRef, sealRef } from "./ui";
+import { Corners, Emblem, Empty, I, PageHead, Segmented, Stamp, ago, fileRef, kindOf, money, pad, perito, questionRef, sealRef } from "./ui";
 
 const isToday = (iso: string | null) => !!iso && new Date(iso).toDateString() === new Date().toDateString();
 
@@ -676,11 +678,12 @@ export function Setup({
   onOpened(workspace: Workspace): void;
 }) {
   const [path, setPath] = useState("");
+  const [kind, setKind] = useState<WorkspaceKind>("software");
   const [error, setError] = useState<string | null>(null);
   const openPath = async (folder: string) => {
     setError(null);
     try {
-      onOpened(await ctx.actions.openWorkspace(folder));
+      onOpened(await ctx.actions.openWorkspace(folder, kind));
       setPath("");
     } catch (err) {
       setError((err as Error).message);
@@ -716,6 +719,14 @@ export function Setup({
         <Corners />
         <h4>{T.setup.step2}</h4>
         <p className="muted">{T.setup.step2Body}</p>
+        <div className="kinds" role="radiogroup" aria-label={T.kinds.label}>
+          {KINDS.map((key) => (
+            <button key={key} type="button" role="radio" aria-checked={kind === key} className="kind" onClick={() => setKind(key)}>
+              <strong>{T.kinds[key].name}</strong>
+              <span className="muted">{T.kinds[key].hint}</span>
+            </button>
+          ))}
+        </div>
         {shell ? (
           <button className="btn btn-primary blueprint" style={{ alignSelf: "flex-start" }} onClick={choose}>
             <Corners />
@@ -795,6 +806,21 @@ export function Settings(ctx: Ctx) {
               {error ?? T.settings.budgetHint}
             </p>
           </form>
+          <div className="field">
+            <label>{T.kinds.label}</label>
+            <Segmented
+              label={T.kinds.label}
+              value={kindOf(bureau)}
+              onChange={(kind) => void actions.updateWorkspace(bureau.id, { kind })}
+              options={KINDS.map((key) => ({ value: key, label: T.kinds[key].name }))}
+            />
+            <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+              {T.kinds[kindOf(bureau)].hint}
+            </p>
+            <p className="muted" style={{ fontSize: 12 }}>
+              {T.kinds.note}
+            </p>
+          </div>
           <div className="field">
             <label>{T.settings.trust}</label>
             <Segmented

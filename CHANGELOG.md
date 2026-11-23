@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Kinds of bureau: Software, Marketing and Content, chosen when a folder is
+  opened and changeable in Settings. The kind sets the team's roles, how the
+  lead and members are briefed, and the wording on screen.
+- Reports list the files a task produced, with a preview for Markdown, CSV,
+  text and images.
+- Outside git, marketing and content bureaus work in a draft folder per task;
+  its files are copied into the project only when sealed.
+
 ## 0.1.0 — 2026-11-23
 
 The first version that works end to end.

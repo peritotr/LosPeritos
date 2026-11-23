@@ -21,7 +21,7 @@ import {
 import { Core, CoreError } from "./core.js";
 
 type Params = Record<string, string>;
-type Handler = (params: Params, body: unknown) => unknown;
+type Handler = (params: Params, body: unknown, query: URLSearchParams) => unknown;
 
 const STATUS: Record<ApiError["error"]["code"], number> = {
   unauthorized: 401,
@@ -42,7 +42,10 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
   const table: Record<string, Handler> = {
     "GET /setup": () => core.setup(),
     "GET /workspaces": () => core.listWorkspaces(),
-    "POST /workspaces": (_p, body) => core.openWorkspace(parse(OpenWorkspaceRequest, body).path),
+    "POST /workspaces": (_p, body) => {
+      const request = parse(OpenWorkspaceRequest, body);
+      return core.openWorkspace(request.path, request.kind);
+    },
     "PATCH /workspaces/:workspaceId": (p, body) =>
       core.updateWorkspace(p.workspaceId!, parse(UpdateWorkspaceRequest, body)),
     "GET /workspaces/:workspaceId/agents": (p) => core.listAgents(p.workspaceId!),
@@ -54,6 +57,7 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
     "GET /workspaces/:workspaceId/issues": (p) => core.listIssues(p.workspaceId!),
     "GET /tasks/:taskId": (p) => core.getTask(p.taskId!),
     "GET /tasks/:taskId/diff": async (p) => ({ diff: await core.taskDiff(p.taskId!) }),
+    "GET /tasks/:taskId/file": (p, _body, query) => core.taskFile(p.taskId!, query.get("path") ?? ""),
     "GET /workspaces/:workspaceId/messages": (p) => core.listMessages(p.workspaceId!),
     "POST /workspaces/:workspaceId/messages": (p, body) =>
       core.sendMessage(p.workspaceId!, parse(SendMessageRequest, body)),
@@ -129,7 +133,8 @@ export function createServer(core: Core, token: string): Server {
         return;
       }
       const bearer = req.headers.authorization?.replace(/^Bearer /, "");
-      const path = new URL(req.url ?? "/", "http://localhost").pathname;
+      const url = new URL(req.url ?? "/", "http://localhost");
+      const path = url.pathname;
       if (req.method === "POST" && path === "/agent/permission") {
         // Stays open for as long as the user takes to decide.
         req.socket.setTimeout(0);
@@ -151,7 +156,7 @@ export function createServer(core: Core, token: string): Server {
         // Attachments arrive base64-encoded, so the body is a third larger than the file.
         const limit = path.endsWith("/attachments") ? MAX_ATTACHMENT_BYTES * 1.4 : undefined;
         const body = req.method === "GET" ? undefined : await readBody(req, limit);
-        send(200, await route.handler(match.groups ?? {}, body));
+        send(200, await route.handler(match.groups ?? {}, body, url.searchParams));
         return;
       }
       throw new CoreError("not_found", `No route ${req.method} ${path}`);

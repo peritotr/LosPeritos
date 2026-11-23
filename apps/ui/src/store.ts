@@ -11,6 +11,8 @@ import type {
   Task,
   ToolCheck,
   Workspace,
+  TaskFile,
+  WorkspaceKind,
 } from "@losperitos/protocol";
 
 declare const __CORE_URL__: string;
@@ -235,10 +237,10 @@ function reduce(state: State, action: Action): State {
 export interface Actions {
   setToken(token: string): void;
   reconnect(): void;
-  openWorkspace(path: string): Promise<Workspace>;
+  openWorkspace(path: string, kind?: WorkspaceKind): Promise<Workspace>;
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "dispatchPaused">>,
+    patch: Partial<Pick<Workspace, "dailyBudgetUsd" | "trustMode" | "kind" | "dispatchPaused">>,
   ): Promise<void>;
   createTask(workspaceId: string, task: NewTask): Promise<void>;
   updateTask(taskId: string, patch: Partial<NewTask> & { status?: "draft" | "queued" | "cancelled" }): Promise<void>;
@@ -256,6 +258,7 @@ export interface Actions {
   renameAgent(agentId: string, nickname: string | null): Promise<void>;
   checkTools(): Promise<ToolCheck[]>;
   taskDiff(taskId: string): Promise<string>;
+  taskFile(taskId: string, path: string): Promise<TaskFile>;
   flightDone(id: string): void;
   stampDone(id: string): void;
 }
@@ -371,8 +374,8 @@ export function useCore(): [State, Actions] {
       dispatch({ type: "phase", phase: "connecting" });
     },
     reconnect: () => reconnectNow.current(),
-    async openWorkspace(path) {
-      const workspace = await post<Workspace>("/workspaces", { path });
+    async openWorkspace(path, kind) {
+      const workspace = await post<Workspace>("/workspaces", { path, kind });
       dispatch({ type: "workspace", data: await loadWorkspaces([workspace]) });
       return workspace;
     },
@@ -392,6 +395,7 @@ export function useCore(): [State, Actions] {
     stopAgent: async (agentId) => void (await post(`/agents/${agentId}/stop`)),
     renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
     checkTools: () => post<ToolCheck[]>("/setup", undefined, "GET"),
+    taskFile: (taskId, path) => post<TaskFile>(`/tasks/${taskId}/file?path=${encodeURIComponent(path)}`, undefined, "GET"),
     taskDiff: async (taskId) => (await post<{ diff: string }>(`/tasks/${taskId}/diff`, undefined, "GET")).diff,
     flightDone: (id) => dispatch({ type: "flight_done", id }),
     stampDone: (id) => dispatch({ type: "stamp_done", id }),

@@ -326,3 +326,70 @@ test("the lead can make one task wait for another", async () => {
   await as(1, { command: "task.done", report: { done: ["x"], tested: [], notVerified: [] } });
   assert.equal(core.listTasks(workspace.id).find((t) => t.title === "Second")!.status, "in_progress");
 });
+
+test("a marketing workspace briefs its team as marketers and lists the files they hand in", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "lp-data-"));
+  const folder = realpathSync(mkdtempSync(join(tmpdir(), "lp-ws-")));
+  const adapter = new FakeAdapter();
+  const core = new Core({ dataDir, adapters: [adapter], leadAdapter: "fake" });
+  const workspace = core.openWorkspace(folder, "marketing");
+  assert.equal(workspace.kind, "marketing");
+  assert.equal(core.openWorkspace(folder, "content").kind, "marketing", "the kind is chosen once");
+
+  core.sendMessage(workspace.id, { body: "plan", toAgentId: null, taskId: null });
+  const as = (index: number, command: AgentCommandInput) =>
+    core.agentCommand(adapter.starts[index]!.env!.LOSPERITOS_AGENT_TOKEN!, AgentCommand.parse(command));
+  assert.match(adapter.starts[0]!.systemPrompt!, /marketing specialists/);
+  assert.match(adapter.starts[0]!.systemPrompt!, /--specialty <seo\|copywriter/);
+
+  await as(0, { command: "task.create", title: "Keyword plan", specialty: "seo" });
+  const member = adapter.starts[1]!.systemPrompt!;
+  assert.match(member, /cannot publish/);
+  assert.match(member, /draft folder of your own/);
+  assert.doesNotMatch(member, /commit your changes/, "no git talk outside a repository");
+
+  // Outside git the member writes to a draft folder; nothing reaches the project unsealed.
+  let [task] = core.listTasks(workspace.id);
+  assert.equal(task!.branch, null);
+  assert.equal(adapter.starts[1]!.cwd, task!.worktree);
+  assert.ok(adapter.starts[1]!.addDirs!.includes(folder), "the project is readable from the draft");
+  writeFileSync(join(folder, "brief.md"), "old\n");
+  writeFileSync(join(task!.worktree!, "keywords.md"), "# Keywords\n");
+  writeFileSync(join(task!.worktree!, "brief.md"), "new\n");
+  await as(1, { command: "task.done", report: { done: ["plan"], tested: [], notVerified: [] } });
+  [task] = core.listTasks(workspace.id);
+  assert.equal(task!.status, "awaiting_approval");
+  assert.deepEqual(task!.report!.files, ["brief.md", "keywords.md"], "listed from the draft itself");
+  assert.ok(!existsSync(join(folder, "keywords.md")), "not in the project before approval");
+
+  const [approval] = core.waiting().approvals;
+  assert.deepEqual(approval!.steps, ["Replace brief.md", "Add keywords.md", "Remove the draft"]);
+  assert.equal(approval!.reversible, false, "replacing a file outside git cannot be undone");
+  assert.equal(Buffer.from(core.taskFile(task!.id, "keywords.md").data, "base64").toString(), "# Keywords\n", "previewed from the draft");
+  const draftDir = task!.worktree!;
+  await core.decideApproval(approval!.id, "approved");
+  assert.equal(readFileSync(join(folder, "brief.md"), "utf8"), "new\n");
+  assert.ok(!existsSync(draftDir), "draft removed");
+  assert.equal(core.getTask(task!.id).status, "done");
+
+  const file = core.taskFile(task!.id, "keywords.md");
+  assert.equal(file.mime, "text/markdown");
+  assert.equal(Buffer.from(file.data, "base64").toString(), "# Keywords\n");
+  assert.throws(() => core.taskFile(task!.id, "../outside.txt"), /No file/);
+  assert.throws(() => core.taskFile(task!.id, "/etc/hosts"), /No file/);
+
+  core.updateWorkspace(workspace.id, { kind: "content" });
+  assert.equal(core.listWorkspaces()[0]!.kind, "content", "settings can change it later");
+});
+
+test("in a repository the files a task changed come from git, whatever the agent listed", async () => {
+  const { core, workspace, as } = setup();
+  await as(0, { command: "task.create", title: "Write ad copy", specialty: "copywriter" });
+  const [task] = core.listTasks(workspace.id);
+  writeFileSync(join(task!.worktree!, "ads.md"), "Buy now\n");
+  sh(task!.worktree!, "git", "add", ".");
+  sh(task!.worktree!, "git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "ads");
+  await as(1, { command: "task.done", report: { done: ["copy"], tested: [], notVerified: [] } });
+  assert.deepEqual(core.getTask(task!.id).report!.files, ["ads.md"]);
+  assert.equal(Buffer.from(core.taskFile(task!.id, "ads.md").data, "base64").toString(), "Buy now\n", "read from the worktree before the merge");
+});

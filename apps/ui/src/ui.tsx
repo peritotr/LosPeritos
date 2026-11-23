@@ -12,7 +12,7 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
-import type { Agent, AgentStatus, Approval, Message, Task, TaskStatus } from "@losperitos/protocol";
+import type { Agent, AgentStatus, Approval, Message, Task, TaskStatus, Workspace, WorkspaceKind } from "@losperitos/protocol";
 import { T } from "./strings";
 
 /** A Lucide icon at the design's stroke weight. */
@@ -86,10 +86,11 @@ export function perito(agent: Agent, all: Agent[]): Perito {
   const seat = all.filter((a) => a.workspaceId === agent.workspaceId && a.role === "member").indexOf(agent) + 1;
   const speciality = (agent.specialty ?? "perito").toLowerCase();
   const numeral = ROMAN[seat] ?? String(seat);
+  // Only the software roles have an emblem of their own.
   const known = (KNOWN_ROLES as readonly string[]).includes(speciality);
   // Known specialities are translated; anything else the lead invented is shown as written.
-  const title = known
-    ? T.perito.roles[speciality as (typeof KNOWN_ROLES)[number]]
+  const title = speciality in T.perito.roles
+    ? T.perito.roles[speciality as keyof typeof T.perito.roles]
     : speciality.charAt(0).toUpperCase() + speciality.slice(1);
   const consonants = speciality.replace(/[aeiou]/g, "");
   return {
@@ -267,4 +268,19 @@ export function Segmented<V extends string>({
       ))}
     </div>
   );
+}
+
+export const kindOf = (bureau: Workspace): WorkspaceKind => bureau.kind ?? "software";
+
+/** Outside a software bureau a branch is called a draft, and its git name stays out of sight. */
+export function branchText(bureau: Workspace, task: Task | undefined, none: string): string {
+  const software = kindOf(bureau) === "software";
+  // Without git a document bureau keeps the task's work in a draft folder instead.
+  if (!task?.branch) return task?.worktree && !software ? T.files.ownDraft : none;
+  return software ? task.branch : T.files.ownDraft;
+}
+
+/** What a seal is for; in a document bureau a merge is the acceptance of a draft. */
+export function sealKind(bureau: Workspace, approval: Approval): string {
+  return approval.kind === "merge" && kindOf(bureau) !== "software" ? T.files.draft : T.seal.kind[approval.kind];
 }

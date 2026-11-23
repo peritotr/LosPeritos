@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { basename, delimiter, join, resolve } from "node:path";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { basename, delimiter, dirname, extname, join, relative, resolve, sep } from "node:path";
 import type {
   Agent,
   AgentAdapter,
@@ -16,11 +16,13 @@ import type {
   Message,
   Run,
   Task,
+  TaskFile,
   ToolCheck,
   Waiting,
   Workspace,
+  WorkspaceKind,
 } from "@losperitos/protocol";
-import { MAX_AGENTS_PER_WORKSPACE, MAX_ATTACHMENT_BYTES, PROTOCOL_VERSION } from "@losperitos/protocol";
+import { MAX_AGENTS_PER_WORKSPACE, MAX_ATTACHMENT_BYTES, MAX_PREVIEW_BYTES, PROTOCOL_VERSION } from "@losperitos/protocol";
 import * as git from "@losperitos/git";
 import { AppStore, WorkspaceStore, type Collection } from "@losperitos/storage";
 import type { Adapter, AgentSession, SessionEvent } from "@losperitos/adapters";
@@ -64,24 +66,91 @@ const BRIDGE_PROMPT =
   "- `peritos lesson \"<rule>\"` proposes a lasting rule for this project.\n" +
   "- `peritos task list` shows all tasks.\n";
 
-const LEAD_PROMPT =
-  "You are the lead of a small team of coding agents working in this folder. " +
-  "Small jobs you do yourself. Larger jobs you split into independent tasks and hand out with " +
-  "`peritos task create --title \"<title>\" --description \"<everything the teammate needs>\" --specialty <developer|tester|designer|...> --effort <small|normal|large> [--priority high] [--after <task number>]`. " +
-  "Use --after N (repeatable) when a task must wait until task #N is closed. " +
-  "Use --effort small for mechanical work (renames, copy changes, simple tests) and large for hard design or debugging; it decides which model the teammate runs on. " +
-  "Each task goes to a teammate who works on a separate git branch and cannot see this conversation, " +
-  "so make every description self-contained and keep tasks from touching the same files. " +
-  "After handing out tasks, stop; you are told when each one is merged. " +
-  "Never merge or push branches yourself.\n" +
-  BRIDGE_PROMPT;
+/** What sets one kind of workspace apart: who is on the team and what it hands in. */
+const KINDS: Record<WorkspaceKind, { team: string; specialties: string; lead: string; member: string; checked: string }> = {
+  software: {
+    team: "coding agents",
+    specialties: "developer|tester|designer|...",
+    lead: "",
+    member: "",
+    checked: "what you tested",
+  },
+  marketing: {
+    team: "marketing specialists (SEO, advertising, copywriting, social media, email)",
+    specialties: "seo|copywriter|ads|social|analyst|...",
+    lead:
+      "The team's work is files in this folder: audits, keyword plans, ad copy, campaign plans, content calendars. " +
+      "Nobody on the team can publish, spend an advertising budget or log in to an ad platform; the user does that with the files you hand over. ",
+    member:
+      "Your deliverable is one or more files: Markdown for text, CSV for tables, in a subfolder that fits the work. " +
+      "Write them ready to use (final copy, exact character limits, concrete numbers) and in the language the task is written in. " +
+      "Where a length limit applies, count with a command (for example `printf %s \"<text>\" | wc -m`), never by eye, and shorten whatever is over. " +
+            "You cannot publish or reach an ad platform, so never report that something is live. ",
+    checked: "what you checked (facts, links, length limits)",
+  },
+  content: {
+    team: "writers and editors (articles, newsletters, video scripts, storyboards, translations)",
+    specialties: "writer|editor|researcher|scriptwriter|translator|...",
+    lead:
+      "The team's work is files in this folder: drafts, outlines, scripts, shot lists, edited copy. " +
+      "Nobody on the team can publish or produce video or audio; they write what the user will publish or shoot. ",
+    member:
+      "Your deliverable is one or more files: Markdown for text, CSV for tables, in a subfolder that fits the work. " +
+      "Write finished copy, not notes about copy, in the language the task is written in. " +
+      "Where a length limit applies, count with a command (for example `printf %s \"<text>\" | wc -m`), never by eye, and shorten whatever is over. " +
+            "You cannot publish, so never report that something is live. ",
+    checked: "what you checked (facts, sources, length)",
+  },
+};
 
-const MEMBER_PROMPT =
-  "You are a member of a small team of coding agents. You work on one task, in your own git " +
-  "worktree and branch; stay inside this folder. When the task is finished, commit your changes and run " +
-  "`peritos task done --done \"<what you did>\" --tested \"<what you tested>\" --not-verified \"<what you could not verify>\"` " +
-  "(repeat a flag for several items), then stop. Never merge, push or switch branches.\n" +
-  BRIDGE_PROMPT;
+function leadPrompt(kind: WorkspaceKind): string {
+  const k = KINDS[kind];
+  return (
+    `You are the lead of a small team of ${k.team} working in this folder. ` +
+    k.lead +
+    "Small jobs you do yourself. Larger jobs you split into independent tasks and hand out with " +
+    `\`peritos task create --title "<title>" --description "<everything the teammate needs>" --specialty <${k.specialties}> --effort <small|normal|large> [--priority high] [--after <task number>]\`. ` +
+    "Use --after N (repeatable) when a task must wait until task #N is closed. " +
+    "Use --effort small for mechanical work and large for work that needs hard thinking; it decides which model the teammate runs on. " +
+    "Each task goes to a teammate who works apart from you, on a separate git branch when the folder is a repository, and cannot see this conversation, " +
+    "so make every description self-contained and keep tasks from touching the same files. " +
+    "After handing out tasks, stop; you are told when each one is closed. " +
+    "Never merge or push branches yourself.\n" +
+    BRIDGE_PROMPT
+  );
+}
+
+/**
+ * Where a member's work goes until the user accepts it: a git branch, a draft
+ * folder of its own (`project` is then the real folder), or straight into the folder.
+ */
+type Workplace = { on: "branch" } | { on: "draft"; project: string } | { on: "folder" };
+
+function memberPrompt(kind: WorkspaceKind, place: Workplace): string {
+  const k = KINDS[kind];
+  const ownBranch = place.on === "branch";
+  return (
+    `You are a member of a small team of ${k.team}. You work on one task` +
+    (ownBranch ? ", in your own git worktree and branch" : "") +
+    (place.on === "draft"
+      ? `, in a draft folder of your own (your working directory). The project folder is ${place.project}: read it freely, never write to it. ` +
+        "Write every file inside your draft folder, at the path it should have in the project; to change an existing project file, copy it into the draft first and edit the copy. " +
+        "The user reviews the draft, and only what they accept is copied into the project. "
+      : "; stay inside this folder. ") +
+    k.member +
+    `When the task is finished, ${ownBranch ? "commit your changes and " : ""}run ` +
+    `\`peritos task done --done "<what you did>" --tested "<${k.checked}>" --not-verified "<what you could not verify>" --file "<path of a file you created or changed>"\` ` +
+    "(repeat a flag for several items), then stop." +
+    (ownBranch ? " Never merge, push or switch branches.\n" : "\n") +
+    BRIDGE_PROMPT
+  );
+}
+
+const MIME: Record<string, string> = {
+  md: "text/markdown", txt: "text/plain", csv: "text/csv", json: "application/json", html: "text/html",
+  png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
+  pdf: "application/pdf",
+};
 
 /** Small tasks run on a cheap model, large ones on the biggest; the rest on the tool's default. */
 const MODEL_FOR: Record<"small" | "normal" | "large", string | undefined> = {
@@ -97,6 +166,27 @@ function slug(text: string): string {
 function localDate(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Every file under `dir`, as paths relative to it. */
+function filesUnder(dir: string): string[] {
+  const out: string[] = [];
+  const walk = (at: string) => {
+    for (const entry of readdirSync(at, { withFileTypes: true })) {
+      const full = join(at, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.isFile()) out.push(relative(dir, full));
+    }
+  };
+  if (existsSync(dir)) walk(dir);
+  return out.sort();
+}
+
+/** Remove a task's worktree, or its draft folder when it has no branch. */
+async function dropWorkplace(repo: string, task: Task): Promise<void> {
+  if (!task.worktree) return;
+  if (task.branch) await git.removeWorktree(repo, task.worktree).catch(() => undefined);
+  else rmSync(task.worktree, { recursive: true, force: true });
 }
 
 /** Git repos at the folder itself and one level below it. */
@@ -214,7 +304,7 @@ export class Core {
     return [...this.workspaces.values()].map((state) => state.workspace);
   }
 
-  openWorkspace(path: string): Workspace {
+  openWorkspace(path: string, kind?: WorkspaceKind): Workspace {
     const full = resolve(path);
     if (!existsSync(full) || !statSync(full).isDirectory()) {
       throw new CoreError("bad_request", `Not a folder: ${full}`);
@@ -222,6 +312,11 @@ export class Core {
     const existing = [...this.workspaces.values()].find((s) => s.workspace.path === full);
     if (existing) return existing.workspace;
     const state = this.load(full);
+    // The kind is chosen once, when a folder first becomes a workspace; later it changes from settings.
+    if (kind && !state.workspace.kind) {
+      state.workspace = { ...state.workspace, kind };
+      state.store.writeDoc("workspace", state.workspace);
+    }
     this.app.addWorkspacePath(full);
     this.emit({ type: "workspace.updated", workspace: state.workspace });
     return state.workspace;
@@ -229,7 +324,7 @@ export class Core {
 
   updateWorkspace(
     workspaceId: string,
-    patch: Partial<Pick<Workspace, "name" | "trustMode" | "dailyBudgetUsd" | "dispatchPaused">>,
+    patch: Partial<Pick<Workspace, "name" | "trustMode" | "kind" | "dailyBudgetUsd" | "dispatchPaused">>,
   ): Workspace {
     const state = this.state(workspaceId);
     state.workspace = { ...state.workspace, ...patch };
@@ -318,7 +413,7 @@ export class Core {
         await this.sessions.get(item.assigneeId)?.stop();
         this.setAgent(state, item.assigneeId, { taskId: null, status: "stopped", sessionId: null });
       }
-      if (item.worktree) await git.removeWorktree(state.workspace.path, item.worktree).catch(() => undefined);
+      await dropWorkplace(state.workspace.path, item);
       for (const approval of state.approvals.all()) {
         if (approval.taskId !== taskId || approval.status !== "pending") continue;
         const closed = state.approvals.put({ ...approval, status: "rejected", decidedAt: this.now().toISOString() });
@@ -468,6 +563,30 @@ export class Core {
     } catch (err) {
       throw new CoreError("conflict", (err as Error).message);
     }
+  }
+
+  /** One file of a task: from its worktree while it is open, from the folder afterwards. */
+  taskFile(taskId: string, path: string): TaskFile {
+    const { state, item } = this.find((s) => s.tasks, taskId, "task");
+    const root = item.worktree && existsSync(item.worktree) ? item.worktree : state.workspace.path;
+    let full: string;
+    try {
+      full = realpathSync(resolve(root, path));
+    } catch {
+      throw new CoreError("not_found", `No file ${path}`);
+    }
+    // Symlinks and ".." must not lead out of the folder.
+    if (!path || !full.startsWith(realpathSync(root) + sep) || !statSync(full).isFile()) {
+      throw new CoreError("not_found", `No file ${path}`);
+    }
+    const size = statSync(full).size;
+    if (size > MAX_PREVIEW_BYTES) throw new CoreError("bad_request", "File is too large to preview");
+    return {
+      path,
+      mime: MIME[extname(full).slice(1).toLowerCase()] ?? "application/octet-stream",
+      size,
+      data: readFileSync(full).toString("base64"),
+    };
   }
 
   listMessages(workspaceId: string): Message[] {
@@ -629,6 +748,13 @@ export class Core {
         } catch (err) {
           throw new CoreError("conflict", `Could not merge: ${(err as Error).message}`);
         }
+      } else if (task.worktree) {
+        // A draft folder: accepting it copies its files into the project.
+        for (const file of filesUnder(task.worktree)) {
+          const target = join(state.workspace.path, file);
+          mkdirSync(dirname(target), { recursive: true });
+          copyFileSync(join(task.worktree, file), target);
+        }
       }
       const decided = state.approvals.put({
         ...item,
@@ -753,27 +879,38 @@ export class Core {
             throw new CoreError("conflict", (err as Error).message);
           }
         }
+        // What is actually there is more reliable than what the agent remembered to list.
+        const draft = task.worktree && !task.branch ? filesUnder(task.worktree) : null;
+        const files = new Set(draft ?? command.report.files ?? []);
+        if (needsMerge) {
+          const changed = await git.changedFiles(state.workspace.path, task.baseBranch!, task.branch!).catch(() => []);
+          for (const file of changed) files.add(file);
+        }
+        const needsSeal = needsMerge || !!draft?.length;
         const reported = state.tasks.put({
           ...task,
-          report: command.report,
-          status: needsMerge ? "awaiting_approval" : task.status,
+          report: { ...command.report, files: [...files] },
+          status: needsSeal ? "awaiting_approval" : task.status,
           updatedAt: this.now().toISOString(),
         });
         this.emit({ type: "task.updated", task: reported });
-        if (!needsMerge) {
+        if (!needsSeal) {
           await this.finishTask(state, reported);
           return say("Task closed; there was nothing to merge. Stop here.");
         }
         this.raiseApproval(state, agent.id, {
           kind: "merge",
-          title: `Merge task #${task.number}: ${task.title}`,
+          title: `${draft ? "Accept" : "Merge"} task #${task.number}: ${task.title}`,
           detail: [
             ...command.report.done.map((line) => `Done: ${line}`),
             ...command.report.tested.map((line) => `Tested: ${line}`),
             ...command.report.notVerified.map((line) => `Not verified: ${line}`),
           ].join("\n"),
-          steps: [`Merge ${task.branch} into ${task.baseBranch}`, "Remove the task worktree"],
-          reversible: true,
+          steps: draft
+            ? [...draft.map((file) => `${existsSync(join(state.workspace.path, file)) ? "Replace" : "Add"} ${file}`), "Remove the draft"]
+            : [`Merge ${task.branch} into ${task.baseBranch}`, "Remove the task worktree"],
+          // Replacing a file outside git leaves no way back.
+          reversible: !draft?.some((file) => existsSync(join(state.workspace.path, file))),
         });
         return say("Task handed in for the user's approval. Stop here; you will be told if changes are needed.");
       }
@@ -909,6 +1046,12 @@ export class Core {
             branch = worktree = null;
           }
         }
+        // Outside git, documents are written to a draft folder, so that they too wait for the user.
+        if (!worktree && (state.workspace.kind ?? "software") !== "software") {
+          worktree = join(state.store.dir, "drafts", `task-${task.number}`);
+          rmSync(worktree, { recursive: true, force: true });
+          mkdirSync(worktree, { recursive: true });
+        }
         const started = state.tasks.put({
           ...task,
           status: "in_progress",
@@ -935,9 +1078,7 @@ export class Core {
 
   /** Close a task: drop its worktree, free its agent, tell the lead, start what was waiting. */
   private async finishTask(state: WorkspaceState, task: Task): Promise<void> {
-    if (task.worktree) {
-      await git.removeWorktree(state.workspace.path, task.worktree).catch(() => undefined);
-    }
+    await dropWorkplace(state.workspace.path, task);
     const done = state.tasks.put({
       ...task,
       status: "done",
@@ -1086,11 +1227,22 @@ export class Core {
       session = adapter.start({
         cwd: task?.worktree ?? state.workspace.path,
         trustMode: state.workspace.trustMode,
-        systemPrompt: (agent.role === "lead" ? LEAD_PROMPT : MEMBER_PROMPT) + this.lessonsPrompt(state),
+        systemPrompt:
+          (agent.role === "lead"
+            ? leadPrompt(state.workspace.kind ?? "software")
+            : memberPrompt(
+                state.workspace.kind ?? "software",
+                !task?.worktree
+                  ? { on: "folder" }
+                  : task.branch
+                    ? { on: "branch" }
+                    : { on: "draft", project: state.workspace.path },
+              )) + this.lessonsPrompt(state),
         sessionId,
         resume,
         model: agent.role === "member" ? MODEL_FOR[task?.effort ?? "normal"] : undefined,
-        addDirs: [this.attachmentsDir(state)],
+        // A draft folder holds only new work; the project itself is read from beside it.
+        addDirs: [this.attachmentsDir(state), ...(task?.worktree && !task.branch ? [state.workspace.path] : [])],
         ...(this.bridge && {
           permissionBridge: {
             command: process.execPath,

@@ -49,6 +49,12 @@ export function diff(repo: string, base: string, branch: string): Promise<string
   return git(repo, ["diff", `${base}...${branch}`]);
 }
 
+/** Paths of files `branch` added or changed since it forked from `base`. */
+export async function changedFiles(repo: string, base: string, branch: string): Promise<string[]> {
+  const out = await git(repo, ["diff", "--name-only", "--diff-filter=d", "-z", `${base}...${branch}`]);
+  return out.split("\0").filter(Boolean);
+}
+
 export async function hasCommitsAhead(repo: string, base: string, branch: string): Promise<boolean> {
   return (await git(repo, ["rev-list", "--count", `${base}..${branch}`])).trim() !== "0";
 }

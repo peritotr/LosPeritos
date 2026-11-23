@@ -4,7 +4,7 @@ import type { Agent, Approval, Message } from "@losperitos/protocol";
 import { AwayCard } from "./away";
 import type { Ctx } from "./context";
 import { T } from "./strings";
-import { Emblem, I, clock, perito } from "./ui";
+import { Emblem, I, clock, perito, sealKind } from "./ui";
 
 /**
  * The correspondence thread with its composer. It is the same component in
@@ -332,7 +332,7 @@ function SealReply({ ctx, approval, onError }: { ctx: Ctx; approval: Approval; o
   return (
     <div className="reply-card" onClick={(event) => event.stopPropagation()}>
       <p className={`rev ${approval.reversible ? "" : "no"}`}>
-        {T.seal.toastLine(approval.reversible, approval.steps.length, T.seal.kind[approval.kind])}
+        {T.seal.toastLine(approval.reversible, approval.steps.length, sealKind(ctx.bureau, approval))}
       </p>
       <div className="msg-actions">
         <button className="btn btn-primary" disabled={busy} onClick={seal}>

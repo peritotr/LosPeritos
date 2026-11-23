@@ -17,6 +17,36 @@ Boyutlar kabadır: **K** bir oturumda biter, **O** iki-üç oturum, **B** daha
 uzun ve önce tasarım kararı ister. Sıra, hedef kitleye (kod bilmeyen ya da az
 bilen günlük kullanıcı) en çok değeri en erken verecek şekilde.
 
+### 16. Büro türleri: yazılım dışı işler (O, sonra B)
+
+Büro bugün yazılım işine göre döşenmiş: roller, liderin talimatı ve ekran dili
+(dal, birleştir, diff) geliştiriciye göre. Omurga ise yazılıma özel değil;
+uzmanlık serbest metin ve klasörün git deposu olması şart değil. Reklam, SEO,
+içerik ve video işleri için büro türü eklenir. Sonraki maddelerin (7, 9, 10,
+11, 12) kapsamını değiştirebileceği için öne alındı.
+
+Birinci adım (O), yalnızca dosya üreten işler:
+
+- Kurulumda büro türü seçimi: Yazılım, Pazarlama, İçerik.
+- Türe göre roller (SEO uzmanı, metin yazarı, reklam uzmanı, editör…) ve
+  liderin talimatı.
+- Türe göre ekran dili: yazılım dışı büroda "dal" ve "birleştir" yerine
+  "taslak" ve "onayla"; git ayrıntıları gizli.
+- Görev raporunda üretilen dosyaların listesi; Markdown ve görsel önizleme.
+
+Birinci adım yapıldı. Git olmayan klasörde yazılım dışı bürolar taslak
+klasöründe çalışır; dosyalar mühürden sonra klasöre kopyalanır. Pazarlama
+bürosu gerçek Claude ile uçtan uca denendi. Eksik kalanlar: önizleme rapor
+sütununda dar duruyor; içerik bürosu gerçek Claude ile denenmedi; taslak
+yalıtımı talimata dayanıyor, teknik olarak zorlanmıyor.
+
+İkinci adım (B), önce tasarım kararı ister:
+
+- Bağlayıcılar (MCP): görsel ve video üretimi, Search Console, Google Ads,
+  Meta Ads. Hangi bağlayıcının hangi büroda açık olduğu ayarlardan.
+- Yeni mühür türleri: "yayınla" ve "bütçe harca" her zaman onaya bağlı.
+- Video ve PDF önizleme.
+
 ### 1. Sohbet her ekranda (O)
 
 Sohbet, hangi ekranda olursan ol açık kalmalı.
@@ -129,5 +159,9 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 
 ## Önerilen sıra
 
-1 → 2 → 3 → imzalama → 4 → 5 → 6 → 7(a) → 8 → 9, sonrası kullanıcı geri
-bildirimine göre.
+Yapılanlar: 1 → 2 → 3 → imzalama → 4 → 5 → 6.
+
+Yapılan: 16 (birinci adım).
+
+Sıradaki: 7(a) → 8 → 9. 16'nın ikinci adımı ve sonrası,
+birinci adımdan çıkan sonuca ve kullanıcı geri bildirimine göre.

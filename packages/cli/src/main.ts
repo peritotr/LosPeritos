@@ -10,7 +10,7 @@ import { runPermissionBridge } from "./mcp.js";
 const USAGE = `Usage:
   peritos task create --title <t> [--description <d>] [--specialty <s>] [--effort small|normal|large] [--priority low|normal|high] [--after <n>...]   (lead)
   peritos task list
-  peritos task done --done <text>... [--tested <text>...] [--not-verified <text>...]
+  peritos task done --done <text>... [--tested <text>...] [--not-verified <text>...] [--file <path>...]
   peritos send --to <agent name|lead|user> <message>
   peritos ask <question> [--option <o>...] [--recommend <o>]
   peritos approval --title <t> [--kind deploy|command|other] [--detail <d>] [--step <s>...] [--irreversible]
@@ -35,6 +35,7 @@ function build(argv: string[]): AgentCommandInput {
       done: { type: "string", multiple: true },
       tested: { type: "string", multiple: true },
       "not-verified": { type: "string", multiple: true },
+      file: { type: "string", multiple: true },
       to: { type: "string" },
       option: { type: "string", multiple: true },
       recommend: { type: "string" },
@@ -66,6 +67,7 @@ function build(argv: string[]): AgentCommandInput {
           done: values.done ?? [],
           tested: values.tested ?? [],
           notVerified: values["not-verified"] ?? [],
+          files: values.file,
         },
       };
     case "send":

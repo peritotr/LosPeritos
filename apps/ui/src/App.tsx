@@ -30,7 +30,7 @@ import { Archive, Awaiting, BudgetBar, Ledger, SealToast, Settings, Setup } from
 import { Bench, Correspondence, FileDetail, Files, PeritoDetail } from "./screens-work";
 import { shell, useCore } from "./store";
 import { T } from "./strings";
-import { I, fileRef, money, perito } from "./ui";
+import { I, fileRef, kindOf, money, perito } from "./ui";
 
 type Theme = "light" | "dark";
 const THEME_KEY = "losperitos.theme";
@@ -247,7 +247,7 @@ export function App() {
             {bureau && (
               <span className="chip" title={bureau.path}>
                 <I icon={GitBranch} size={13} />
-                <span className="ellipsis">{bureau.repos[0]?.branch ?? T.top.noBranch}</span>
+                <span className="ellipsis">{bureau.repos[0]?.branch ?? (kindOf(bureau) === "software" ? T.top.noBranch : T.kinds[kindOf(bureau)].name)}</span>
               </span>
             )}
             <span className="grow" />

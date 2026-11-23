@@ -1,17 +1,22 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { Issue, Task } from "@losperitos/protocol";
+import type { Issue, Task, WorkspaceKind } from "@losperitos/protocol";
 import type { Ctx } from "./context";
 import { T } from "./strings";
-import { Corners, fileRef } from "./ui";
+import { Corners, fileRef, kindOf } from "./ui";
 
 /** The tools above the list of files: writing one yourself, and importing GitHub issues. */
 
-const SPECIALTIES = ["developer", "tester", "designer", "architect", "auditor"] as const;
+const SPECIALTIES = {
+  software: ["developer", "tester", "designer", "architect", "auditor"],
+  marketing: ["seo", "copywriter", "ads", "social", "analyst", "designer"],
+  content: ["writer", "editor", "researcher", "scriptwriter", "translator"],
+} as const satisfies Record<WorkspaceKind, readonly (keyof typeof T.perito.roles)[]>;
 
 export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [specialty, setSpecialty] = useState<string>("developer");
+  const specialties = SPECIALTIES[kindOf(ctx.bureau)];
+  const [specialty, setSpecialty] = useState<string>(specialties[0]);
   const [effort, setEffort] = useState<NonNullable<Task["effort"]>>("normal");
   const [priority, setPriority] = useState<NonNullable<Task["priority"]>>("normal");
   const [after, setAfter] = useState("");
@@ -72,7 +77,7 @@ export function NewFileForm({ ctx, onClose }: { ctx: Ctx; onClose(): void }) {
         <div className="field">
           <label htmlFor="nf-spec">{T.files.form.specialty}</label>
           <select id="nf-spec" className="input" value={specialty} onChange={(event) => setSpecialty(event.target.value)}>
-            {SPECIALTIES.map((key) => (
+            {specialties.map((key) => (
               <option key={key} value={key}>
                 {T.perito.roles[key]}
               </option>

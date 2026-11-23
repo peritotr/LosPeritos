@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { AgentCommandInput } from "@losperitos/protocol";
 import type { Adapter, AgentSession, SessionEvent, StartOptions } from "./types.js";
 
@@ -59,6 +61,24 @@ export class FakeAdapter implements Adapter {
         emit({ type: "output", stream: "stdout", chunk: line + "\n" });
       }
     };
+    // The briefing tells the demo which kind of bureau it is playing in.
+    const brief = options.systemPrompt ?? "";
+    const kind = brief.includes("marketing specialists") ? "marketing" : brief.includes("writers and editors") ? "content" : "software";
+    /** Outside a software bureau the work is a document, so the demo leaves one behind. */
+    const writeDemoFile = (title: string): string[] => {
+      if (kind === "software") return [];
+      const name = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "draft";
+      const path = join("demo", `${name}.md`);
+      mkdirSync(join(options.cwd, "demo"), { recursive: true });
+      writeFileSync(
+        join(options.cwd, path),
+        `# ${title}\n\nA sample document from the **demo agent**. A real perito would write the finished piece here.\n\n` +
+          "## Summary\n\n- First point\n- Second point\n- Third point\n\n" +
+          "| Item | Status | Note |\n| --- | --- | --- |\n| Headline | Draft | 58 of 60 characters |\n| Description | Draft | 148 of 155 characters |\n",
+      );
+      return [path];
+    };
+    let title = "Draft";
     const handIn = () =>
       bridge({
         command: "task.done",
@@ -66,6 +86,7 @@ export class FakeAdapter implements Adapter {
           done: ["Played out the scripted demo task"],
           tested: ["Nothing: this is the fake agent"],
           notVerified: ["Everything a real agent would have built"],
+          files: writeDemoFile(title),
         },
       });
 
@@ -93,17 +114,31 @@ export class FakeAdapter implements Adapter {
         });
       } else if (text.startsWith("/team") && url) {
         await type("Reading the brief…", "Splitting the job into three dossiers…");
-        const tasks: Array<[title: string, specialty: string, description: string]> = [
-          ["Build the sign-up form", "developer", "Fields, validation, submit."],
-          ["Write the sign-up tests", "tester", "Cover the happy path and bad input. [demo:ask]"],
-          ["Publish the preview", "designer", "Put the preview build online. [demo:approve]"],
-        ];
+        const jobs: Record<typeof kind, Array<[title: string, specialty: string, description: string]>> = {
+          software: [
+            ["Build the sign-up form", "developer", "Fields, validation, submit."],
+            ["Write the sign-up tests", "tester", "Cover the happy path and bad input. [demo:ask]"],
+            ["Publish the preview", "designer", "Put the preview build online. [demo:approve]"],
+          ],
+          marketing: [
+            ["Keyword plan for the spring campaign", "seo", "Twenty keywords with intent and difficulty."],
+            ["Search ad copy", "copywriter", "Three headlines and two descriptions per ad group. [demo:ask]"],
+            ["Social calendar for April", "social", "Three posts a week, with captions."],
+          ],
+          content: [
+            ["Outline the launch article", "researcher", "Sources, angle and section headings."],
+            ["Write the newsletter", "writer", "Four hundred words, one call to action. [demo:ask]"],
+            ["Script the product video", "scriptwriter", "Sixty seconds, with a shot list."],
+          ],
+        };
+        const tasks = jobs[kind];
         for (const [title, specialty, description] of tasks) {
           await bridge({ command: "task.create", title, specialty, description });
           await type("…");
         }
         emit({ type: "text", text: "I split the job into three dossiers and handed them out." });
       } else if (text.startsWith("Your task #") && url) {
+        title = text.split("\n")[0]!.replace(/^Your task #\d+: /, "");
         await type("Opening the dossier…", "Reading the code…", "Drafting the change…", "Running checks…");
         if (text.includes("[demo:ask]")) {
           finishOnNextMessage = true;

@@ -14,6 +14,9 @@ const timestamp = z.string().datetime();
 // ── Workspace ───────────────────────────────────────────────────────────────
 
 export const TrustMode = z.enum(["full", "restricted"]);
+/** What the team in this workspace is for; decides its roles, its briefing and the UI's wording. */
+export const WorkspaceKind = z.enum(["software", "marketing", "content"]);
+export type WorkspaceKind = z.infer<typeof WorkspaceKind>;
 
 export const Workspace = z.object({
   id,
@@ -21,6 +24,8 @@ export const Workspace = z.object({
   path: z.string(),
   repos: z.array(z.object({ path: z.string(), branch: z.string() })),
   trustMode: TrustMode,
+  /** Absent on workspaces made before kinds existed: those are software. */
+  kind: WorkspaceKind.optional(),
   /** Daily budget in USD; null means no limit. */
   dailyBudgetUsd: z.number().nonnegative().nullable(),
   /** While set, queued tasks are not handed out; work already started carries on. */
@@ -86,7 +91,19 @@ export const TaskReport = z.object({
   done: z.array(z.string()),
   tested: z.array(z.string()),
   notVerified: z.array(z.string()),
+  /** Files the task created or changed, relative to the workspace folder. */
+  files: z.array(z.string()).optional(),
 });
+
+/** One file of a task, for previewing it in the UI. */
+export const TaskFile = z.object({
+  path: z.string(),
+  mime: z.string(),
+  size: z.number().int().nonnegative(),
+  /** Base64. */
+  data: z.string(),
+});
+export const MAX_PREVIEW_BYTES = 8 * 1024 * 1024;
 
 export const Task = z.object({
   id,
@@ -107,7 +124,11 @@ export const Task = z.object({
   branch: z.string().nullable(),
   /** Branch the task branch forked from and merges back into. */
   baseBranch: z.string().nullable(),
-  /** Absolute path of the task's git worktree; null when it works in the folder itself. */
+  /**
+   * Absolute path of the folder the task works in: its git worktree, or with no
+   * `branch` a draft folder whose files are copied in on approval. Null when it
+   * works in the workspace folder itself.
+   */
   worktree: z.string().nullable(),
   report: TaskReport.nullable(),
   createdAt: timestamp,
@@ -213,10 +234,12 @@ export const ToolCheck = z.object({
 
 // ── Requests ────────────────────────────────────────────────────────────────
 
-export const OpenWorkspaceRequest = z.object({ path: z.string() });
+/** `kind` applies only when the folder has not been opened before. */
+export const OpenWorkspaceRequest = z.object({ path: z.string(), kind: WorkspaceKind.optional() });
 export const UpdateWorkspaceRequest = Workspace.pick({
   name: true,
   trustMode: true,
+  kind: true,
   dailyBudgetUsd: true,
   dispatchPaused: true,
 }).partial();
@@ -303,6 +326,8 @@ export const routes = {
   task: "GET /tasks/:taskId",
   /** `{ diff: string }`: the task branch against the branch it started from. */
   taskDiff: "GET /tasks/:taskId/diff",
+  /** `?path=<relative path>`: a TaskFile read from the task's worktree, or the folder once merged. */
+  taskFile: "GET /tasks/:taskId/file",
   messages: "GET /workspaces/:workspaceId/messages",
   sendMessage: "POST /workspaces/:workspaceId/messages",
   /** Store a file so the next message can attach it. */
@@ -443,6 +468,7 @@ export type Agent = z.infer<typeof Agent>;
 export type TaskStatus = z.infer<typeof TaskStatus>;
 export type TaskReport = z.infer<typeof TaskReport>;
 export type Task = z.infer<typeof Task>;
+export type TaskFile = z.infer<typeof TaskFile>;
 export type MessageAuthor = z.infer<typeof MessageAuthor>;
 export type Message = z.infer<typeof Message>;
 export type ApprovalKind = z.infer<typeof ApprovalKind>;
