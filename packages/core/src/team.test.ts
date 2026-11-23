@@ -10,7 +10,7 @@ import type { AddressInfo } from "node:net";
 import { createServer as createHttp, request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { createHash } from "node:crypto";
-import { FakeAdapter } from "@losperitos/adapters";
+import { FakeAdapter, type SessionEvent } from "@losperitos/adapters";
 import { MAX_AGENTS_PER_WORKSPACE, type AgentCommandInput, OpenTerminalRequest } from "@losperitos/protocol";
 import { AgentCommand, SaveConnectorRequest } from "@losperitos/protocol";
 import { Core, CoreError } from "./core.js";
@@ -1243,4 +1243,63 @@ test("an agent can show the user files with a question or a message, and only fi
   await assert.rejects(as(0, { command: "ask", body: "x", files: ["/etc/hosts"] }), /outside the bureau's folder/);
   assert.throws(() => core.attachmentAt(workspace.id, "../workspace.json"), /No attachment/);
   await core.close();
+});
+
+test("reading a scratch file in a temporary folder needs no seal; a seal left behind by an agent that went is marked so", async () => {
+  const { core, workspace, tokenOf } = setup({ repo: false });
+  const token = tokenOf(0);
+  assert.equal(await core.requestPermission(token, "Read", { file_path: "/tmp/prev/rota-m-ikon-primary.svg.png" }), "approved");
+  assert.equal(core.listApprovals(workspace.id).length, 0);
+
+  const held = core.requestPermission(token, "Read", { file_path: "/Users/someone/.ssh/id_ed25519" });
+  await tick();
+  const [seal] = core.listApprovals(workspace.id);
+  assert.equal(seal!.title, "Read: /Users/someone/.ssh/id_ed25519", "a read elsewhere is still asked about, by its path");
+  // The agent's process goes away with the call unanswered: that is not the user refusing.
+  const lead = core.listAgents(workspace.id)[0]!;
+  await (core as unknown as { sessions: Map<string, { stop(): Promise<void> }> }).sessions.get(lead.id)!.stop();
+  assert.equal(await held, "rejected");
+  const closed = core.listApprovals(workspace.id)[0]!;
+  assert.equal(closed.status, "rejected");
+  assert.equal(closed.lapsed, true);
+  await core.close();
+});
+
+test("a teammate cut off by the app closing carries on with its task when the app opens again", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "lp-data-"));
+  const folder = realpathSync(mkdtempSync(join(tmpdir(), "lp-ws-")));
+  // An agent that takes for ever over its turn, so that it is still in it when the app closes.
+  const sent: string[] = [];
+  const adapter = {
+    id: "fake" as const,
+    sent,
+    check: async () => ({ tool: "claude" as const, required: true, found: true, version: "1", installHint: null }),
+    start() {
+      const listeners: Array<(event: SessionEvent) => void> = [];
+      return {
+        onEvent: (listener: (event: SessionEvent) => void) => void listeners.push(listener),
+        send: (text: string) => void sent.push(text),
+        stop: async () => listeners.forEach((listener) => listener({ type: "exit", code: 0 })),
+      };
+    },
+  };
+  const core = new Core({ dataDir, adapters: [adapter], leadAdapter: "fake" });
+  const workspace = core.openWorkspace(folder);
+  await core.createTask(workspace.id, { title: "Draw the logo", description: "", specialty: "designer", effort: undefined, priority: undefined, dependsOn: [], start: true });
+  for (let i = 0; i < 50 && !adapter.sent.some((text) => text.startsWith("Your task #")); i++) await tick();
+  const member = core.listAgents(workspace.id).find((agent) => agent.role === "member")!;
+  assert.equal(member.status, "working");
+  await core.close();
+
+  const again = new FakeAdapter();
+  const reopened = new Core({ dataDir, adapters: [again], leadAdapter: "fake" });
+  assert.equal(reopened.listWorkspaces()[0]!.path, folder);
+  assert.equal(reopened.listAgents(workspace.id).find((agent) => agent.id === member.id)!.interrupted, true);
+  reopened.setBridge("http://127.0.0.1:1", "cli.js");
+  for (let i = 0; i < 50 && !again.sent.some((text) => text.startsWith("The app was closed")); i++) await tick();
+  assert.match(again.sent.find((text) => text.startsWith("The app was closed"))!, /working on task #1/);
+  assert.equal(again.starts.length, 1, "only the one who was cut off is woken");
+  assert.equal(again.starts[0]!.resume, true, "on the conversation it had");
+  assert.equal(reopened.listAgents(workspace.id).find((agent) => agent.id === member.id)!.interrupted, false);
+  await reopened.close();
 });

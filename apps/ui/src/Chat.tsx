@@ -384,7 +384,7 @@ function SealReply({ ctx, approval, onError }: { ctx: Ctx; approval: Approval; o
     return (
       <div className="msg-actions muted">
         <I icon={Check} />
-        {approval.status === "approved" ? T.mail.sealed : T.mail.declined}
+        {approval.status === "approved" ? T.mail.sealed : approval.lapsed ? T.mail.lapsed : T.mail.declined}
       </div>
     );
   }

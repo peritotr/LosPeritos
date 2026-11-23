@@ -225,7 +225,7 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
       ) : (
         <p className="row" style={{ gap: 8 }}>
           <I icon={Check} />
-          {approval.status === "approved" ? T.seal.sealedBy(who) : T.seal.declinedBy(who)}
+          {approval.status === "approved" ? T.seal.sealedBy(who) : approval.lapsed ? T.seal.lapsed : T.seal.declinedBy(who)}
         </p>
       )}
     </article>

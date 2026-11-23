@@ -77,6 +77,8 @@ export const Agent = z.object({
   sessionId: z.string().nullable().optional(),
   /** When a limited agent will try again. */
   resumeAt: timestamp.nullable().optional(),
+  /** Set when the app closed while the agent was in the middle of a turn: it carries on at the next start. */
+  interrupted: z.boolean().optional(),
 });
 
 // ── Task ────────────────────────────────────────────────────────────────────
@@ -215,6 +217,8 @@ export const Approval = z.object({
   detail: z.string(),
   steps: z.array(z.string()),
   reversible: z.boolean(),
+  /** Closed because the agent that asked went away (the app closed, the task was stopped), not by the user's word. */
+  lapsed: z.boolean().optional(),
   /** For a `connector` approval: which tool of which connector is being called. */
   call: z.object({ connectorId: z.string(), tool: z.string() }).optional(),
   status: ApprovalStatus,

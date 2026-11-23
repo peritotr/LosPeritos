@@ -213,6 +213,7 @@ export const en = {
     answered: (text: string) => `You answered: ${text}`,
     sealed: "Sealed by you",
     declined: "Declined by you",
+    lapsed: "Closed unanswered: the perito stopped",
     resize: "Resize panels",
     noTerminal: "Select a perito's message to follow its terminal.",
     open: "Open",
@@ -281,6 +282,7 @@ export const en = {
     decline: "Decline",
     details: "Details",
     sealedBy: (who: string) => `Sealed by you. ${who} is proceeding.`,
+    lapsed: "Closed without an answer: the perito that asked stopped, or the app was closed.",
     declinedBy: (who: string) => `Declined. ${who} has been told.`,
     deferred: "Deferred — the perito waits.",
     toastLine: (reversible: boolean, steps: number, who: string) =>

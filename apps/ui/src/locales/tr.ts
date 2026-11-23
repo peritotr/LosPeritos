@@ -211,6 +211,7 @@ export const tr: Strings = {
     answered: (text) => `Cevabın: ${text}`,
     sealed: "Sen mühürledin",
     declined: "Sen reddettin",
+    lapsed: "Perito durduğu için yanıtsız kapandı",
     resize: "Panelleri yeniden boyutlandır",
     noTerminal: "Terminalini izlemek için bir peritonun mesajını seç.",
     open: "Aç",
@@ -279,6 +280,7 @@ export const tr: Strings = {
     decline: "Reddet",
     details: "Ayrıntılar",
     sealedBy: (who) => `Sen mühürledin. ${who} devam ediyor.`,
+    lapsed: "Yanıtlanmadan kapandı: isteyen perito durdu ya da uygulama kapandı.",
     declinedBy: (who) => `Reddedildi. ${who} bilgilendirildi.`,
     deferred: "Ertelendi — perito bekliyor.",
     toastLine: (reversible, steps, who) =>

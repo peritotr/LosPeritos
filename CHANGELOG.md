@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+**A team that carries on**
+- A teammate cut off in the middle of its work by the app closing (an
+  update, a restart) is told so when the app opens again and carries on with
+  its task. Before, it sat "stopped" until you wrote to it.
+- A seal left unanswered because the perito that asked went away is marked
+  "closed unanswered", not "declined by you".
+- Looking at a scratch file in a temporary folder (a render, a preview) no
+  longer asks for a seal.
+
 ## 0.6.4 — 2026-11-23
 
 **Seeing what you are asked about**

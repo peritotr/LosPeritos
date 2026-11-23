@@ -1,7 +1,8 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
-import { basename, delimiter, dirname, extname, join, relative, resolve, sep } from "node:path";
+import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
 import type {
   Agent,
   AgentAdapter,
@@ -264,6 +265,9 @@ const CODEX_PROMPT =
   "\n\nNothing stops you before a command, so hold yourself to this: never push, merge, deploy, publish, delete outside your working folder " +
   "or reach another machine on your own. When the work needs one of those, request it with `peritos approval` and stop.";
 
+/** Temporary folders of this machine, where agents keep scratch files; reading there needs no seal. */
+const TEMP_DIRS = [...new Set([tmpdir(), existsSync(tmpdir()) ? realpathSync(tmpdir()) : tmpdir(), "/tmp", "/private/tmp", "/var/folders", "/private/var/folders"])];
+
 /** How many messages from other bureaus a bureau takes before the user has to write there again, and how far back to look. */
 const CROSS_BUREAU_LIMIT = 6;
 const CROSS_BUREAU_WINDOW = 200;
@@ -412,6 +416,8 @@ export class Core {
   private readonly agentTokens = new Map<string, string>();
   private bridge: { url: string; binDir: string; cliEntry: string } | null = null;
   /** Tool calls held until the user decides, by approval id. */
+  /** Set once the core is shutting down: what ends from here on ends because of that. */
+  private closing = false;
   private readonly heldCalls = new Map<string, (decision: "approved" | "rejected") => void>();
   /** Timers that wake agents whose usage limit is due to reset. */
   private readonly limitTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -456,7 +462,10 @@ export class Core {
     const asNode = process.versions.electron ? "ELECTRON_RUN_AS_NODE=1 " : "";
     writeFileSync(script, `#!/bin/sh\n${asNode}exec "${process.execPath}" "${cliEntry}" "$@"\n`);
     chmodSync(script, 0o755);
+    const first = !this.bridge;
     this.bridge = { url, binDir, cliEntry };
+    // Only now can an agent be started again: pick up whoever the last closing cut off.
+    if (first) queueMicrotask(() => this.resumeInterrupted());
   }
 
   // ── Events ────────────────────────────────────────────────────────────────
@@ -523,6 +532,33 @@ export class Core {
     this.app.addWorkspacePath(full);
     this.emit({ type: "workspace.updated", workspace: state.workspace });
     return state.workspace;
+  }
+
+  /**
+   * Teammates the app's closing (or a crash) cut off in the middle of a turn
+   * are told so and carry on with their task; the user should not have to
+   * notice and nudge each one. Nobody else is woken.
+   */
+  private resumeInterrupted(): void {
+    for (const state of this.workspaces.values()) {
+      for (const agent of state.agents.all()) {
+        if (!agent.interrupted) continue;
+        const task = agent.taskId ? state.tasks.get(agent.taskId) : undefined;
+        const kept = state.agents.put({ ...agent, interrupted: false });
+        if (!task || task.status !== "in_progress" || state.workspace.dispatchPaused) continue;
+        if (this.budget(state.workspace.id).level === "exhausted") continue;
+        try {
+          this.deliver(
+            state,
+            kept,
+            `The app was closed while you were working on task #${task.number}, and has been opened again. Your conversation so far is above. ` +
+              "Carry on from where you stopped. A call that was waiting for the user's approval then was not answered: make it again if you still need it.",
+          );
+        } catch {
+          // The tool is not there this time: the task stays open for the user to see.
+        }
+      }
+    }
   }
 
   /** The bureau whose lead places work with the others. There is one; asking again returns it. */
@@ -689,7 +725,7 @@ export class Core {
       await dropWorkplace(this.repoDir(state, item.repo), item);
       for (const approval of state.approvals.all()) {
         if (approval.taskId !== taskId || approval.status !== "pending") continue;
-        const closed = state.approvals.put({ ...approval, status: "rejected", decidedAt: this.now().toISOString() });
+        const closed = state.approvals.put({ ...approval, status: "rejected", lapsed: true, decidedAt: this.now().toISOString() });
         this.emit({ type: "approval.decided", approval: closed });
         this.heldCalls.get(approval.id)?.("rejected");
         this.heldCalls.delete(approval.id);
@@ -769,8 +805,10 @@ export class Core {
     for (const agent of state.agents.all()) {
       const adapter = this.toolOf(workspace);
       const status = agent.status === "working" ? "idle" : agent.status;
-      if (adapter !== agent.adapter || status !== agent.status) {
-        state.agents.put({ ...agent, adapter, status });
+      // Still "working" on disk means the app went without closing properly: that is an interruption too.
+      const interrupted = agent.interrupted || (agent.status === "working" && !!agent.taskId);
+      if (adapter !== agent.adapter || status !== agent.status || interrupted !== !!agent.interrupted) {
+        state.agents.put({ ...agent, adapter, status, interrupted });
       }
     }
     // Agents that were waiting out a usage limit keep waiting.
@@ -1811,6 +1849,11 @@ export class Core {
       });
       return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
     }
+    // Looking at a scratch file is not something to ask about: a render or a preview an agent left in a temporary folder.
+    const looked = ["Read", "Glob", "Grep", "LS"].includes(tool) ? (input.file_path ?? input.path) : undefined;
+    if (typeof looked === "string" && isAbsolute(looked) && TEMP_DIRS.some((dir) => resolve(looked) === dir || resolve(looked).startsWith(dir + sep))) {
+      return Promise.resolve("approved");
+    }
     // What the call is about, in a line: the command, the search, the address, the file.
     const main = ["command", "query", "url", "file_path", "path", "pattern", "prompt"].map((key) => input[key]).find((value) => typeof value === "string" && value.trim()) as string | undefined;
     const command = main ?? (Object.keys(input).length ? JSON.stringify(input) : "");
@@ -2057,6 +2100,11 @@ export class Core {
     this.renewTimers.clear();
     this.limitTimers.clear();
     this.stallTimers.clear();
+    // Whoever is in the middle of a turn is cut off by the app closing, not by the user: note it, to carry on next time.
+    for (const state of this.workspaces.values()) {
+      for (const agent of state.agents.all()) if (this.activeRuns.has(agent.id) && agent.taskId) state.agents.put({ ...agent, interrupted: true });
+    }
+    this.closing = true;
     this.terminals.closeAll();
     await this.phone.close();
     await Promise.all([...this.sessions.values()].map((session) => session.stop()));
@@ -2302,7 +2350,7 @@ export class Core {
           const release = this.heldCalls.get(approval.id);
           if (!release || approval.agentId !== agentId) continue;
           this.heldCalls.delete(approval.id);
-          const closed = state.approvals.put({ ...approval, status: "rejected", decidedAt: this.now().toISOString() });
+          const closed = state.approvals.put({ ...approval, status: "rejected", lapsed: true, decidedAt: this.now().toISOString() });
           this.emit({ type: "approval.decided", approval: closed });
           release("rejected");
         }
@@ -2310,6 +2358,7 @@ export class Core {
         this.agentTokens.delete(agentId);
         this.activeRuns.delete(agentId);
         if (agent.status !== "error") {
+          // setAgent reads the stored agent, so a mark made as the app closed is kept.
           this.setAgent(state, agentId, { status: "stopped", lastOutput: agent.lastOutput });
         }
         break;
