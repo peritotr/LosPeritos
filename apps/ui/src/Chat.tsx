@@ -174,7 +174,8 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
           const agent = agents.find((a) => a.id === agentId);
           const view = agent ? perito(agent, mates(agent)) : null;
           const home = (message ?? approval)!.workspaceId;
-          const from = view?.who ?? (message?.author.kind === "user" ? T.mail.you : T.mail.bureau);
+          const from =
+            view?.who ?? (message?.author.kind === "user" ? T.mail.you : message?.author.kind === "bureau" ? T.mail.otherBureau(message.author.name) : T.mail.bureau);
           const to = approval || message?.question ? T.mail.you : (name(message!.toAgentId) ?? T.mail.panel);
           return (
             <div

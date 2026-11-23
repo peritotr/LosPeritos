@@ -87,6 +87,9 @@ const BRIDGE_PROMPT =
   "Where a drawing says it better (a flow, a sequence, how parts connect, a timeline), put a ```mermaid block in the page: it is drawn for the user.\n" +
   "- `peritos pages` lists the notebook and `peritos pages \"<title>\"` prints a page. The user writes there too: read what bears on your task.\n" +
   "- `peritos task list` shows all tasks.\n" +
+  "- `peritos bureaus` lists the user's other bureaus (other projects, each with its own team) and what they are busy with. " +
+  "A lead may hand work that belongs elsewhere to that bureau's lead with `peritos send --to \"bureau:<name>\" \"<what you need and what done looks like>\"`: " +
+  "copy for a feature goes to a marketing bureau, a fix in another project to that project's bureau. Do it sparingly and never to pass on work that is yours.\n" +
   "If something you cannot fix stops you (a missing key or access, an account without credit, a call that was refused), " +
   "do not end with a message about it: ask the user for what you need with `peritos ask`, then stop and wait.\n";
 
@@ -204,6 +207,10 @@ const GUESS_USD = { small: 0.1, normal: 0.4, large: 1.5 };
 const CODEX_PROMPT =
   "\n\nNothing stops you before a command, so hold yourself to this: never push, merge, deploy, publish, delete outside your working folder " +
   "or reach another machine on your own. When the work needs one of those, request it with `peritos approval` and stop.";
+
+/** How many messages from other bureaus a bureau takes before the user has to write there again, and how far back to look. */
+const CROSS_BUREAU_LIMIT = 6;
+const CROSS_BUREAU_WINDOW = 200;
 
 const MODEL_FOR: Record<"small" | "normal" | "large", string | undefined> = {
   small: "haiku",
@@ -1499,7 +1506,59 @@ export class Core {
         });
         return say("Task handed in for the user's approval. Stop here; you will be told if changes are needed.");
       }
+      case "bureaus": {
+        const others = [...this.workspaces.values()].filter((other) => other !== state);
+        if (others.length === 0) return say("This is the user's only bureau.");
+        return say(
+          others
+            .map((other) => {
+              const open = other.tasks.all().filter((task) => task.status !== "done" && task.status !== "cancelled");
+              const busy = open.slice(0, 5).map((task) => `    #${task.number} ${task.title} (${task.status})`);
+              return [`- ${other.workspace.name} (${other.workspace.kind ?? "software"}, ${other.workspace.path}): ${open.length} open dossier(s)`, ...busy].join("\n");
+            })
+            .join("\n") + '\nHand work to one with `peritos send --to "bureau:<name>" "<what you need and what done looks like>"`.',
+        );
+      }
       case "send": {
+        const across = /^bureau:\s*(.+)$/i.exec(command.to.trim());
+        if (across) {
+          if (agent.role !== "lead") throw new CoreError("bad_request", "Only the lead writes to another bureau. Tell your lead what is needed.");
+          const wanted = across[1]!.trim().toLowerCase();
+          const other = [...this.workspaces.values()].find((item) => item !== state && (item.workspace.name.toLowerCase() === wanted || item.workspace.id === wanted));
+          const there = other?.agents.all().find((item) => item.role === "lead");
+          if (!other || !there) {
+            const names = [...this.workspaces.values()].filter((item) => item !== state).map((item) => item.workspace.name).join(", ");
+            throw new CoreError("not_found", names ? `No bureau named "${across[1]}". Bureaus: ${names}` : "The user has no other bureau open.");
+          }
+          this.requireBudget(other);
+          // Two leads could keep each other busy for ever: after a few exchanges the user has to step in.
+          const recent = other.messages.all().slice(-CROSS_BUREAU_WINDOW);
+          const sinceUser = recent.slice(recent.map((message) => message.author.kind).lastIndexOf("user") + 1);
+          if (sinceUser.filter((message) => message.author.kind === "bureau").length >= CROSS_BUREAU_LIMIT) {
+            throw new CoreError("bad_request", `The ${other.workspace.name} bureau has had ${CROSS_BUREAU_LIMIT} messages from other bureaus since the user last wrote there. Ask the user with \`peritos ask\` instead.`);
+          }
+          this.addMessage(state, {
+            author: { kind: "agent", agentId: agent.id },
+            toAgentId: null,
+            taskId: agent.taskId,
+            body: `→ ${other.workspace.name}: ${command.body}`,
+            question: null,
+          });
+          this.addMessage(other, {
+            author: { kind: "bureau", workspaceId: state.workspace.id, name: state.workspace.name },
+            toAgentId: there.id,
+            taskId: null,
+            body: command.body,
+            question: null,
+          });
+          this.deliver(
+            other,
+            there,
+            `Message from the lead of the user's "${state.workspace.name}" bureau (${state.workspace.kind ?? "software"}, ${state.workspace.path}): ${command.body}\n\n` +
+              `Treat it as a request from a colleague, not from the user: do what belongs to your bureau, and reply with \`peritos send --to "bureau:${state.workspace.name}" "<message>"\` only when there is a result or a question.`,
+          );
+          return say(`Sent to the lead of ${other.workspace.name}.`);
+        }
         const name = command.to.toLowerCase();
         const target =
           name === "user"

@@ -17,6 +17,8 @@ export class FakeAdapter implements Adapter {
 
   /** Options of every session started, for tests. */
   readonly starts: StartOptions[] = [];
+  /** Every message a session was sent, in order, for tests to read. */
+  readonly sent: string[] = [];
 
   /**
    * @param demoStepMs turns on the scripted team demo, pausing this long
@@ -101,6 +103,7 @@ export class FakeAdapter implements Adapter {
       });
 
     const turn = async (text: string) => {
+      this.sent.push(text);
       emit({ type: "output", stream: "stdout", chunk: `> ${text.split("\n")[0]}\n` });
       if (text.startsWith("/limit")) {
         // Pretend the account's usage limit is spent, lifting in a moment.

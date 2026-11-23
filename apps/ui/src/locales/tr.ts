@@ -199,6 +199,7 @@ export const tr: Strings = {
     noTests: "Bu dosya için kayıtlı test çalıştırması yok. Peritonun test ettiğini söyledikleri raporda yer alır.",
   },
   mail: {
+    otherBureau: (name) => `${name} bürosu`,
     title: "Yazışmalar",
     kicker: (bureau) => `PAFTA 03 · ${bureau}`,
     you: "Sen",

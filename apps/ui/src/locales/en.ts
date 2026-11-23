@@ -201,6 +201,7 @@ export const en = {
     noTests: "No test runs are recorded for this file. What the perito says it tested is in the report.",
   },
   mail: {
+    otherBureau: (name: string) => `${name} bureau`,
     title: "Correspondence",
     kicker: (bureau: string) => `SHEET 03 · ${bureau}`,
     you: "You",

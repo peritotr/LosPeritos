@@ -953,3 +953,31 @@ test("a bureau can be moved to another agent tool; its team starts afresh there,
   assert.throws(() => core.updateWorkspace(workspace.id, { agentTool: "fake" as "codex" }), /./);
   await core.close();
 });
+
+test("a lead can see the user's other bureaus and hand work to another bureau's lead, within a limit", async () => {
+  const { core, adapter, workspace, as } = setup({ repo: false });
+  assert.match((await as(0, { command: "bureaus" })).message, /only bureau/);
+  const other = core.openWorkspace(realpathSync(mkdtempSync(join(tmpdir(), "lp-mk-"))), "marketing");
+  core.updateWorkspace(other.id, { name: "Launch" });
+  await core.createTask(other.id, { title: "Write the launch post", description: "", specialty: "copywriter", effort: undefined, priority: undefined, dependsOn: [], start: false });
+  const listed = (await as(0, { command: "bureaus" })).message;
+  assert.match(listed, /- Launch \(marketing, .*\): 1 open dossier/);
+  assert.match(listed, /#1 Write the launch post/);
+
+  const before = adapter.starts.length;
+  assert.match((await as(0, { command: "send", to: "bureau:launch", body: "We shipped sign-in with a code. Please draft a short announcement." })).message, /Sent to the lead of Launch/);
+  const arrived = core.listMessages(other.id).at(-1)!;
+  assert.deepEqual(arrived.author, { kind: "bureau", workspaceId: workspace.id, name: workspace.name });
+  assert.match(core.listMessages(workspace.id).at(-1)!.body, /^→ Launch: We shipped/);
+  assert.equal(adapter.starts.length, before + 1, "the other bureau's lead is woken with the request");
+  for (let i = 0; i < 50 && !adapter.sent.some((text) => text.startsWith("Message from the lead")); i++) await tick();
+  assert.match(adapter.sent.find((text) => text.startsWith("Message from the lead"))!, /Message from the lead of the user's ".*" bureau/);
+
+  await assert.rejects(as(0, { command: "send", to: "bureau:nowhere", body: "x" }), /No bureau named "nowhere". Bureaus: Launch/);
+  // Leads cannot keep each other busy for ever: after a few, the user has to write there.
+  for (let i = 0; i < 5; i++) await as(0, { command: "send", to: "bureau:Launch", body: `more ${i}` });
+  await assert.rejects(as(0, { command: "send", to: "bureau:Launch", body: "one too many" }), /since the user last wrote there/);
+  core.sendMessage(other.id, { body: "carry on", toAgentId: null, taskId: null });
+  await as(0, { command: "send", to: "bureau:Launch", body: "allowed again" });
+  await core.close();
+});

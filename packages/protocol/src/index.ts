@@ -164,6 +164,8 @@ export const MessageAuthor = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("user") }),
   z.object({ kind: z.literal("agent"), agentId: id }),
   z.object({ kind: z.literal("system") }),
+  /** The lead of another bureau, handing work across. */
+  z.object({ kind: z.literal("bureau"), workspaceId: id, name: z.string() }),
 ]);
 
 export const Message = z.object({
@@ -569,7 +571,10 @@ export const AgentCommand = z.discriminatedUnion("command", [
   /** Member only: hand the task in for review and merge. */
   z.object({ command: z.literal("task.done"), report: TaskReport }),
   /** `to` is an agent name, "lead" or "user". */
+  /** `to` is a teammate, `lead`, `user`, or for a lead `bureau:<name>`: the lead of another bureau. */
   z.object({ command: z.literal("send"), to: z.string().min(1), body: z.string().min(1) }),
+  /** The user's other bureaus and what each is busy with. */
+  z.object({ command: z.literal("bureaus") }),
   z.object({
     command: z.literal("ask"),
     body: z.string().min(1),
