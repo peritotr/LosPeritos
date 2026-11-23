@@ -184,7 +184,9 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 
 - **İmzalama ve noterlik:** Yapıldı. `npm run package` Developer ID sertifikasıyla
   imzalıyor ve notere gönderiyor; 23 Kasım 2026'da üretilen paket Gatekeeper'dan geçti.
-- **Windows paketi (O):** Bir Windows makinede derleme ve deneme.
+- **Windows paketi (O):** Deneme paketi var: testler CI'da Windows'ta geçiyor, imzasız zip
+  derleniyor ve demo ile bir kez açılıyor (`.github/workflows/windows.yml`). Kalan: gerçek bir
+  Windows makinede gerçek ajanlarla deneme, kurulum programı, imza, kendini güncelleme.
 - **GitHub'a hazırlık (K):** Ekran görüntülü README, katkı rehberi, CI.
 - **Otomatik güncelleme (O).**
 

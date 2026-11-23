@@ -135,7 +135,9 @@ Bunların hiçbiri tek satır kod yazmıyor. Hepsi uygulamanın içinde.
 
 ## Gereksinimler
 
-- Apple silicon işlemcili Mac (şimdiye kadar denenen tek platform).
+- Apple silicon işlemcili Mac. Windows (x64) deneme aşamasında: derleniyor,
+  testleri geçiyor ve CI'da demo ile açılıyor; ama gerçek bir makinede gerçek
+  bir işte henüz kimse kullanmadı.
 - [git](https://git-scm.com/downloads).
 - Giriş yapılmış [Claude Code](https://claude.com/claude-code). LosPeritos
   mevcut oturumunu kullanır.
@@ -208,7 +210,8 @@ tut ve [SECURITY.md](SECURITY.md) belgesini oku.
 
 ## Henüz olmayanlar
 
-- Windows ve Linux sürümleri, Intel Mac'ler. Tasarımda engel yok; derlenmedi
+- Gerçekten kullanılmış bir Windows sürümü (imzasız bir deneme paketi var,
+  değişiklik günlüğüne bakın); Linux sürümleri ve Intel Mac'ler ise derlenmedi
   ve denenmedi.
 - Claude Code dışındaki ajan araçları. Adaptör arayüzü hazır; sırada Codex var.
 - Gerçek terminaller. Ajan çıktısı metin satırları olarak gösteriliyor.

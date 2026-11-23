@@ -134,7 +134,9 @@ None of this ships a line of code. All of it is in the app.
 
 ## Requirements
 
-- macOS on Apple silicon (the only platform tested so far).
+- macOS on Apple silicon. Windows (x64) is a trial: it builds, passes the
+  tests and opens with the demo in CI, but nobody has yet worked a real job
+  with it on a real machine.
 - [git](https://git-scm.com/downloads).
 - [Claude Code](https://claude.com/claude-code), signed in. LosPeritos uses
   your existing login.
@@ -210,8 +212,9 @@ git, and read [SECURITY.md](SECURITY.md).
 
 ## What is not there yet
 
-- Windows and Linux builds, and Intel Macs. Nothing in the design rules them
-  out; they have not been built or tried.
+- A Windows build someone has really used (there is an unsigned trial
+  package, see the changelog), and Linux builds and Intel Macs, which have
+  not been built or tried.
 - Agent tools other than Claude Code. The adapter interface is there; Codex is
   next.
 - Real terminals. Agent output is shown as text lines.
