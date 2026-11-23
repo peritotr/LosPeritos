@@ -216,6 +216,27 @@ function filesUnder(dir: string): string[] {
   return out.sort();
 }
 
+const MAX_TREE_FILES = 5000;
+
+/** A file under `root` by its relative path, refusing anything that leads out of the folder. */
+function fileAt(root: string, path: string): { full: string; mime: string; size: number } {
+  let full: string;
+  try {
+    full = realpathSync(resolve(root, path));
+  } catch {
+    throw new CoreError("not_found", `No file ${path}`);
+  }
+  // Symlinks and ".." must not lead out of the folder.
+  if (!path || !full.startsWith(realpathSync(root) + sep) || !statSync(full).isFile()) {
+    throw new CoreError("not_found", `No file ${path}`);
+  }
+  return {
+    full,
+    mime: MIME[extname(full).slice(1).toLowerCase()] ?? "application/octet-stream",
+    size: statSync(full).size,
+  };
+}
+
 /** Where the picture of the project taken when a draft was started is kept. */
 const snapshotOf = (draft: string) => `${draft}.snapshot.json`;
 
@@ -691,6 +712,39 @@ export class Core {
     }
   }
 
+  /** The repository's files, for the code panel's tree. */
+  async repoFiles(workspaceId: string): Promise<{ files: string[]; more: boolean }> {
+    const state = this.state(workspaceId);
+    try {
+      const all = (await git.files(state.workspace.path)).filter((file) => !file.startsWith(".losperitos/"));
+      return { files: all.slice(0, MAX_TREE_FILES), more: all.length > MAX_TREE_FILES };
+    } catch (err) {
+      throw new CoreError("conflict", (err as Error).message);
+    }
+  }
+
+  /** One file of the project folder, to read in the code panel. */
+  repoFile(workspaceId: string, path: string): TaskFile {
+    const { full, mime, size } = fileAt(this.state(workspaceId).workspace.path, path);
+    if (size > MAX_PREVIEW_BYTES) throw new CoreError("bad_request", "File is too large to show");
+    const data = readFileSync(full);
+    // Source files have no type of their own here: anything without a zero byte is read as text.
+    const text = mime === "application/octet-stream" && !data.subarray(0, 8192).includes(0);
+    return { path, mime: text ? "text/plain" : mime, size, data: data.toString("base64") };
+  }
+
+  async repoSearch(workspaceId: string, query: string): Promise<{ hits: Array<{ path: string; line: number; text: string }> }> {
+    const state = this.state(workspaceId);
+    const words = query.trim();
+    if (words.length < 2) return { hits: [] };
+    try {
+      const hits = await git.search(state.workspace.path, words, 200);
+      return { hits: hits.filter((hit) => !hit.path.startsWith(".losperitos/")) };
+    } catch (err) {
+      throw new CoreError("conflict", (err as Error).message);
+    }
+  }
+
   /** One file of a task: from its worktree while it is open, from the folder afterwards. */
   taskFile(taskId: string, path: string): TaskFile {
     const { full, mime, size } = this.taskFileAt(taskId, path);
@@ -701,22 +755,7 @@ export class Core {
   /** Where one of a task's files is on disk, for sending its bytes as they are. */
   taskFileAt(taskId: string, path: string): { full: string; mime: string; size: number } {
     const { state, item } = this.find((s) => s.tasks, taskId, "task");
-    const root = item.worktree && existsSync(item.worktree) ? item.worktree : state.workspace.path;
-    let full: string;
-    try {
-      full = realpathSync(resolve(root, path));
-    } catch {
-      throw new CoreError("not_found", `No file ${path}`);
-    }
-    // Symlinks and ".." must not lead out of the folder.
-    if (!path || !full.startsWith(realpathSync(root) + sep) || !statSync(full).isFile()) {
-      throw new CoreError("not_found", `No file ${path}`);
-    }
-    return {
-      full,
-      mime: MIME[extname(full).slice(1).toLowerCase()] ?? "application/octet-stream",
-      size: statSync(full).size,
-    };
+    return fileAt(item.worktree && existsSync(item.worktree) ? item.worktree : state.workspace.path, path);
   }
 
   listMessages(workspaceId: string): Message[] {

@@ -427,6 +427,12 @@ export const routes = {
   repo: "GET /workspaces/:workspaceId/repo",
   /** `{ diff }`: `?commit=<hash>` for one commit, without it the uncommitted changes. */
   repoDiff: "GET /workspaces/:workspaceId/repo/diff",
+  /** `{ files: string[], more: boolean }`: the repository's files, ignored ones left out. */
+  repoFiles: "GET /workspaces/:workspaceId/repo/files",
+  /** `?path=`: one file of the project as a TaskFile. */
+  repoFile: "GET /workspaces/:workspaceId/repo/file",
+  /** `?q=`: `{ hits: [{ path, line, text }] }`, lines of text files containing the words, any case. */
+  repoSearch: "GET /workspaces/:workspaceId/repo/search",
   connectors: "GET /workspaces/:workspaceId/connectors",
   saveConnector: "POST /workspaces/:workspaceId/connectors",
   removeConnector: "POST /workspaces/:workspaceId/connectors/:connectorId/remove",

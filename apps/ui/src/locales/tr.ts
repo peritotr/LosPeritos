@@ -417,6 +417,13 @@ export const tr: Strings = {
     ahead: (n) => (n === 0 ? "aynı" : `${n} commit önde`),
     commits: "Son commit'ler",
     more: (n) => `ve ${n} dosya daha`,
+    files: "Dosyalar",
+    searchPlaceholder: "Dosya adı, ya da içerikte aramak için Enter",
+    searchInside: "Dosyaların içinde ara",
+    enterToSearch: "Dosyaların içinde aramak için Enter'a bas.",
+    noName: "Bu adla dosya yok. İçerikte aramak için Enter'a bas.",
+    hits: (n) => (n === 0 ? "Hiçbir satırda geçmiyor." : n >= 200 ? "İlk 200 satır gösteriliyor." : `${n} satırda geçiyor.`),
+    treeCut: "Çok dosya var; yalnızca ilk 5000'i listeleniyor.",
   },
   updates: {
     label: "Güncellemeler",

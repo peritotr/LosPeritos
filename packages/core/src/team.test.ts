@@ -672,6 +672,18 @@ test("the code panel reads the repository: branch, commits, task branches and un
   assert.match(await core.repoDiff(workspace.id, repo.commits[0]!.hash), /\+one/);
   await assert.rejects(core.repoDiff(workspace.id, "HEAD; rm -rf x"), /Not a commit hash/);
 
+  // The tree lists what git knows of or would add, and files can be read and searched.
+  writeFileSync(join(folder, ".gitignore"), "secret.env\n");
+  writeFileSync(join(folder, "secret.env"), "KEY=1\n");
+  assert.deepEqual((await core.repoFiles(workspace.id)).files, [".gitignore", "a.txt", "new file.txt"]);
+  const file = core.repoFile(workspace.id, "a.txt");
+  assert.equal(file.mime, "text/plain");
+  assert.equal(Buffer.from(file.data, "base64").toString(), "one\nmore\n");
+  assert.throws(() => core.repoFile(workspace.id, "../x"), /No file/);
+  assert.deepEqual((await core.repoSearch(workspace.id, "MORE")).hits, [{ path: "a.txt", line: 2, text: "more" }]);
+  assert.deepEqual((await core.repoSearch(workspace.id, "nowhere to be found")).hits, []);
+  assert.deepEqual((await core.repoSearch(workspace.id, "KEY")).hits, [], "ignored files are not searched");
+
   const plain = setup({ repo: false });
   await assert.rejects(plain.core.repo(plain.workspace.id), /not a git repository/);
 });

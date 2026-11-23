@@ -133,3 +133,31 @@ export function show(repo: string, hash: string): Promise<string> {
 export function workingDiff(repo: string): Promise<string> {
   return git(repo, ["diff", "HEAD"]);
 }
+
+/** Every file git knows of or would add: tracked ones and untracked ones it does not ignore. */
+export async function files(repo: string): Promise<string[]> {
+  const out = await git(repo, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]);
+  return [...new Set(out.split("\0").filter(Boolean))].sort();
+}
+
+/** Lines containing `text` (any case) in the repository's text files, at most `limit`. */
+export async function search(repo: string, text: string, limit: number): Promise<Array<{ path: string; line: number; text: string }>> {
+  let out: string;
+  try {
+    out = await git(repo, ["grep", "-n", "-I", "-F", "-i", "-z", "--untracked", "-e", text, "--", "."]);
+  } catch (err) {
+    // git grep ends with an error and no words when it finds nothing.
+    if ((err as Error).message === "" || /^Command failed/.test((err as Error).message)) return [];
+    throw err;
+  }
+  const found: Array<{ path: string; line: number; text: string }> = [];
+  for (const row of out.split("\n")) {
+    // With -z: path NUL line NUL text.
+    const [path, line, ...rest] = row.split("\0");
+    if (!path || !line) continue;
+    const matched = rest.join("\0");
+    found.push({ path, line: Number(line), text: matched.length > 240 ? matched.slice(0, 239) + "…" : matched });
+    if (found.length >= limit) break;
+  }
+  return found;
+}

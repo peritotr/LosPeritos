@@ -304,6 +304,9 @@ export interface Actions {
   repo(workspaceId: string): Promise<RepoState>;
   /** The patch of one commit, or of the uncommitted changes when `commit` is null. */
   repoDiff(workspaceId: string, commit: string | null): Promise<string>;
+  repoFiles(workspaceId: string): Promise<{ files: string[]; more: boolean }>;
+  repoFile(workspaceId: string, path: string): Promise<TaskFile>;
+  repoSearch(workspaceId: string, query: string): Promise<Array<{ path: string; line: number; text: string }>>;
   connectors(workspaceId: string): Promise<Connector[]>;
   connectorTools(workspaceId: string, connectorId: string): Promise<ConnectorTool[]>;
   /** The provider's page to open in the browser to sign in to a connector. */
@@ -462,6 +465,10 @@ export function useCore(): [State, Actions] {
     repo: (workspaceId) => post<RepoState>(`/workspaces/${workspaceId}/repo`, undefined, "GET"),
     repoDiff: async (workspaceId, commit) =>
       (await post<{ diff: string }>(`/workspaces/${workspaceId}/repo/diff${commit ? `?commit=${commit}` : ""}`, undefined, "GET")).diff,
+    repoFiles: (workspaceId) => post(`/workspaces/${workspaceId}/repo/files`, undefined, "GET"),
+    repoFile: (workspaceId, path) => post<TaskFile>(`/workspaces/${workspaceId}/repo/file?path=${encodeURIComponent(path)}`, undefined, "GET"),
+    repoSearch: async (workspaceId, query) =>
+      (await post<{ hits: Array<{ path: string; line: number; text: string }> }>(`/workspaces/${workspaceId}/repo/search?q=${encodeURIComponent(query)}`, undefined, "GET")).hits,
     connectors: (workspaceId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, undefined, "GET"),
     connectorTools: async (workspaceId, connectorId) =>
       (await post<{ tools: ConnectorTool[] }>(`/workspaces/${workspaceId}/connectors/${connectorId}/tools`, undefined, "GET")).tools,

@@ -127,7 +127,8 @@ function parseCsv(source: string): string[][] {
 
 const MAX_ROWS = 200;
 
-function Body({ file }: { file: TaskFile }) {
+/** One file shown by its kind: a picture, a formatted page, a table, or plain text. */
+export function FileBody({ file }: { file: TaskFile }) {
   if (file.mime.startsWith("image/")) {
     return <img className="preview-image" src={`data:${file.mime};base64,${file.data}`} alt={file.path} />;
   }
@@ -238,7 +239,7 @@ export function ReportFiles({ ctx, task, wide = false }: { ctx: Ctx; task: Task;
             ) : kind && media ? (
               <Media kind={kind} url={media} path={open} />
             ) : file ? (
-              <Body file={file} />
+              <FileBody file={file} />
             ) : (
               <p className="muted">{T.files.loading}</p>
             )}

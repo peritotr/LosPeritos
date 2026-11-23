@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Files in the code panel**
+- The Code screen has the project's files as a tree, a box that narrows it by
+  name, and a search inside the files; a file opens read-only, at the line
+  that was found. Files git ignores are left out.
+
 **Updates that install themselves**
 - From this release on, the Mac app fetches a newer release in the background
   and installs it when you restart; the side bar says when one is ready.

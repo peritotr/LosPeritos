@@ -419,6 +419,13 @@ export const en = {
     ahead: (n: number) => (n === 0 ? "level" : n === 1 ? "1 commit ahead" : `${n} commits ahead`),
     commits: "Recent commits",
     more: (n: number) => `and ${n} more`,
+    files: "Files",
+    searchPlaceholder: "A file name, or Enter to search inside files",
+    searchInside: "Search inside the files",
+    enterToSearch: "Press Enter to search inside the files.",
+    noName: "No file by that name. Press Enter to search inside the files.",
+    hits: (n: number) => (n === 0 ? "Found in no line." : n >= 200 ? "Showing the first 200 lines." : n === 1 ? "Found in 1 line." : `Found in ${n} lines.`),
+    treeCut: "There are many files; only the first 5000 are listed.",
   },
   updates: {
     label: "Updates",
