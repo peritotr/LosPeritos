@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — 2026-11-23
 
 **From your phone**
 - The phone's page is served encrypted, under a certificate the app makes for
