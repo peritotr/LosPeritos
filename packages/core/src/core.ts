@@ -153,6 +153,17 @@ function leadPrompt(kind: WorkspaceKind): string {
 }
 
 /**
+ * These instructions and the app's own notices are in English, which pulls an
+ * agent towards answering in English. The user's language is the one to write in.
+ */
+const LANGUAGE_PROMPT =
+  "\n\nLanguage: write in the language the user writes in. These instructions and the notices the app sends you are in English; " +
+  "that says nothing about the language to answer in. If the user writes Turkish, everything the user will read is in Turkish: " +
+  "your messages, questions and their options, approval titles, details and steps, task titles and descriptions, reports and notebook pages. " +
+  "A teammate who has not heard from the user writes in the language of its task. Keep to that language even after an English notice, " +
+  "and switch only when the user does. Code, commands, file names and quoted output stay as they are.\n";
+
+/**
  * Secrets of an address connector are sent as headers, except these two: an
  * app the user registered with the provider, used only to sign in.
  */
@@ -2066,7 +2077,7 @@ export class Core {
                   : task.branch
                     ? { on: "branch" }
                     : { on: "draft", project: state.workspace.path },
-              )) + this.lessonsPrompt(state) + (agent.adapter === "codex" ? CODEX_PROMPT : this.connectorsPrompt(state)),
+              )) + this.lessonsPrompt(state) + (agent.adapter === "codex" ? CODEX_PROMPT : this.connectorsPrompt(state)) + LANGUAGE_PROMPT,
         // Codex cannot hold a call back for the user's seal, so its team is not handed the connectors.
         connectors: agent.adapter === "codex" ? {} : this.mcpServers(state, token),
         sessionId,

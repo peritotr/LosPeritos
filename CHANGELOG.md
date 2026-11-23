@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+**Language**
+- The team answers in the language you write in. Its instructions and the
+  app's own notices are in English, which used to pull a lead into English
+  even when you wrote Turkish; every perito is now told that the user's
+  language is the one to write in, for messages, questions, seals, tasks,
+  reports and notebook pages alike.
+
 ## 0.6.0 — 2026-11-23
 
 **From your phone**

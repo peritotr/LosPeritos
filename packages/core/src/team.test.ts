@@ -1093,6 +1093,8 @@ test("the coordinator is a bureau of its own whose lead places work and opens no
   core.sendMessage(coordinator.id, { body: "ship the feature and announce it", toAgentId: null, taskId: null });
   const start = adapter.starts.at(-1)!;
   assert.match(start.systemPrompt!, /You are the coordinator over the user's bureaus/);
+  assert.match(start.systemPrompt!, /write in the language the user writes in/, "every agent is told whose language to write in");
+  assert.match(adapter.starts[0]!.systemPrompt!, /write in the language the user writes in/);
   assert.doesNotMatch(start.systemPrompt!, /peritos task create/);
   const token = start.env!.LOSPERITOS_AGENT_TOKEN!;
   const as = (command: AgentCommandInput) => core.agentCommand(token, AgentCommand.parse(command));
