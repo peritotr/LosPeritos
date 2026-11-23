@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { WebSocket } from "ws";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -41,6 +41,9 @@ function setup({ repo = true } = {}) {
 const windows = process.platform === "win32";
 /** A file that is certainly there and certainly outside any bureau. */
 const OUTSIDE = process.execPath;
+// On Windows a pseudo-terminal that has been closed still keeps the process from ending, so once
+// every test here is through the process is ended by hand, with whatever result the tests gave it.
+if (windows) after(() => void setTimeout(() => process.exit(), 1000));
 const tick = () => new Promise((done) => setTimeout(done, 20));
 
 test("a task runs on its own branch and is merged only after approval", async () => {

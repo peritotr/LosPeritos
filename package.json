@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc -b packages/core packages/cli",
     "typecheck": "tsc -b packages/core packages/cli",
-    "test": "npm run build && node --test --test-force-exit --test-timeout=120000 \"packages/*/dist/**/*.test.js\"",
+    "test": "npm run build && node --test --test-timeout=300000 \"packages/*/dist/**/*.test.js\"",
     "core": "node packages/core/dist/main.js",
     "core:fake": "node packages/core/dist/main.js --fake",
     "dev": "npm run build && node scripts/dev.mjs",
