@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Messages from the team are shown as formatted text in the chat, not with raw
+  Markdown marks.
+- Marketing and content bureaus no longer show the GitHub import, and the
+  brief box gives an example that fits the kind of bureau.
+- Setup says what happens outside git for each kind of bureau.
+
 ## 0.2.0 — 2026-11-23
 
 **Kinds of bureau**

@@ -51,7 +51,8 @@ function DataTable({ rows }: { rows: string[][] }) {
 }
 
 /** Enough Markdown for briefs, plans and copy: headings, lists, tables, quotes, code. */
-export function Markdown({ source }: { source: string }) {
+/** `breaks` keeps single line breaks, as chat messages mean them. */
+export function Markdown({ source, breaks = false }: { source: string; breaks?: boolean }) {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   const isList = (line: string) => /^\s*([-*+]|\d+[.)])\s+/.test(line);
@@ -92,7 +93,7 @@ export function Markdown({ source }: { source: string }) {
       for (; at < lines.length && lines[at]!.trim() && !/^(#{1,6}\s|```|>)/.test(lines[at]!) && !isList(lines[at]!); at++) {
         para.push(lines[at]!);
       }
-      blocks.push(<p key={key}>{inline(para.join(" "))}</p>);
+      blocks.push(<p key={key}>{inline(para.join(breaks ? "\n" : " "))}</p>);
     }
   }
   return <div className="markdown">{blocks}</div>;

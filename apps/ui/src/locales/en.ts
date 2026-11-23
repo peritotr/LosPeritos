@@ -81,7 +81,11 @@ export const en = {
     title: "The Bench",
     sheet: (bureau: string) => `SHEET 01 · ${bureau}`,
     awaiting: (n: number) => (n === 1 ? "1 item awaits you" : `${n} items await you`),
-    placeholder: "Brief the Lead Perito — e.g. “Add rate limiting to the public API”",
+    placeholder: {
+      software: "Brief the Lead Perito — e.g. “Add rate limiting to the public API”",
+      marketing: "Brief the Lead Perito — e.g. “Write Google ad copy for the new product”",
+      content: "Brief the Lead Perito — e.g. “Write this month's newsletter”",
+    },
     open: "Open a file",
     briefLabel: "Brief for the Lead Perito",
     spent: "Today's budget is spent — new work cannot start. Running files finish their current step.",
@@ -358,7 +362,7 @@ export const en = {
     step1: "Step 01 — Agent tools on this machine",
     step2: "Step 02 — Open a bureau",
     step2Body:
-      "A bureau is one project folder. Under git, each perito works on its own branch and nothing reaches main without your seal. Without git, work is written straight into the folder.",
+      "A bureau is one project folder. Under git, each perito works on its own branch and nothing reaches main without your seal. Without git, a software bureau writes straight into the folder; a marketing or content bureau hands in a draft that enters the folder once you accept it.",
     choose: "Open folder",
     chooseNative: "Choose folder…",
     pathLabel: "Folder path",

@@ -3,6 +3,7 @@ import { Check, Paperclip, Send, Stamp as StampIcon, X } from "lucide-react";
 import type { Agent, Approval, Message } from "@losperitos/protocol";
 import { AwayCard } from "./away";
 import type { Ctx } from "./context";
+import { Markdown } from "./preview";
 import { T, fromCore } from "./strings";
 import { Emblem, I, clock, perito, sealKind, sealText } from "./ui";
 
@@ -142,7 +143,13 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
                 <div className="msg-head">
                   <b>{from}</b> → {to} · <span className="mono">{clock(at)}</span>
                 </div>
-                <div className="msg-body">{message ? (message.author.kind === "system" ? fromCore(message.body) : message.body) : sealText(approval!).title}</div>
+                {message?.author.kind === "agent" ? (
+                  <div className="msg-body msg-md">
+                    <Markdown source={message.body} breaks />
+                  </div>
+                ) : (
+                  <div className="msg-body">{message ? (message.author.kind === "system" ? fromCore(message.body) : message.body) : sealText(approval!).title}</div>
+                )}
                 {message?.attachments?.length ? (
                   <div className="msg-files">
                     {message.attachments.map((file) => (

@@ -134,7 +134,7 @@ export function Bench(ctx: Ctx) {
           className="input grow"
           value={brief}
           onChange={(event) => setBrief(event.target.value)}
-          placeholder={T.bench.placeholder}
+          placeholder={T.bench.placeholder[kindOf(bureau)]}
           aria-label={T.bench.briefLabel}
           disabled={spent}
         />
@@ -332,9 +332,11 @@ export function Files(ctx: Ctx) {
           <I icon={Plus} />
           {T.files.newFile}
         </button>
-        <button className="btn btn-secondary" onClick={() => setTool(tool === "issues" ? null : "issues")}>
-          {T.files.importIssues}
-        </button>
+        {kindOf(ctx.bureau) === "software" && (
+          <button className="btn btn-secondary" onClick={() => setTool(tool === "issues" ? null : "issues")}>
+            {T.files.importIssues}
+          </button>
+        )}
         <button
           className="btn btn-secondary"
           aria-pressed={paused}

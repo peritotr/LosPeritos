@@ -80,7 +80,11 @@ export const tr: Strings = {
     title: "Heyet Masası",
     sheet: (bureau) => `PAFTA 01 · ${bureau}`,
     awaiting: (n) => `${n} iş seni bekliyor`,
-    placeholder: "Baş Perito'ya iş ver — örn. “Genel API'ye hız sınırı ekle”",
+    placeholder: {
+      software: "Baş Perito'ya iş ver — örn. “Genel API'ye hız sınırı ekle”",
+      marketing: "Baş Perito'ya iş ver — örn. “Yeni ürün için Google reklam metni yaz”",
+      content: "Baş Perito'ya iş ver — örn. “Bu ayın bültenini yaz”",
+    },
     open: "Dosya aç",
     briefLabel: "Baş Perito için iş tanımı",
     spent: "Bugünkü bütçe doldu — yeni iş başlatılamaz. Süren dosyalar bulundukları adımı bitirir.",
@@ -356,7 +360,7 @@ export const tr: Strings = {
     step1: "Adım 01 — Bu makinedeki ajan araçları",
     step2: "Adım 02 — Büro aç",
     step2Body:
-      "Büro, tek bir proje klasörüdür. Klasör git altındaysa her perito kendi dalında çalışır ve mührün olmadan hiçbir şey ana dala geçmez. Git yoksa iş doğrudan klasöre yazılır.",
+      "Büro, tek bir proje klasörüdür. Klasör git altındaysa her perito kendi dalında çalışır ve mührün olmadan hiçbir şey ana dala geçmez. Git yoksa yazılım bürosunda iş doğrudan klasöre yazılır; pazarlama ve içerik bürosunda taslak olarak gelir ve sen kabul edince klasöre girer.",
     choose: "Klasörü aç",
     chooseNative: "Klasör seç…",
     pathLabel: "Klasör yolu",
