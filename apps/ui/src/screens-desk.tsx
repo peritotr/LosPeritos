@@ -16,7 +16,7 @@ import {
   TriangleAlert,
   Undo2,
   Wifi,
-  WifiOff,
+  WifiOff, Eye,
 } from "lucide-react";
 import type { Approval, Message, ToolCheck, Workspace, WorkspaceKind } from "@losperitos/protocol";
 
@@ -160,7 +160,22 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
         <dt>{T.seal.bureau}</dt>
         <dd style={{ textAlign: "left" }}>{names.bureau(approval.workspaceId)?.name}</dd>
       </dl>
-      {approval.detail && <SealDetail text={sealText(approval).detail} />}
+      {/* A held tool call: say in words what such a call does, and what the perito had just said it was about. */}
+      {(() => {
+        const tool = approval.tool ?? (approval.kind === "command" || approval.kind === "connector" ? /^([\w-]+): /.exec(approval.title)?.[1] : undefined);
+        if (!tool && !approval.call) return null;
+        const known = T.seal.tools as Record<string, ((who: string) => string) | undefined>;
+        const says = (tool && known[tool]) || (approval.kind === "connector" || /^mcp__/.test(tool ?? "") ? known.connector : undefined);
+        return says ? <p className="seal-what">{says(who)}</p> : null;
+      })()}
+      {approval.why && (
+        <div className="seal-why">
+          <div className="kicker">{T.seal.why(who)}</div>
+          <p>{approval.why}</p>
+        </div>
+      )}
+      {/* The detail of a look-up is the line already in the title; shown again it only adds noise. */}
+      {approval.detail && !(approval.reads && sealText(approval).title.endsWith(approval.detail)) && <SealDetail text={sealText(approval).detail} />}
       {approval.steps.length > 0 && (
         <div>
           <div className="kicker" style={{ marginBottom: 8 }}>
@@ -174,7 +189,7 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
         </div>
       )}
       {/* What is being sealed can be read here, before the seal: the files the task handed in. */}
-      {file && (file.report?.files?.length ?? 0) > 0 && (
+      {approval.kind === "merge" && file && (file.report?.files?.length ?? 0) > 0 && (
         <div className="seal-files">
           <ReportFiles ctx={ctx} task={file} />
           <button className="btn btn-ghost" style={{ alignSelf: "flex-start" }} onClick={() => ctx.go({ screen: "file", id: file.id })}>
@@ -182,13 +197,22 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
           </button>
         </div>
       )}
-      <p className={`rev ${approval.reversible ? "" : "no"}`}>
-        <I icon={approval.reversible ? Undo2 : Lock} />
-        <span>
-          <strong>{approval.reversible ? T.seal.reversible : T.seal.notReversible}</strong>{" "}
-          {approval.reversible ? T.seal.reversibleBody : T.seal.notReversibleBody}
-        </span>
-      </p>
+      {approval.reads ? (
+        <p className="rev">
+          <I icon={Eye} />
+          <span>
+            <strong>{T.seal.readsOnly}</strong> {T.seal.readsOnlyBody}
+          </span>
+        </p>
+      ) : (
+        <p className={`rev ${approval.reversible ? "" : "no"}`}>
+          <I icon={approval.reversible ? Undo2 : Lock} />
+          <span>
+            <strong>{approval.reversible ? T.seal.reversible : T.seal.notReversible}</strong>{" "}
+            {approval.reversible ? T.seal.reversibleBody : T.seal.notReversibleBody}
+          </span>
+        </p>
+      )}
       {error && (
         <p className="err" style={{ fontSize: 13 }}>
           {error}

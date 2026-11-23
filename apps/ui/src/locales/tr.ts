@@ -289,6 +289,20 @@ export const tr: Strings = {
     toastLine: (reversible, steps, who) =>
       `${reversible ? "Geri alınabilir" : "Geri alınamaz"} · ${steps} adım · ${who}`,
     rememberTool: (tool) => `Bundan sonra ${tool} için sorma`,
+    why: (who) => `${who} bundan hemen önce şunu yazdı`,
+    readsOnly: "Yalnızca bakar.",
+    readsOnlyBody: "Hiçbir şeyi değiştirmez; projende de dışarıda da geri alınacak bir şey bırakmaz.",
+    tools: {
+      WebSearch: (who) => `${who} internette bu aramayı yapmak istiyor. Arama motoruna yalnızca yukarıdaki sözcükler gider; projenden dosya ya da metin gönderilmez. Sonuçları okuyup işinde kullanır.`,
+      WebFetch: (who) => `${who} bu internet adresini açıp içeriğini okumak istiyor. Adrese yalnızca bir okuma isteği gider; projenden bir şey gönderilmez.`,
+      Read: (who) => `${who} çalışma klasörünün dışındaki bu dosyayı okumak istiyor. Dosya değişmez.`,
+      Glob: (who) => `${who} çalışma klasörünün dışında dosya adlarına bakmak istiyor. Hiçbir dosya değişmez.`,
+      Grep: (who) => `${who} çalışma klasörünün dışındaki dosyaların içinde arama yapmak istiyor. Hiçbir dosya değişmez.`,
+      Write: (who) => `${who} çalışma klasörünün dışına bu dosyayı yazmak istiyor.`,
+      Edit: (who) => `${who} çalışma klasörünün dışındaki bu dosyayı değiştirmek istiyor.`,
+      Bash: (who) => `${who} bu komutu çalıştırmak istiyor. Yayınlayan, dağıtan, silen ya da başka makineye ulaşan komutlar mührünü bekler.`,
+      connector: (who) => `${who} dış bir servisin bu aracını çağırmak istiyor. Servis çağrıyla ne yaparsa uygulama onu geri alamaz; kredi ya da para harcayabilir.`,
+    },
     kind: { merge: "Birleştirme", deploy: "Yayın", command: "Komut", connector: "Bağlayıcı", other: "İstek" },
   },
   awaiting: {

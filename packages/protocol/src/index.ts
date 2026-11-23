@@ -217,6 +217,12 @@ export const Approval = z.object({
   detail: z.string(),
   steps: z.array(z.string()),
   reversible: z.boolean(),
+  /** For a held tool call: what the agent wrote just before making it, as the nearest thing to its reason. */
+  why: z.string().optional(),
+  /** For a held tool call: the tool by its own name ("WebSearch", "Bash"), so the app can say what such a call does. */
+  tool: z.string().optional(),
+  /** The call only looks something up: it changes nothing, here or elsewhere. */
+  reads: z.boolean().optional(),
   /** Closed because the agent that asked went away (the app closed, the task was stopped), not by the user's word. */
   lapsed: z.boolean().optional(),
   /** For a `connector` approval: which tool of which connector is being called. */

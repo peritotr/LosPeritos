@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+**A seal you can decide on**
+- A held tool call now says in words what such a call does (a web search
+  sends only its words; a read changes nothing), and shows what the perito
+  wrote just before making it, as the nearest thing to its reason.
+- A call that only looks something up says so, instead of "cannot be undone".
+- Web searches, page reads and file reads can be let through for good in a
+  bureau with "do not ask again"; commands and edits cannot.
+
 ## 0.6.6 — 2026-11-23
 
 **What was asked before the update**

@@ -265,6 +265,11 @@ const CODEX_PROMPT =
   "\n\nNothing stops you before a command, so hold yourself to this: never push, merge, deploy, publish, delete outside your working folder " +
   "or reach another machine on your own. When the work needs one of those, request it with `peritos approval` and stop.";
 
+/** Tools that only look something up. One of these can be let through for good; a command or an edit cannot. */
+const READING_TOOLS = ["Read", "Glob", "Grep", "LS", "WebSearch", "WebFetch", "NotebookRead"];
+/** Stands where a connector's id would, for a tool that is the agent's own. */
+const BUILT_IN = "builtin";
+
 /** How many pictures are shown beside one message at most. */
 const MAX_SHOWN_PICTURES = 12;
 
@@ -1506,7 +1511,9 @@ export class Core {
       // Only this tool, by its exact name: nothing wider than what was looked at.
       const stored = this.storedConnectors(state.workspace.id);
       const { connectorId, tool } = item.call;
-      if (stored.some((c) => c.id === connectorId)) {
+      if (connectorId === BUILT_IN) {
+        if (READING_TOOLS.includes(tool) && !state.workspace.freeTools?.includes(tool)) this.updateWorkspace(state.workspace.id, { freeTools: [...(state.workspace.freeTools ?? []), tool] });
+      } else if (stored.some((c) => c.id === connectorId)) {
         this.storeConnectors(
           state.workspace.id,
           stored.map((c) => (c.id === connectorId && !c.free.includes(tool) ? { ...c, free: [...c.free, tool] } : c)),
@@ -1862,6 +1869,7 @@ export class Core {
         // What the service does with the call is not ours to undo.
         reversible: false,
         call: { connectorId: connector.id, tool: call },
+        tool,
       });
       return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
     }
@@ -1881,10 +1889,14 @@ export class Core {
         steps: [],
         reversible: false,
         call: { connectorId: server, tool: outside },
+        tool,
       });
       return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
     }
     // Looking at a scratch file is not something to ask about: a render or a preview an agent left in a temporary folder.
+    const reads = READING_TOOLS.includes(tool);
+    // A kind of looking-up the user has said need not be asked about again in this bureau.
+    if (reads && state.workspace.freeTools?.includes(tool)) return Promise.resolve("approved");
     const looked = ["Read", "Glob", "Grep", "LS"].includes(tool) ? (input.file_path ?? input.path) : undefined;
     if (typeof looked === "string" && isAbsolute(looked) && TEMP_DIRS.some((dir) => resolve(looked) === dir || resolve(looked).startsWith(dir + sep))) {
       return Promise.resolve("approved");
@@ -1901,6 +1913,8 @@ export class Core {
       steps: [],
       // Nobody has checked whether this command can be undone, so do not claim it can.
       reversible: false,
+      tool,
+      ...(reads && { reads: true, call: { connectorId: BUILT_IN, tool } }),
     });
     return new Promise((resolve) => this.heldCalls.set(approval.id, resolve));
   }
@@ -2082,9 +2096,17 @@ export class Core {
   private raiseApproval(
     state: WorkspaceState,
     agentId: string,
-    fields: Pick<Approval, "kind" | "title" | "detail" | "steps" | "reversible" | "call">,
+    fields: Pick<Approval, "kind" | "title" | "detail" | "steps" | "reversible" | "call" | "tool" | "reads">,
   ): Approval {
     void this.notifier.nudge("seal");
+    // A held call says what, never why: the nearest thing to a reason is what the agent wrote just before.
+    const agent = state.agents.get(agentId);
+    const said = fields.tool
+      ? state.messages
+          .all()
+          .filter((message) => message.author.kind === "agent" && message.author.agentId === agentId && message.taskId === (agent?.taskId ?? null) && !message.question)
+          .at(-1)?.body.trim()
+      : undefined;
     const approval = state.approvals.put({
       id: randomUUID(),
       workspaceId: state.workspace.id,
@@ -2096,6 +2118,9 @@ export class Core {
       steps: fields.steps,
       reversible: fields.reversible,
       ...(fields.call && { call: fields.call }),
+      ...(fields.tool && { tool: fields.tool }),
+      ...(fields.reads && { reads: true }),
+      ...(said && { why: said.length > 700 ? said.slice(0, 699) + "…" : said }),
       status: "pending",
       createdAt: this.now().toISOString(),
       decidedAt: null,

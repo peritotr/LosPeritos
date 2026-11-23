@@ -743,3 +743,9 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .shown-large-bar { display: flex; align-items: center; gap: 12px; color: #fff; }
 a.file-chip { text-decoration: none; color: inherit; }
 button.file-chip { font: inherit; cursor: pointer; }
+
+/* What a held call is, and what the perito had said it was about. */
+.seal-what { margin: 0; font-size: 14px; line-height: 1.5; }
+.seal-why { padding: 10px 12px; border-left: 3px solid var(--color-accent); background: var(--lp-faint); min-width: 0; }
+.seal-why .kicker { margin-bottom: 4px; }
+.seal-why p { margin: 0; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; }

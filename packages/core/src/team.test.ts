@@ -1317,3 +1317,33 @@ test("pictures a question points at, by folder or by file, are found for showing
   assert.deepEqual(core.messagePictures(core.listMessages(workspace.id).at(-1)!.id).files, []);
   await core.close();
 });
+
+test("a held call says what the agent wrote just before, whether it only reads, and a kind of looking-up can be let through for good", async () => {
+  const { core, adapter, workspace, tokenOf } = setup({ repo: false });
+  const token = tokenOf(0);
+  // The fake lead answers the first message with a line of its own: that is the nearest thing to a reason.
+  for (let i = 0; i < 50 && !core.listMessages(workspace.id).some((message) => message.author.kind === "agent"); i++) await tick();
+  const said = core.listMessages(workspace.id).filter((message) => message.author.kind === "agent").at(-1)!.body;
+  const search = core.requestPermission(token, "WebSearch", { query: "Türkiye van life karavan Instagram" });
+  await tick();
+  const seal = core.listApprovals(workspace.id).at(-1)!;
+  assert.equal(seal.tool, "WebSearch");
+  assert.equal(seal.reads, true);
+  assert.equal(seal.why, said);
+  await core.decideApproval(seal.id, "approved", true);
+  assert.equal(await search, "approved");
+  assert.deepEqual(core.listWorkspaces()[0]!.freeTools, ["WebSearch"]);
+  assert.equal(await core.requestPermission(token, "WebSearch", { query: "another" }), "approved", "not asked again in this bureau");
+
+  // A command changes things: it is never let through for good.
+  const push = core.requestPermission(token, "Bash", { command: "git push" });
+  await tick();
+  const command = core.listApprovals(workspace.id).at(-1)!;
+  assert.equal(command.reads, undefined);
+  assert.equal(command.call, undefined);
+  await core.decideApproval(command.id, "approved", true);
+  await push;
+  assert.deepEqual(core.listWorkspaces()[0]!.freeTools, ["WebSearch"]);
+  void adapter;
+  await core.close();
+});
