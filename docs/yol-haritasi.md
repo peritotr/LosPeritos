@@ -48,7 +48,9 @@ yalıtımı talimata dayanıyor, teknik olarak zorlanmıyor.
   doğrulandı (`scripts/e2e-connector.mjs`).
 - Hazır bağlayıcılar: görsel ve video üretimi için Replicate şablonu eklendi
   (resmi `replicate-mcp` paketi; gerçek hesapla deneme
-  `scripts/e2e-replicate.mjs`, henüz çalıştırılmadı). Sırada Search Console,
+  `scripts/e2e-replicate.mjs`). Gerçek hesapla denendi: bağlantı, araçlar ve
+  mühür çalıştı; hesapta kredi olmadığı için görsel üretimi ve dosyanın
+  taslağa inmesi doğrulanamadı. Sırada Search Console,
   Google Ads, Meta Ads; her biri hesap ve anahtar ister. fal yalnızca OAuth
   ile bağlandığı için önce OAuth desteği gerekir.
 - Para harcayan çağrılar için bütçe sınırı (reklam bağlayıcılarıyla birlikte).
