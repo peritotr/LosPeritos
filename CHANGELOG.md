@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 — 2026-11-23
 
 **The floor, for its own sake**
 - Berlin sees to faulty work: when a perito's work ends in an error, or you

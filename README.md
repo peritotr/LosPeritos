@@ -115,7 +115,7 @@ a file yourself, set its priority, make it wait for another, or cancel it.
 
 ## Try it
 
-**Download.** Get `LosPeritos-0.6.6-arm64.dmg` from the
+**Download.** Get `LosPeritos-0.7.0-arm64.dmg` from the
 [latest release](https://github.com/peritotr/LosPeritos/releases/latest), open
 it, and drag LosPeritos to Applications. It is signed and notarised, so it
 opens like any other Mac app. It needs an Apple silicon Mac, and
