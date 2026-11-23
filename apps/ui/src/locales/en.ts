@@ -602,6 +602,11 @@ export const en = {
       },
     ],
   },
+  diagram: {
+    failed: (why: string) => `This diagram could not be drawn: ${why}`,
+    text: "Show as text",
+    drawing: "Show the drawing",
+  },
   mode: {
     label: "How much to show",
     simple: "Plain",

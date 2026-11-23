@@ -83,7 +83,8 @@ const BRIDGE_PROMPT =
   "- `peritos send --to <agent name|lead|user> \"<message>\"` messages a teammate.\n" +
   "- `peritos lesson \"<rule>\"` proposes a lasting rule for this project.\n" +
   "- `peritos page --title \"<title>\" --file <markdown file>` keeps a page in the bureau's notebook for the user to read: " +
-  "a plan, a decision and its reasons, findings worth keeping. A page with the same title is replaced. It is not a file of the project.\n" +
+  "a plan, a decision and its reasons, findings worth keeping. A page with the same title is replaced. It is not a file of the project. " +
+  "Where a drawing says it better (a flow, a sequence, how parts connect, a timeline), put a ```mermaid block in the page: it is drawn for the user.\n" +
   "- `peritos pages` lists the notebook and `peritos pages \"<title>\"` prints a page. The user writes there too: read what bears on your task.\n" +
   "- `peritos task list` shows all tasks.\n" +
   "If something you cannot fix stops you (a missing key or access, an account without credit, a call that was refused), " +

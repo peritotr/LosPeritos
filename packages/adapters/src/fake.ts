@@ -149,7 +149,9 @@ export class FakeAdapter implements Adapter {
           body:
             "# Plan for the demo job\n\nThe job is split into three dossiers, each for one perito.\n\n" +
             tasks.map(([title, specialty, description], index) => `${index + 1}. **${title}** (${specialty}): ${description.replace(/ \[demo:\w+\]/, "")}`).join("\n") +
-            "\n\n> Nothing reaches the project without your seal.\n",
+            "\n\n```mermaid\nflowchart LR\n  you([You]) --> lead[Lead Perito]\n" +
+            tasks.map(([title], index) => `  lead --> t${index}["${title.replace(/"/g, "'")}"]\n  t${index} --> seal{Your seal}`).join("\n") +
+            "\n  seal --> done([In the project])\n```\n\n> Nothing reaches the project without your seal.\n",
         });
         for (const [title, specialty, description] of tasks) {
           await bridge({ command: "task.create", title, specialty, description });

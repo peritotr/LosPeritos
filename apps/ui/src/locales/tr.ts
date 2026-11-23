@@ -600,6 +600,11 @@ export const tr: Strings = {
       },
     ],
   },
+  diagram: {
+    failed: (why) => `Bu diyagram çizilemedi: ${why}`,
+    text: "Metin olarak göster",
+    drawing: "Çizimi göster",
+  },
   mode: {
     label: "Görünüm düzeyi",
     simple: "Sade",

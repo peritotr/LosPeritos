@@ -687,3 +687,7 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .guide-yours { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 0 6px; font-size: 11px; border: 1px solid var(--color-divider); color: var(--lp-muted); white-space: nowrap; text-decoration: none; }
 .guide-command { display: flex; align-items: center; gap: 6px; margin: 6px 0 0 24px; padding: 4px 4px 4px 10px; background: var(--lp-faint); font-size: 12px; overflow-x: auto; }
 .guide-command code { white-space: pre; }
+.diagram { position: relative; margin: 12px 0; padding: 12px; border: 1px solid var(--color-divider); overflow-x: auto; }
+.diagram-drawing svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.diagram-toggle { position: absolute; top: 4px; right: 4px; font-size: 11px; opacity: 0; }
+.diagram:hover .diagram-toggle, .diagram-toggle:focus { opacity: 1; }

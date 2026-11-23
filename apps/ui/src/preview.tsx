@@ -2,6 +2,7 @@
  * The files a task handed in, and a look inside them. Marketing and content
  * bureaus are read here rather than in a diff: their work is documents.
  */
+import { Diagram } from "./diagram";
 import { useEffect, useState, type ReactNode } from "react";
 import { FileText, Film, Image as ImageIcon, Music, Table, X } from "lucide-react";
 import type { Task, TaskFile } from "@losperitos/protocol";
@@ -62,10 +63,11 @@ export function Markdown({ source, breaks = false }: { source: string; breaks?: 
     if (!line.trim()) {
       at++;
     } else if (line.startsWith("```")) {
+      const fence = line.slice(3).trim().toLowerCase();
       const code: string[] = [];
       for (at++; at < lines.length && !lines[at]!.startsWith("```"); at++) code.push(lines[at]!);
       at++;
-      blocks.push(<pre key={key}>{code.join("\n")}</pre>);
+      blocks.push(fence === "mermaid" ? <Diagram key={key} source={code.join("\n")} /> : <pre key={key}>{code.join("\n")}</pre>);
     } else if (/^#{1,6}\s/.test(line)) {
       const level = line.match(/^#+/)![0].length;
       const Tag = (["h3", "h4", "h5", "h6", "h6", "h6"] as const)[level - 1]!;
