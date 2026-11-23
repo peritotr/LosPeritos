@@ -117,7 +117,7 @@ Ekran görüntüleri İngilizce arayüzden alındı; arayüzün tamamı Türkçe
 ## Dene
 
 **İndir.** [Son sürümden](https://github.com/peritotr/LosPeritos/releases/latest)
-`LosPeritos-0.6.4-arm64.dmg` dosyasını indir, aç ve LosPeritos'u Uygulamalar
+`LosPeritos-0.6.5-arm64.dmg` dosyasını indir, aç ve LosPeritos'u Uygulamalar
 klasörüne sürükle. İmzalı ve noter onaylıdır; diğer Mac uygulamaları gibi
 açılır. Apple silicon işlemcili Mac ile kurulu
 [git](https://git-scm.com/downloads) ve

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.5 — 2026-11-23
 
 **A team that carries on**
 - A teammate cut off in the middle of its work by the app closing (an
