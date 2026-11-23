@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-11-23
 
 **Terminal**
 - A Terminal screen with real shells in the bureau's folder, in tabs. They
