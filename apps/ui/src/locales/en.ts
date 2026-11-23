@@ -270,6 +270,7 @@ export const en = {
     affects: "Affects",
     requestedBy: "Requested by",
     bureau: "Bureau",
+    openFile: "Open the whole dossier",
     onSealing: "ON SEALING, THE PERITO WILL",
     reversible: "Reversible.",
     reversibleBody: "It can be undone afterwards.",

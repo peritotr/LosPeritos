@@ -268,6 +268,7 @@ export const tr: Strings = {
     affects: "Etkilediği",
     requestedBy: "İsteyen",
     bureau: "Büro",
+    openFile: "Dosyanın tamamını aç",
     onSealing: "MÜHÜRLENİNCE PERİTO ŞUNLARI YAPACAK",
     reversible: "Geri alınabilir.",
     reversibleBody: "Sonradan geri döndürülebilir.",

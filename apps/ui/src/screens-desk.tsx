@@ -1,3 +1,4 @@
+import { ReportFiles } from "./preview";
 import { PhoneSettings } from "./phone";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -120,6 +121,15 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
               <li key={step}>{step}</li>
             ))}
           </ol>
+        </div>
+      )}
+      {/* What is being sealed can be read here, before the seal: the files the task handed in. */}
+      {file && (file.report?.files?.length ?? 0) > 0 && (
+        <div className="seal-files">
+          <ReportFiles ctx={ctx} task={file} />
+          <button className="btn btn-ghost" style={{ alignSelf: "flex-start" }} onClick={() => ctx.go({ screen: "file", id: file.id })}>
+            {T.seal.openFile}
+          </button>
         </div>
       )}
       <p className={`rev ${approval.reversible ? "" : "no"}`}>

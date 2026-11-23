@@ -703,3 +703,7 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .msg > :last-child { min-width: 0; }
 .btn-act { white-space: normal; text-align: left; justify-content: flex-start; max-width: 100%; line-height: 1.35; overflow-wrap: anywhere; }
 .reply-card .row > input, .reply-card .row > textarea { min-width: 0; }
+
+/* The files under a seal: read before sealing. */
+.seal-files { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.seal-files .preview-body { max-height: 46vh; overflow: auto; }
