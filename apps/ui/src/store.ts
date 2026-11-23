@@ -285,6 +285,8 @@ export interface Actions {
   /** What a new file is likely to cost, by effort. */
   estimate(workspaceId: string): Promise<Estimate>;
   taskFile(taskId: string, path: string): Promise<TaskFile>;
+  /** The bytes of a video, sound or PDF a task handed in. */
+  taskMedia(taskId: string, path: string): Promise<Blob>;
   connectors(workspaceId: string): Promise<Connector[]>;
   saveConnector(workspaceId: string, request: SaveConnectorRequest): Promise<Connector[]>;
   removeConnector(workspaceId: string, connectorId: string): Promise<Connector[]>;
@@ -425,6 +427,18 @@ export function useCore(): [State, Actions] {
     renameAgent: async (agentId, nickname) => void (await post(`/agents/${agentId}`, { nickname }, "PATCH")),
     checkTools: () => post<ToolCheck[]>("/setup", undefined, "GET"),
     taskFile: (taskId, path) => post<TaskFile>(`/tasks/${taskId}/file?path=${encodeURIComponent(path)}`, undefined, "GET"),
+    taskMedia: async (taskId, path) => {
+      const response = await fetch(`${CORE_URL}/tasks/${taskId}/raw?path=${encodeURIComponent(path)}`, {
+        headers: { Authorization: `Bearer ${token.current}` },
+      }).catch(() => {
+        throw new ApiError("offline", "Cannot reach the local service.");
+      });
+      if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        throw new ApiError(json.error?.code ?? "internal", json.error?.message ?? "Request failed");
+      }
+      return response.blob();
+    },
     connectors: (workspaceId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, undefined, "GET"),
     saveConnector: (workspaceId, request) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, request),
     removeConnector: (workspaceId, connectorId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors/${connectorId}/remove`, {}),

@@ -379,6 +379,21 @@ test("a marketing workspace briefs its team as marketers and lists the files the
   assert.throws(() => core.taskFile(task!.id, "../outside.txt"), /No file/);
   assert.throws(() => core.taskFile(task!.id, "/etc/hosts"), /No file/);
 
+  // Video, sound and PDF are served as bytes, to the user alone.
+  writeFileSync(join(folder, "ad.mp4"), Buffer.from([0, 1, 2, 250, 251]));
+  const server = createServer(core, "user-token");
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  const raw = (path: string, token = "user-token") =>
+    fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/tasks/${task!.id}/raw?path=${encodeURIComponent(path)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  const video = await raw("ad.mp4");
+  assert.equal(video.headers.get("content-type"), "video/mp4");
+  assert.deepEqual([...new Uint8Array(await video.arrayBuffer())], [0, 1, 2, 250, 251]);
+  assert.equal((await raw("ad.mp4", "wrong")).status, 401);
+  assert.equal((await raw("../outside.txt")).status, 404);
+  server.close();
+
   core.updateWorkspace(workspace.id, { kind: "content" });
   assert.equal(core.listWorkspaces()[0]!.kind, "content", "settings can change it later");
 });

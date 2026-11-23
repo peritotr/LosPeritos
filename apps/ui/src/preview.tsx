@@ -3,7 +3,7 @@
  * bureaus are read here rather than in a diff: their work is documents.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { FileText, Image as ImageIcon, Table, X } from "lucide-react";
+import { FileText, Film, Image as ImageIcon, Music, Table, X } from "lucide-react";
 import type { Task, TaskFile } from "@losperitos/protocol";
 import type { Ctx } from "./context";
 import { T } from "./strings";
@@ -145,8 +145,26 @@ function Body({ file }: { file: TaskFile }) {
   return <p className="muted">{T.files.noPreview}</p>;
 }
 
+/** Files shown from their bytes rather than read as text. */
+const mediaKind = (path: string): "video" | "audio" | "pdf" | null =>
+  /\.(mp4|m4v|webm|mov)$/i.test(path) ? "video" : /\.(mp3|m4a|wav|ogg)$/i.test(path) ? "audio" : /\.pdf$/i.test(path) ? "pdf" : null;
+
 const iconFor = (path: string) =>
-  /\.(png|jpe?g|gif|webp|svg)$/i.test(path) ? ImageIcon : /\.csv$/i.test(path) ? Table : FileText;
+  /\.(png|jpe?g|gif|webp|svg)$/i.test(path)
+    ? ImageIcon
+    : /\.csv$/i.test(path)
+      ? Table
+      : mediaKind(path) === "video"
+        ? Film
+        : mediaKind(path) === "audio"
+          ? Music
+          : FileText;
+
+function Media({ kind, url, path }: { kind: "video" | "audio" | "pdf"; url: string; path: string }) {
+  if (kind === "video") return <video className="preview-video" src={url} controls preload="metadata" />;
+  if (kind === "audio") return <audio className="preview-audio" src={url} controls preload="metadata" />;
+  return <iframe className="preview-pdf" src={url} title={path} />;
+}
 
 /**
  * The files a task handed in; choosing one opens it underneath. `wide` is the
@@ -158,11 +176,26 @@ export function ReportFiles({ ctx, task, wide = false }: { ctx: Ctx; task: Task;
   const open = chosen && files.includes(chosen) ? chosen : wide ? (files[0] ?? null) : null;
   const [file, setFile] = useState<TaskFile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** An address for the bytes of the open video, sound or PDF. */
+  const [media, setMedia] = useState<string | null>(null);
+  const kind = open ? mediaKind(open) : null;
   useEffect(() => {
     setFile(null);
     setError(null);
+    setMedia(null);
     if (!open) return;
     let current = true;
+    if (kind) {
+      let made: string | null = null;
+      ctx.actions.taskMedia(task.id, open).then(
+        (blob) => current && setMedia((made = URL.createObjectURL(blob))),
+        (err: Error) => current && setError(err.message),
+      );
+      return () => {
+        current = false;
+        if (made) URL.revokeObjectURL(made);
+      };
+    }
     ctx.actions.taskFile(task.id, open).then(
       (loaded) => current && setFile(loaded),
       (err: Error) => current && setError(err.message),
@@ -200,7 +233,15 @@ export function ReportFiles({ ctx, task, wide = false }: { ctx: Ctx; task: Task;
             )}
           </header>
           <div className="preview-body">
-            {error ? <p className="err">{error}</p> : file ? <Body file={file} /> : <p className="muted">{T.files.loading}</p>}
+            {error ? (
+              <p className="err">{error}</p>
+            ) : kind && media ? (
+              <Media kind={kind} url={media} path={open} />
+            ) : file ? (
+              <Body file={file} />
+            ) : (
+              <p className="muted">{T.files.loading}</p>
+            )}
           </div>
         </figure>
       )}

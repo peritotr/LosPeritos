@@ -155,6 +155,8 @@ const MIME: Record<string, string> = {
   md: "text/markdown", txt: "text/plain", csv: "text/csv", json: "application/json", html: "text/html",
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
   pdf: "application/pdf",
+  mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+  mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav", ogg: "audio/ogg",
 };
 
 /** A connector as kept on this machine: with the values of its secrets. */
@@ -585,6 +587,13 @@ export class Core {
 
   /** One file of a task: from its worktree while it is open, from the folder afterwards. */
   taskFile(taskId: string, path: string): TaskFile {
+    const { full, mime, size } = this.taskFileAt(taskId, path);
+    if (size > MAX_PREVIEW_BYTES) throw new CoreError("bad_request", "File is too large to preview");
+    return { path, mime, size, data: readFileSync(full).toString("base64") };
+  }
+
+  /** Where one of a task's files is on disk, for sending its bytes as they are. */
+  taskFileAt(taskId: string, path: string): { full: string; mime: string; size: number } {
     const { state, item } = this.find((s) => s.tasks, taskId, "task");
     const root = item.worktree && existsSync(item.worktree) ? item.worktree : state.workspace.path;
     let full: string;
@@ -597,13 +606,10 @@ export class Core {
     if (!path || !full.startsWith(realpathSync(root) + sep) || !statSync(full).isFile()) {
       throw new CoreError("not_found", `No file ${path}`);
     }
-    const size = statSync(full).size;
-    if (size > MAX_PREVIEW_BYTES) throw new CoreError("bad_request", "File is too large to preview");
     return {
-      path,
+      full,
       mime: MIME[extname(full).slice(1).toLowerCase()] ?? "application/octet-stream",
-      size,
-      data: readFileSync(full).toString("base64"),
+      size: statSync(full).size,
     };
   }
 

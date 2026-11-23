@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Video, sound and PDF**
+- A file a task handed in opens in place when it is a video (mp4, m4v, webm,
+  mov), a sound (mp3, m4a, wav, ogg) or a PDF, up to 256 MB.
+
 **Connectors**
 - A bureau can be given outside services as MCP servers, from Settings: a
   command on this machine or an HTTP address, with its secrets. Secrets are

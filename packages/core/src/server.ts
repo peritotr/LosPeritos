@@ -1,9 +1,11 @@
 import { createServer as createHttpServer, type IncomingMessage, type Server } from "node:http";
 import { timingSafeEqual } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { WebSocketServer } from "ws";
 import type { z } from "zod";
 import {
   MAX_ATTACHMENT_BYTES,
+  MAX_MEDIA_BYTES,
   AgentCommand,
   AnswerQuestionRequest,
   CreateTaskRequest,
@@ -156,6 +158,14 @@ export function createServer(core: Core, token: string): Server {
         return;
       }
       if (!tokenMatches(bearer, token)) throw new CoreError("unauthorized", "Missing or wrong token");
+      const raw = req.method === "GET" && /^\/tasks\/([^/]+)\/raw$/.exec(path);
+      if (raw) {
+        const file = core.taskFileAt(raw[1]!, url.searchParams.get("path") ?? "");
+        if (file.size > MAX_MEDIA_BYTES) throw new CoreError("bad_request", "File is too large to preview");
+        res.writeHead(200, { "Content-Type": file.mime, "Content-Length": file.size, ...cors });
+        createReadStream(file.full).on("error", () => res.destroy()).pipe(res);
+        return;
+      }
       for (const route of routes) {
         if (route.method !== req.method) continue;
         const match = route.pattern.exec(path);

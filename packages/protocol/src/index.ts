@@ -116,6 +116,8 @@ export const TaskFile = z.object({
   data: z.string(),
 });
 export const MAX_PREVIEW_BYTES = 8 * 1024 * 1024;
+/** Video, sound and PDF are sent as they are rather than inside JSON, so they may be larger. */
+export const MAX_MEDIA_BYTES = 256 * 1024 * 1024;
 
 export const Task = z.object({
   id,
@@ -378,6 +380,8 @@ export const routes = {
   taskDiff: "GET /tasks/:taskId/diff",
   /** `?path=<relative path>`: a TaskFile read from the task's worktree, or the folder once merged. */
   taskFile: "GET /tasks/:taskId/file",
+  /** `?path=<relative path>`: the bytes of the same file, for video, sound and PDF. */
+  taskRaw: "GET /tasks/:taskId/raw",
   messages: "GET /workspaces/:workspaceId/messages",
   sendMessage: "POST /workspaces/:workspaceId/messages",
   /** Store a file so the next message can attach it. */

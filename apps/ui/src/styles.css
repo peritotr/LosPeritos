@@ -559,6 +559,10 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .preview-body { padding: 14px 16px; max-height: 520px; overflow: auto; font-size: 13px; }
 .preview-body pre { margin: 0 0 10px; font: 12px/1.5 var(--lp-mono); white-space: pre-wrap; word-break: break-word; }
 .preview-image { display: block; max-width: 100%; height: auto; }
+.preview-video { display: block; max-width: 100%; max-height: 70vh; background: #000; }
+.preview-audio { display: block; width: 100%; }
+.preview-body:has(.preview-pdf) { max-height: none; padding: 0; }
+.preview-pdf { display: block; width: 100%; height: 70vh; border: 0; background: #fff; }
 .preview-table { overflow-x: auto; margin: 0 0 10px; }
 .preview-table table { border-collapse: collapse; font-size: 12px; }
 .preview-table th, .preview-table td { border: 1px solid var(--color-divider); padding: 4px 8px; text-align: left; vertical-align: top; }

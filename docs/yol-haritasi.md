@@ -49,7 +49,7 @@ yalıtımı talimata dayanıyor, teknik olarak zorlanmıyor.
 - Hazır bağlayıcılar: görsel ve video üretimi, Search Console, Google Ads,
   Meta Ads. Her biri hesap ve anahtar ister; sırayla eklenecek.
 - Para harcayan çağrılar için bütçe sınırı (reklam bağlayıcılarıyla birlikte).
-- Video ve PDF önizleme.
+- Video, ses ve PDF önizleme: yapıldı (256 MB'a kadar).
 
 Bağlayıcıların eksikleri: bir sunucunun araç listesi ekranda gösterilmiyor,
 araç adları mühür isteklerinden öğreniliyor; mühürde "bundan sonra sorma"
@@ -176,6 +176,6 @@ Karşılama turu, sade / gelişmiş mod, "ilk işini seç" kartları.
 
 ## Önerilen sıra
 
-Sıradaki: 16'nın ikinci adımının kalanı (video ve PDF önizleme, hazır
-bağlayıcılar) → 8 (Codex)
+Sıradaki: 16'nın ikinci adımının kalanı (hazır bağlayıcılar: görsel üretimi,
+Search Console, reklam hesapları) → 8 (Codex)
 → 9 (kod ve Git paneli). Sonrası kullanıcı geri bildirimine göre.
