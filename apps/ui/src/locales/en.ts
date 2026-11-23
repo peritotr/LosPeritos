@@ -378,4 +378,9 @@ export const en = {
     goTo: (screen: string) => `Go to ${screen}`,
     toggleTheme: "Switch theme",
   },
+  /**
+   * Wording the core writes itself (seal titles and steps, system notes), as
+   * [pattern, replacement] per line. English is what the core already writes.
+   */
+  core: [] as Array<[RegExp, string]>,
 };

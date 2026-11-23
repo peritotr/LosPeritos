@@ -380,4 +380,24 @@ export const tr: Strings = {
     goTo: (screen) => `${screen} ekranına git`,
     toggleTheme: "Temayı değiştir",
   },
+  core: [
+    [/^Merge task #(\d+): (.*)$/, "#$1 numaralı dosyayı birleştir: $2"],
+    [/^Accept task #(\d+): (.*)$/, "#$1 numaralı dosyanın taslağını kabul et: $2"],
+    [/^Merge (\S+) into (\S+)$/, "$1 dalını $2 dalına birleştir"],
+    [/^Remove the task worktree$/, "Görevin çalışma klasörünü kaldır"],
+    [/^Add (.+)$/, "Ekle: $1"],
+    [/^Replace (.+)$/, "Üzerine yaz: $1"],
+    [/^Remove the draft$/, "Taslağı kaldır"],
+    [/^Done: /, "Yapıldı: "],
+    [/^Tested: /, "Test edildi: "],
+    [/^Not verified: /, "Doğrulanmadı: "],
+    [
+      /^Task #(\d+) could not get its own branch and will work in the folder itself: /,
+      "#$1 numaralı dosya kendi dalını alamadı, doğrudan klasörde çalışacak: ",
+    ],
+    [
+      /^(.+) could not pick up its earlier conversation\. Send the message again to start a fresh one\.$/,
+      "$1 önceki konuşmasını sürdüremedi. Yeni bir konuşma başlatmak için mesajı yeniden gönder.",
+    ],
+  ],
 };

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, CircleDashed, Inbox, X } from "lucide-react";
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
 import { T } from "./strings";
-import { I, TASK_STATUS, clock, fileRef } from "./ui";
+import { I, TASK_STATUS, clock, fileRef, sealText } from "./ui";
 
 /**
  * "While you were away": what finished, what is still under way and what is
@@ -136,7 +136,7 @@ export function AwayCard({ ctx }: { ctx: Ctx }) {
           {approvals.map((approval) => (
             <button key={approval.id} className="away-row" onClick={() => ctx.go({ screen: "awaiting", id: approval.id })}>
               <span className="mono">{T.awaiting.tagSeal}</span>
-              <span className="ellipsis">{approval.title}</span>
+              <span className="ellipsis">{sealText(approval).title}</span>
             </button>
           ))}
           {questions.map((question) => (

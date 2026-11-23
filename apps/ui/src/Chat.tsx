@@ -3,8 +3,8 @@ import { Check, Paperclip, Send, Stamp as StampIcon, X } from "lucide-react";
 import type { Agent, Approval, Message } from "@losperitos/protocol";
 import { AwayCard } from "./away";
 import type { Ctx } from "./context";
-import { T } from "./strings";
-import { Emblem, I, clock, perito, sealKind } from "./ui";
+import { T, fromCore } from "./strings";
+import { Emblem, I, clock, perito, sealKind, sealText } from "./ui";
 
 /**
  * The correspondence thread with its composer. It is the same component in
@@ -142,7 +142,7 @@ export function Chat({ ctx, onPickAgent }: { ctx: Ctx; onPickAgent?(agentId: str
                 <div className="msg-head">
                   <b>{from}</b> → {to} · <span className="mono">{clock(at)}</span>
                 </div>
-                <div className="msg-body">{message ? message.body : approval!.title}</div>
+                <div className="msg-body">{message ? (message.author.kind === "system" ? fromCore(message.body) : message.body) : sealText(approval!).title}</div>
                 {message?.attachments?.length ? (
                   <div className="msg-files">
                     {message.attachments.map((file) => (

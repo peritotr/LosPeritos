@@ -900,6 +900,8 @@ export class Core {
           await this.finishTask(state, reported);
           return say("Task closed; there was nothing to merge. Stop here.");
         }
+        // The UI puts this seal's title, detail and steps into its own language by
+        // pattern (the `core` list in apps/ui/src/locales); change them together.
         this.raiseApproval(state, agent.id, {
           kind: "merge",
           title: `${draft ? "Accept" : "Merge"} task #${task.number}: ${task.title}`,

@@ -20,8 +20,8 @@ import type { Approval, Message, ToolCheck, Workspace, WorkspaceKind } from "@lo
 const KINDS = ["software", "marketing", "content"] as const satisfies readonly WorkspaceKind[];
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
 import { CORE_URL, shell } from "./store";
-import { LANGUAGES, T, dateLocale, language, setLanguage, type Language } from "./strings";
-import { Corners, Emblem, Empty, I, PageHead, Segmented, Stamp, ago, fileRef, kindOf, money, pad, perito, questionRef, sealRef } from "./ui";
+import { LANGUAGES, T, dateLocale, fromCore, language, setLanguage, type Language } from "./strings";
+import { Corners, Emblem, Empty, I, PageHead, Segmented, Stamp, ago, fileRef, kindOf, money, pad, perito, questionRef, sealRef, sealText } from "./ui";
 
 const isToday = (iso: string | null) => !!iso && new Date(iso).toDateString() === new Date().toDateString();
 
@@ -83,7 +83,7 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
           <div className="kicker" style={{ marginBottom: 8 }}>
             {T.seal.request(ref)}
           </div>
-          <h3>{approval.title}</h3>
+          <h3>{sealText(approval).title}</h3>
         </div>
         {approval.status === "pending" ? (
           <Stamp kind="pending" sub={ref} />
@@ -103,14 +103,14 @@ function SealCard({ ctx, approval }: { ctx: Ctx; approval: Approval }) {
         <dt>{T.seal.bureau}</dt>
         <dd style={{ textAlign: "left" }}>{names.bureau(approval.workspaceId)?.name}</dd>
       </dl>
-      {approval.detail && <p className="detail-text">{approval.detail}</p>}
+      {approval.detail && <p className="detail-text">{sealText(approval).detail}</p>}
       {approval.steps.length > 0 && (
         <div>
           <div className="kicker" style={{ marginBottom: 8 }}>
             {T.seal.onSealing}
           </div>
           <ol className="steps">
-            {approval.steps.map((step) => (
+            {sealText(approval).steps.map((step) => (
               <li key={step}>{step}</li>
             ))}
           </ol>
@@ -286,7 +286,7 @@ export function Awaiting({ ctx, selectedId }: { ctx: Ctx; selectedId?: string })
   const selected = all.find((item) => item.id === picked) ?? pending[0];
 
   const row = (item: Item, done: boolean) => {
-    const title = item.kind === "seal" ? item.approval.title : item.message.body;
+    const title = item.kind === "seal" ? sealText(item.approval).title : item.message.body;
     const agentId =
       item.kind === "seal" ? item.approval.agentId : item.message.author.kind === "agent" ? item.message.author.agentId : null;
     const file = names.file(item.kind === "seal" ? item.approval.taskId : item.message.taskId);
@@ -384,10 +384,10 @@ export function SealToast({ ctx, approval, onLeave }: { ctx: Ctx; approval: Appr
   }, [approval.status]);
 
   return (
-    <div className="card blueprint toast" role="alertdialog" aria-label={approval.title} style={{ background: "var(--color-bg)" }}>
+    <div className="card blueprint toast" role="alertdialog" aria-label={sealText(approval).title} style={{ background: "var(--color-bg)" }}>
       <Corners />
       <div className="kicker">{T.seal.request(sealRef(approval, ctx.state.approvals))}</div>
-      <h4>{approval.title}</h4>
+      <h4>{sealText(approval).title}</h4>
       <p className="muted" style={{ fontSize: 13 }}>
         {T.seal.toastLine(approval.reversible, approval.steps.length, names.who(approval.agentId))}
       </p>
@@ -481,7 +481,7 @@ export function Archive(ctx: Ctx) {
                 {ref}
               </span>
               <div>
-                <p>{message.body}</p>
+                <p>{message.author.kind === "system" ? fromCore(message.body) : message.body}</p>
                 <p style={{ color: "var(--st-act)" }}>→ {message.question!.answer}</p>
                 <p className="muted" style={{ fontSize: 12 }}>
                   {names.who(message.author.kind === "agent" ? message.author.agentId : null)}

@@ -44,3 +44,15 @@ export function setLanguage(next: Language): void {
   }
   location.reload();
 }
+
+/** Put a line the core wrote itself into the interface language; anything else passes through. */
+export function fromCore(text: string): string {
+  if (T.core.length === 0) return text;
+  return text
+    .split("\n")
+    .map((line) => {
+      const rule = T.core.find(([pattern]) => pattern.test(line));
+      return rule ? line.replace(rule[0], rule[1]) : line;
+    })
+    .join("\n");
+}

@@ -394,3 +394,38 @@ test("in a repository the files a task changed come from git, whatever the agent
   assert.deepEqual(core.getTask(task!.id).report!.files, ["ads.md"]);
   assert.equal(Buffer.from(core.taskFile(task!.id, "ads.md").data, "base64").toString(), "Buy now\n", "read from the worktree before the merge");
 });
+
+test("a rejected draft goes back to its writer, and nothing reaches the project", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "lp-data-"));
+  const folder = realpathSync(mkdtempSync(join(tmpdir(), "lp-ws-")));
+  const adapter = new FakeAdapter();
+  const core = new Core({ dataDir, adapters: [adapter], leadAdapter: "fake" });
+  const workspace = core.openWorkspace(folder, "content");
+  core.sendMessage(workspace.id, { body: "plan", toAgentId: null, taskId: null });
+  const as = (index: number, command: AgentCommandInput) =>
+    core.agentCommand(adapter.starts[index]!.env!.LOSPERITOS_AGENT_TOKEN!, AgentCommand.parse(command));
+  assert.match(adapter.starts[0]!.systemPrompt!, /writers and editors/);
+  assert.match(adapter.starts[0]!.systemPrompt!, /at least --effort normal/);
+
+  await as(0, { command: "task.create", title: "Newsletter", specialty: "writer" });
+  const [task] = core.listTasks(workspace.id);
+  const draft = join(task!.worktree!, "newsletter.md");
+  writeFileSync(draft, "first try\n");
+  await as(1, { command: "task.done", report: { done: ["draft"], tested: [], notVerified: [] } });
+  await core.decideApproval(core.waiting().approvals[0]!.id, "rejected");
+
+  assert.equal(core.getTask(task!.id).status, "in_progress", "back with the writer");
+  assert.ok(existsSync(draft), "the draft is kept to be worked on");
+  assert.ok(!existsSync(join(folder, "newsletter.md")));
+
+  writeFileSync(draft, "second try\n");
+  await as(1, { command: "task.done", report: { done: ["rewrote it"], tested: [], notVerified: [] } });
+  await core.decideApproval(core.waiting().approvals[0]!.id, "approved");
+  assert.equal(readFileSync(join(folder, "newsletter.md"), "utf8"), "second try\n");
+
+  // An empty draft has nothing to seal.
+  await as(0, { command: "task.create", title: "Nothing to write", specialty: "editor" });
+  await as(2, { command: "task.done", report: { done: ["nothing needed"], tested: [], notVerified: [] } });
+  assert.equal(core.listTasks(workspace.id)[1]!.status, "done");
+  assert.equal(core.waiting().approvals.length, 0);
+});

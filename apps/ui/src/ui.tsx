@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Agent, AgentStatus, Approval, Message, Task, TaskStatus, Workspace, WorkspaceKind } from "@losperitos/protocol";
-import { T } from "./strings";
+import { T, fromCore } from "./strings";
 
 /** A Lucide icon at the design's stroke weight. */
 export function I({ icon: Glyph, size = 15 }: { icon: LucideIcon; size?: number }) {
@@ -283,4 +283,13 @@ export function branchText(bureau: Workspace, task: Task | undefined, none: stri
 /** What a seal is for; in a document bureau a merge is the acceptance of a draft. */
 export function sealKind(bureau: Workspace, approval: Approval): string {
   return approval.kind === "merge" && kindOf(bureau) !== "software" ? T.files.draft : T.seal.kind[approval.kind];
+}
+
+/**
+ * A seal's wording in the interface language. Only merge seals are written by
+ * the core; the rest is the agent's own text and is shown as written.
+ */
+export function sealText(approval: Approval): { title: string; detail: string; steps: string[] } {
+  const own = approval.kind === "merge" ? fromCore : (text: string) => text;
+  return { title: own(approval.title), detail: own(approval.detail), steps: approval.steps.map(own) };
 }
