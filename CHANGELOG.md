@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.4 — 2026-11-23
 
 **Seeing what you are asked about**
 - A perito can show you files with a question or a message: pictures appear
