@@ -24,6 +24,7 @@ import {
   Terminal,
 } from "lucide-react";
 import type { Agent, Task } from "@losperitos/protocol";
+import { TerminalOutput } from "./activity";
 import { Chat } from "./Chat";
 import { IssueImport, NewFileForm } from "./files-tools";
 import { SvgFloor } from "./floor/SvgFloor";
@@ -690,25 +691,6 @@ export function FileDetail({ ctx, id }: { ctx: Ctx; id: string }) {
 
 // ── Terminal ───────────────────────────────────────────────────────────────
 
-function TerminalOutput({ lines, fallback }: { lines: string[] | undefined; fallback: string | null }) {
-  const end = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: "end" });
-  }, [lines?.length]);
-  const shown = lines?.length ? lines : fallback ? [fallback] : [];
-  return (
-    <pre className="term-out">
-      {shown.length === 0 && <span className="out">{T.bench.noOutput}</span>}
-      {shown.map((line, index) => (
-        <span key={index} className={/^(>|\[|■)/.test(line) ? "cmd" : /error|failed/i.test(line) ? "bad" : "out"}>
-          {line + "\n"}
-        </span>
-      ))}
-      <span ref={end} />
-    </pre>
-  );
-}
-
 // ── Correspondence ─────────────────────────────────────────────────────────
 
 export function Correspondence(ctx: Ctx) {
@@ -772,7 +754,7 @@ export function Correspondence(ctx: Ctx) {
                   {T.mail.open}
                 </button>
               </header>
-              <TerminalOutput lines={ctx.state.output[followed.id]} fallback={followed.lastOutput} />
+              <TerminalOutput entries={ctx.state.activity[followed.id]} fallback={followed.lastOutput} />
             </>
           ) : (
             <p className="muted" style={{ padding: 16 }}>
@@ -887,7 +869,7 @@ export function PeritoDetail({ ctx, id }: { ctx: Ctx; id: string }) {
           {agent.status === "limited" && (
             <p className="limit-note">{agent.resumeAt ? T.status.resumesAt(clock(agent.resumeAt)) : T.status.resumesLater}</p>
           )}
-          <TerminalOutput lines={ctx.state.output[agent.id]} fallback={agent.error ?? agent.lastOutput} />
+          <TerminalOutput entries={ctx.state.activity[agent.id]} fallback={agent.error ?? agent.lastOutput} />
           {error && (
             <p className="err" style={{ padding: "6px 14px", fontSize: 13 }}>
               {error}

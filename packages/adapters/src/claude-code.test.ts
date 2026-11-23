@@ -35,6 +35,26 @@ test("unknown and non-JSON lines do not throw", () => {
   assert.deepEqual(parseStreamLine(""), []);
 });
 
+test("a tool call and its result are reported so they can be shown together", () => {
+  const call = JSON.stringify({
+    type: "assistant",
+    message: { content: [{ type: "tool_use", id: "t1", name: "Write", input: { file_path: "a.md", content: "x".repeat(7000) } }] },
+  });
+  const [event] = parseStreamLine(call) as Array<{ tool?: { id: string; name: string; input: { content: string } } }>;
+  assert.equal(event!.tool!.id, "t1");
+  assert.equal(event!.tool!.name, "Write");
+  assert.ok(event!.tool!.input.content.length < 6100, "long arguments are clipped");
+
+  const result = JSON.stringify({
+    type: "user",
+    message: { content: [{ type: "tool_result", tool_use_id: "t1", is_error: true, content: [{ type: "text", text: "denied" }] }] },
+  });
+  assert.deepEqual(parseStreamLine(result), [
+    { type: "output", stream: "stdout", chunk: "", result: { id: "t1", ok: false, text: "denied" } },
+  ]);
+  assert.deepEqual(parseStreamLine(JSON.stringify({ type: "user", message: { content: "plain" } })), []);
+});
+
 test("usage-limit failures are recognised and their reset time worked out", async () => {
   const { parseLimit } = await import("./claude-code.js");
   assert.equal(parseLimit("File not found"), undefined);

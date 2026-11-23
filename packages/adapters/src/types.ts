@@ -1,8 +1,11 @@
-import type { ToolCheck, TrustMode } from "@losperitos/protocol";
+import type { ToolCall, ToolCheck, ToolOutcome, TrustMode } from "@losperitos/protocol";
 
 export type SessionEvent =
-  /** Raw terminal-style output for the live view. */
-  | { type: "output"; stream: "stdout" | "stderr"; chunk: string }
+  /**
+   * Output for the live view. A tool call carries `tool` beside its one-line
+   * `chunk`; how it ended arrives later as `result`, with an empty chunk.
+   */
+  | { type: "output"; stream: "stdout" | "stderr"; chunk: string; tool?: ToolCall; result?: ToolOutcome }
   /** A complete assistant message for the team chat. */
   | { type: "text"; text: string }
   /** The agent asks the user something and waits. */

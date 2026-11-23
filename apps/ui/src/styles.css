@@ -569,3 +569,21 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .output-wide .output-files { flex-direction: row; flex-wrap: wrap; margin-bottom: 4px; }
 .output-wide .output-file { border-color: var(--color-divider); max-width: 100%; }
 .output-wide .preview-body { max-height: none; }
+
+/* ── Tool calls in the terminal ─────────────────────────────────────────── */
+.tool { margin: 3px 0; border: 1px solid var(--color-divider); white-space: normal; }
+.tool > summary { display: flex; align-items: center; gap: 8px; padding: 3px 8px; cursor: pointer; list-style: none; color: var(--color-text); }
+.tool > summary::-webkit-details-marker { display: none; }
+.tool > summary > svg:first-child { transition: transform 0.12s; color: var(--lp-muted); }
+.tool[open] > summary > svg:first-child { transform: rotate(90deg); }
+.tool-name { font-weight: 600; }
+.tool-subject { color: var(--lp-muted); min-width: 0; }
+.tool-state { display: flex; color: var(--st-work); }
+.tool.failed { border-color: var(--st-err); }
+.tool.failed .tool-state { color: var(--st-err); }
+.tool-body { margin: 0; padding: 6px 10px; border-top: 1px solid var(--color-divider); font: inherit; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; }
+.tl.cmd { color: var(--color-text); }
+.tl.out { color: var(--lp-muted); }
+.tl.add { color: var(--st-work); }
+.tl.del { color: var(--st-err); }
+@media (prefers-reduced-motion: reduce) { .tool > summary > svg:first-child { transition: none; } }

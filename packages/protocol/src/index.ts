@@ -431,6 +431,13 @@ export type AgentCommandResult = z.infer<typeof AgentCommandResult>;
 
 // ── Events (WebSocket) ──────────────────────────────────────────────────────
 
+/** A tool the agent called: a command it ran, a file it read or changed. Long values are clipped. */
+export const ToolCall = z.object({ id: z.string(), name: z.string(), input: z.record(z.unknown()) });
+export type ToolCall = z.infer<typeof ToolCall>;
+/** How a tool call ended; `id` is the ToolCall's. */
+export const ToolOutcome = z.object({ id: z.string(), ok: z.boolean(), text: z.string() });
+export type ToolOutcome = z.infer<typeof ToolOutcome>;
+
 export const Event = z.discriminatedUnion("type", [
   z.object({ type: z.literal("workspace.updated"), workspace: Workspace }),
   z.object({ type: z.literal("agent.updated"), agent: Agent }),
@@ -438,7 +445,10 @@ export const Event = z.discriminatedUnion("type", [
     type: z.literal("agent.output"),
     agentId: id,
     stream: z.enum(["stdout", "stderr"]),
+    /** Plain text for a line-by-line view; empty when the event only carries a `result`. */
     chunk: z.string(),
+    tool: ToolCall.optional(),
+    result: ToolOutcome.optional(),
   }),
   z.object({ type: z.literal("task.updated"), task: Task }),
   z.object({ type: z.literal("message.created"), message: Message }),

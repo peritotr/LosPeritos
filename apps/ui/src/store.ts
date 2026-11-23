@@ -12,6 +12,8 @@ import type {
   ToolCheck,
   Workspace,
   TaskFile,
+  ToolCall,
+  ToolOutcome,
   WorkspaceKind,
 } from "@losperitos/protocol";
 
@@ -115,6 +117,8 @@ export interface State {
   runs: Record<string, Run[]>;
   /** Recent output lines per agent, since this window opened. */
   output: Record<string, string[]>;
+  /** The same output with tool calls kept whole, for the terminal view. */
+  activity: Record<string, Activity[]>;
   flights: Flight[];
   stamps: FloorStamp[];
 }
@@ -131,6 +135,7 @@ const initial: State = {
   budgets: {},
   runs: {},
   output: {},
+  activity: {},
   flights: [],
   stamps: [],
 };
@@ -147,6 +152,10 @@ type Action =
   | { type: "stamp_done"; id: string };
 
 const MAX_OUTPUT_LINES = 400;
+
+export type ToolActivity = { kind: "tool"; result?: ToolOutcome } & ToolCall;
+/** One entry of an agent's live output: a line it printed, or a tool it used. */
+export type Activity = { kind: "line"; text: string } | ToolActivity;
 
 function upsert<T extends { id: string }>(list: T[], item: T): T[] {
   const index = list.findIndex((existing) => existing.id === item.id);
@@ -192,7 +201,18 @@ function reduce(state: State, action: Action): State {
           return { ...state, agents: upsert(state.agents, event.agent) };
         case "agent.output": {
           const lines = [...(state.output[event.agentId] ?? []), ...event.chunk.split("\n").filter(Boolean)];
-          return { ...state, output: { ...state.output, [event.agentId]: lines.slice(-MAX_OUTPUT_LINES) } };
+          const before = state.activity[event.agentId] ?? [];
+          const result = event.result;
+          const activity: Activity[] = event.tool
+            ? [...before, { kind: "tool", ...event.tool }]
+            : result
+              ? before.map((entry) => (entry.kind === "tool" && entry.id === result.id ? { ...entry, result } : entry))
+              : [...before, ...event.chunk.split("\n").filter(Boolean).map((text): Activity => ({ kind: "line", text }))];
+          return {
+            ...state,
+            output: { ...state.output, [event.agentId]: lines.slice(-MAX_OUTPUT_LINES) },
+            activity: { ...state.activity, [event.agentId]: activity.slice(-MAX_OUTPUT_LINES) },
+          };
         }
         case "task.updated":
           return { ...state, tasks: upsert(state.tasks, event.task) };

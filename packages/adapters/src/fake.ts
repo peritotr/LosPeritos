@@ -54,6 +54,16 @@ export class FakeAdapter implements Adapter {
       const body = (await response.json()) as { message?: string; error?: { message: string } };
       emit({ type: "output", stream: "stdout", chunk: `${body.message ?? body.error?.message}\n` });
     };
+    let calls = 0;
+    /** A tool call and, a moment later, how it ended. */
+    const tool = async (name: string, input: Record<string, unknown>, result: string) => {
+      const id = `demo-${++calls}`;
+      if (stepMs) await new Promise((done) => setTimeout(done, stepMs));
+      if (stopped) return;
+      emit({ type: "output", stream: "stdout", chunk: `[${name}] ${JSON.stringify(input)}\n`, tool: { id, name, input } });
+      if (stepMs) await new Promise((done) => setTimeout(done, stepMs));
+      emit({ type: "output", stream: "stdout", chunk: "", result: { id, ok: true, text: result } });
+    };
     const type = async (...lines: string[]) => {
       for (const line of lines) {
         if (stepMs) await new Promise((done) => setTimeout(done, stepMs));
@@ -139,7 +149,15 @@ export class FakeAdapter implements Adapter {
         emit({ type: "text", text: "I split the job into three dossiers and handed them out." });
       } else if (text.startsWith("Your task #") && url) {
         title = text.split("\n")[0]!.replace(/^Your task #\d+: /, "");
-        await type("Opening the dossier…", "Reading the code…", "Drafting the change…", "Running checks…");
+        await type("Opening the dossier…");
+        await tool("Read", { file_path: "notes/brief.md" }, "# Brief\nWhat the user asked for, in their words.");
+        await tool(
+          "Edit",
+          { file_path: "notes/plan.md", old_string: "- [ ] first draft", new_string: "- [x] first draft\n- [ ] review" },
+          "The file notes/plan.md has been updated.",
+        );
+        await tool("Bash", { command: "npm test" }, "12 passing\n0 failing");
+        await type("Running checks…");
         if (text.includes("[demo:ask]")) {
           finishOnNextMessage = true;
           await bridge({

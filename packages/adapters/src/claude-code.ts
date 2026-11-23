@@ -30,6 +30,15 @@ export function parseLimit(message: string, now = new Date()): { resetAt: string
   return { resetAt: null };
 }
 
+const MAX_SHOWN = 6000;
+const clip = (text: string) => (text.length > MAX_SHOWN ? text.slice(0, MAX_SHOWN) + "\n…" : text);
+/** Keep a tool's arguments small enough to send to every window. */
+function clipValues(input: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(input).map(([key, value]) => [key, typeof value === "string" ? clip(value) : value]),
+  );
+}
+
 export function parseStreamLine(line: string): SessionEvent[] {
   let msg: any;
   try {
@@ -46,8 +55,31 @@ export function parseStreamLine(line: string): SessionEvent[] {
       } else if (block.type === "tool_use") {
         const input = JSON.stringify(block.input ?? {});
         const shown = input.length > 200 ? input.slice(0, 200) + "…" : input;
-        events.push({ type: "output", stream: "stdout", chunk: `[${block.name}] ${shown}\n` });
+        events.push({
+          type: "output",
+          stream: "stdout",
+          chunk: `[${block.name}] ${shown}\n`,
+          ...(block.id && { tool: { id: block.id, name: String(block.name), input: clipValues(block.input ?? {}) } }),
+        });
       }
+    }
+    return events;
+  }
+  if (msg?.type === "user") {
+    // Tool results come back as the "user" side of the conversation.
+    const events: SessionEvent[] = [];
+    const content = msg.message?.content;
+    for (const block of Array.isArray(content) ? content : []) {
+      if (block?.type !== "tool_result" || !block.tool_use_id) continue;
+      const text = Array.isArray(block.content)
+        ? block.content.map((part: any) => (part?.type === "text" ? part.text : "")).join("")
+        : String(block.content ?? "");
+      events.push({
+        type: "output",
+        stream: "stdout",
+        chunk: "",
+        result: { id: block.tool_use_id, ok: !block.is_error, text: clip(text) },
+      });
     }
     return events;
   }

@@ -383,4 +383,14 @@ export const en = {
    * [pattern, replacement] per line. English is what the core already writes.
    */
   core: [] as Array<[RegExp, string]>,
+  tools: {
+    names: {
+      Bash: "Command", Read: "Read", Write: "Write", Edit: "Edit", MultiEdit: "Edit", NotebookEdit: "Edit",
+      Grep: "Search", Glob: "Find files", WebFetch: "Web page", WebSearch: "Web search", TodoWrite: "Plan", Task: "Helper",
+    },
+    running: "Running",
+    done: "Done",
+    failed: "Failed",
+    more: (count: number) => `…${count} more lines`,
+  },
 };

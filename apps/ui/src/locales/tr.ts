@@ -400,4 +400,14 @@ export const tr: Strings = {
       "$1 önceki konuşmasını sürdüremedi. Yeni bir konuşma başlatmak için mesajı yeniden gönder.",
     ],
   ],
+  tools: {
+    names: {
+      Bash: "Komut", Read: "Okuma", Write: "Yazma", Edit: "Düzenleme", MultiEdit: "Düzenleme", NotebookEdit: "Düzenleme",
+      Grep: "Arama", Glob: "Dosya bulma", WebFetch: "Web sayfası", WebSearch: "Web araması", TodoWrite: "Plan", Task: "Yardımcı",
+    },
+    running: "Çalışıyor",
+    done: "Bitti",
+    failed: "Başarısız",
+    more: (count) => `…${count} satır daha`,
+  },
 };

@@ -1305,7 +1305,14 @@ export class Core {
     }
     switch (event.type) {
       case "output": {
-        this.emit({ type: "agent.output", agentId, stream: event.stream, chunk: event.chunk });
+        this.emit({
+          type: "agent.output",
+          agentId,
+          stream: event.stream,
+          chunk: event.chunk,
+          ...(event.tool && { tool: event.tool }),
+          ...(event.result && { result: event.result }),
+        });
         const lastLine = event.chunk.trimEnd().split("\n").pop();
         // Kept in memory only; it is saved with the next status change.
         if (lastLine) agent.lastOutput = lastLine.slice(0, 500);
