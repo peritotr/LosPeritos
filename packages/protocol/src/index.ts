@@ -407,6 +407,12 @@ export const DecideApprovalRequest = z.object({
   /** With an approved connector call: let this tool go ahead unasked from now on. */
   remember: z.boolean().optional(),
 });
+/** The user writes or rewrites a page; with no `id` it is a new one. */
+export const SavePageRequest = z.object({
+  id: id.optional(),
+  title: z.string().trim().min(1).max(120),
+  body: z.string().max(MAX_PAGE_CHARS),
+});
 export const DecideLessonRequest = z.object({
   decision: z.enum(["accepted", "rejected"]),
 });
@@ -464,6 +470,8 @@ export const routes = {
   repoSearch: "GET /workspaces/:workspaceId/repo/search",
   /** The bureau's notebook, newest first. */
   pages: "GET /workspaces/:workspaceId/pages",
+  /** SavePageRequest; answers with the notebook. */
+  savePage: "POST /workspaces/:workspaceId/pages",
   removePage: "POST /pages/:pageId/remove",
   /** `{ files: string[] }`: Markdown files of the project folder, to read beside the notebook. */
   docs: "GET /workspaces/:workspaceId/docs",
@@ -547,6 +555,8 @@ export const AgentCommand = z.discriminatedUnion("command", [
   z.object({ command: z.literal("lesson"), text: z.string().min(1) }),
   /** Keep a page in the bureau's notebook; a page with the same title is replaced. */
   z.object({ command: z.literal("page"), title: z.string().trim().min(1).max(120), body: z.string().min(1).max(MAX_PAGE_CHARS) }),
+  /** Read the notebook: the titles, or with a title that page's text. */
+  z.object({ command: z.literal("pages"), title: z.string().trim().optional() }),
 ]);
 export type AgentCommand = z.infer<typeof AgentCommand>;
 /** What the CLI sends: defaults not yet applied. */
@@ -625,6 +635,7 @@ export type ApprovalKind = z.infer<typeof ApprovalKind>;
 export type RepoState = z.infer<typeof RepoState>;
 export type Connector = z.infer<typeof Connector>;
 export type ConnectorTool = z.infer<typeof ConnectorTool>;
+export type SavePageRequest = z.infer<typeof SavePageRequest>;
 export type SaveConnectorRequest = z.infer<typeof SaveConnectorRequest>;
 export type ApprovalStatus = z.infer<typeof ApprovalStatus>;
 export type Approval = z.infer<typeof Approval>;

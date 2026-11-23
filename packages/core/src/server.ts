@@ -1,6 +1,7 @@
 import { createServer as createHttpServer, type IncomingMessage, type Server } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import { createReadStream } from "node:fs";
+import { Readable } from "node:stream";
 import { WebSocketServer } from "ws";
 import type { z } from "zod";
 import {
@@ -15,6 +16,7 @@ import {
   OpenWorkspaceRequest,
   PermissionRequest,
   SaveConnectorRequest,
+  SavePageRequest,
   SendMessageRequest,
   UpdateAgentRequest,
   UploadAttachmentRequest,
@@ -95,6 +97,7 @@ function buildRoutes(core: Core): Array<{ method: string; pattern: RegExp; handl
       diff: await core.repoDiff(p.workspaceId!, query.get("commit"), query.get("repo")),
     }),
     "GET /workspaces/:workspaceId/pages": (p) => core.listPages(p.workspaceId!),
+    "POST /workspaces/:workspaceId/pages": (p, body) => core.savePage(p.workspaceId!, parse(SavePageRequest, body)),
     "POST /pages/:pageId/remove": (p) => core.removePage(p.pageId!),
     "GET /workspaces/:workspaceId/docs": (p) => core.listDocs(p.workspaceId!),
     "GET /workspaces/:workspaceId/connectors": (p) => core.listConnectors(p.workspaceId!),
@@ -137,6 +140,10 @@ async function readBody(req: IncomingMessage, limit = 1_000_000): Promise<unknow
   }
 }
 
+/** Headers of an MCP call that travel through the relay, each way. */
+const RELAYED_IN = ["content-type", "accept", "mcp-session-id", "mcp-protocol-version", "last-event-id"];
+const RELAYED_OUT = ["content-type", "mcp-session-id", "cache-control", "www-authenticate"];
+
 /**
  * HTTP + WebSocket front for a Core. Every request needs the bearer token;
  * the WebSocket takes it as `?token=` because browsers cannot set headers there.
@@ -174,6 +181,35 @@ export function createServer(core: Core, token: string): Server {
         // Agents authenticate with their own token, not the user's.
         const command = parse(AgentCommand, await readBody(req));
         send(200, await core.agentCommand(bearer ?? "", command));
+        return;
+      }
+      const relay = /^\/relay\/([^/]+)$/.exec(path);
+      if (relay) {
+        // An agent's call to a signed-in connector: passed on with the provider's current token, the answer streamed back.
+        const target = core.relayTarget(bearer ?? "", relay[1]!);
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk as Buffer);
+        const passed = Object.fromEntries(
+          RELAYED_IN.flatMap((name) => (typeof req.headers[name] === "string" ? [[name, req.headers[name] as string]] : [])),
+        );
+        const gone = new AbortController();
+        res.on("close", () => gone.abort());
+        req.socket.setTimeout(0);
+        let answer: Response;
+        try {
+          answer = await fetch(target.url, {
+            method: req.method,
+            headers: { ...passed, ...target.headers },
+            body: req.method === "GET" || req.method === "DELETE" ? undefined : Buffer.concat(chunks),
+            signal: gone.signal,
+          });
+        } catch (err) {
+          if (gone.signal.aborted) return;
+          throw new CoreError("bad_request", `The connector did not answer: ${(err as Error).message}`);
+        }
+        res.writeHead(answer.status, Object.fromEntries(RELAYED_OUT.flatMap((name) => (answer.headers.get(name) ? [[name, answer.headers.get(name)!]] : []))));
+        if (!answer.body) return void res.end();
+        Readable.fromWeb(answer.body as import("node:stream/web").ReadableStream).on("error", () => res.destroy()).pipe(res);
         return;
       }
       if (req.method === "GET" && path === "/oauth/callback") {

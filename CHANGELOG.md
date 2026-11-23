@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+**Documents**
+- You can write in the bureau's notebook yourself: a new page, or a page the
+  team wrote, edited in place. The team can read the notebook
+  (`peritos pages`), so what you write there reaches it.
+
+**Connectors**
+- A team reaches a signed-in connector through the app, which adds the
+  provider's token to each call. A token renewed during a long turn is used at
+  once and no longer restarts the team; the agents never hold the token.
+
 ## 0.4.0 — 2026-11-23
 
 **The floor**

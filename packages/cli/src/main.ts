@@ -16,7 +16,8 @@ const USAGE = `Usage:
   peritos ask <question> [--option <o>...] [--recommend <o>]
   peritos approval --title <t> [--kind deploy|command|other] [--detail <d>] [--step <s>...] [--irreversible]
   peritos lesson <text>
-  peritos page --title <t> (--file <markdown file> | <markdown text>)`;
+  peritos page --title <t> (--file <markdown file> | <markdown text>)
+  peritos pages [<title>]`;
 
 function fail(message: string): never {
   console.error(message);
@@ -103,6 +104,8 @@ function build(argv: string[]): AgentCommandInput {
       }
       return { command: "page", title: values.title ?? "", body };
     }
+    case "pages":
+      return { command: "pages", title: text || undefined };
     default:
       fail(USAGE);
   }

@@ -319,6 +319,8 @@ export interface Actions {
   repoSearch(workspaceId: string, query: string, repo?: string | null): Promise<Array<{ path: string; line: number; text: string }>>;
   /** The bureau's notebook, newest first. */
   pages(workspaceId: string): Promise<Page[]>;
+  /** Write a new page, or with `id` rewrite one. */
+  savePage(workspaceId: string, page: { id?: string; title: string; body: string }): Promise<Page[]>;
   removePage(pageId: string): Promise<Page[]>;
   /** Markdown files of the project folder. */
   docs(workspaceId: string): Promise<string[]>;
@@ -485,6 +487,7 @@ export function useCore(): [State, Actions] {
     repoSearch: async (workspaceId, words, repo) =>
       (await post<{ hits: Array<{ path: string; line: number; text: string }> }>(`/workspaces/${workspaceId}/repo/search${query({ q: words, repo })}`, undefined, "GET")).hits,
     pages: (workspaceId) => post<Page[]>(`/workspaces/${workspaceId}/pages`, undefined, "GET"),
+    savePage: (workspaceId, page) => post<Page[]>(`/workspaces/${workspaceId}/pages`, page),
     removePage: (pageId) => post<Page[]>(`/pages/${pageId}/remove`, {}),
     docs: async (workspaceId) => (await post<{ files: string[] }>(`/workspaces/${workspaceId}/docs`, undefined, "GET")).files,
     connectors: (workspaceId) => post<Connector[]>(`/workspaces/${workspaceId}/connectors`, undefined, "GET"),

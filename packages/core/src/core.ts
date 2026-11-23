@@ -18,6 +18,7 @@ import type {
   Lesson,
   Message,
   Page,
+  SavePageRequest,
   RepoState,
   Run,
   SaveConnectorRequest,
@@ -80,6 +81,7 @@ const BRIDGE_PROMPT =
   "- `peritos lesson \"<rule>\"` proposes a lasting rule for this project.\n" +
   "- `peritos page --title \"<title>\" --file <markdown file>` keeps a page in the bureau's notebook for the user to read: " +
   "a plan, a decision and its reasons, findings worth keeping. A page with the same title is replaced. It is not a file of the project.\n" +
+  "- `peritos pages` lists the notebook and `peritos pages \"<title>\"` prints a page. The user writes there too: read what bears on your task.\n" +
   "- `peritos task list` shows all tasks.\n" +
   "If something you cannot fix stops you (a missing key or access, an account without credit, a call that was refused), " +
   "do not end with a message about it: ask the user for what you need with `peritos ask`, then stop and wait.\n";
@@ -820,6 +822,27 @@ export class Core {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
+  /** The user's own hand in the notebook: a new page, or a page rewritten. */
+  savePage(workspaceId: string, request: SavePageRequest): Page[] {
+    const state = this.state(workspaceId);
+    const before = request.id ? state.pages.get(request.id) : undefined;
+    if (request.id && !before) throw new CoreError("not_found", `No page ${request.id}`);
+    const taken = state.pages.all().find((page) => page.id !== before?.id && page.title.toLowerCase() === request.title.toLowerCase());
+    if (taken) throw new CoreError("bad_request", `There is already a page called "${taken.title}"`);
+    const now = this.now().toISOString();
+    state.pages.put({
+      id: before?.id ?? randomUUID(),
+      workspaceId,
+      title: request.title,
+      body: request.body,
+      authorAgentId: before ? before.authorAgentId : null,
+      taskId: before?.taskId ?? null,
+      createdAt: before?.createdAt ?? now,
+      updatedAt: now,
+    });
+    return this.listPages(workspaceId);
+  }
+
   removePage(pageId: string): Page[] {
     const { state } = this.find((s) => s.pages, pageId, "page");
     state.pages.remove(pageId);
@@ -1016,7 +1039,8 @@ export class Core {
     const connector = stored.find((c) => c.id === connectorId);
     if (!connector) return null;
     this.storeConnectors(workspaceId, stored.map((c) => (c.id === connectorId ? { ...c, oauth: grant } : c)));
-    this.refreshSessions(workspaceId);
+    // A team that already goes through the relay gets a renewed token there, in the middle of a turn if need be.
+    if (!this.bridge || !connector.oauth || !grant) this.refreshSessions(workspaceId);
     this.planRenewal(workspaceId, connectorId);
     return connector.name;
   }
@@ -1097,12 +1121,32 @@ export class Core {
     }
   }
 
-  /** The connectors as the agent's tool starts them. */
-  private mcpServers(state: WorkspaceState): Record<string, McpServer> {
+  /**
+   * Where a signed-in connector really is, for a call an agent sends through
+   * the relay. The agent holds only its own token: the provider's token is
+   * added here, so one renewed during a long turn is the one that goes out.
+   */
+  relayTarget(agentToken: string, connectorId: string): { url: string; headers: Record<string, string> } {
+    const agentId = [...this.agentTokens].find(([, t]) => t === agentToken)?.[0];
+    if (!agentId) throw new CoreError("unauthorized", "Unknown agent token");
+    const { state } = this.find((s) => s.agents, agentId, "agent");
+    const connector = this.storedConnectors(state.workspace.id).find((c) => c.id === connectorId);
+    if (!connector?.url || !connector.oauth) throw new CoreError("not_found", `No signed-in connector ${connectorId}`);
+    if (!this.holds(connector.oauth)) throw new CoreError("unauthorized", `The sign-in to ${connector.name} has run out; the user has to sign in again in Settings.`);
+    return { url: connector.url, headers: { ...connector.secrets, Authorization: `Bearer ${connector.oauth.accessToken}` } };
+  }
+
+  /**
+   * The connectors as the agent's tool starts them. With an agent's token, a
+   * signed-in connector is reached through the core's relay rather than directly.
+   */
+  private mcpServers(state: WorkspaceState, agentToken?: string): Record<string, McpServer> {
     return Object.fromEntries(
       this.storedConnectors(state.workspace.id).map((connector) => [
         connector.id,
-        connector.url
+        connector.url && connector.oauth && agentToken && this.bridge
+          ? { type: "http" as const, url: `${this.bridge.url}/relay/${connector.id}`, headers: { Authorization: `Bearer ${agentToken}` } }
+          : connector.url
           ? {
               type: "http" as const,
               url: connector.url,
@@ -1455,6 +1499,16 @@ export class Core {
           updatedAt: now,
         });
         return say(before ? `Page "${command.title}" replaced.` : `Page "${command.title}" kept in the notebook.`);
+      }
+      case "pages": {
+        const pages = this.listPages(state.workspace.id);
+        if (!command.title) {
+          return say(pages.length ? pages.map((page) => `- ${page.title} (${page.updatedAt.slice(0, 10)})`).join("\n") : "The notebook is empty.");
+        }
+        const wanted = command.title.toLowerCase();
+        const page = pages.find((item) => item.title.toLowerCase() === wanted) ?? pages.find((item) => item.title.toLowerCase().includes(wanted));
+        if (!page) throw new CoreError("not_found", `No page called "${command.title}". \`peritos pages\` lists them.`);
+        return say(`# ${page.title}\n\n${page.body}`);
       }
     }
   }
@@ -1811,7 +1865,7 @@ export class Core {
                     ? { on: "branch" }
                     : { on: "draft", project: state.workspace.path },
               )) + this.lessonsPrompt(state) + this.connectorsPrompt(state),
-        connectors: this.mcpServers(state),
+        connectors: this.mcpServers(state, token),
         sessionId,
         resume,
         model: agent.role === "member" ? MODEL_FOR[task?.effort ?? "normal"] : undefined,

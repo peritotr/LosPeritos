@@ -765,12 +765,23 @@ test("a connector that asks for a sign-in in the browser is signed in to, used, 
   assert.match(await (await fetch(`${here}/oauth/callback?code=code-1&state=made-up`)).text(), /did not go through/);
   assert.match(await (await fetch(landed.url)).text(), /did not go through/);
 
-  // The token was due within the renewal margin, so it has been renewed; the team gets the new one.
+  // The team reaches it through the core's relay, holding its own token and never the provider's.
+  core.sendMessage(workspace.id, { body: "go", toAgentId: null, taskId: null });
+  const started = adapter.starts.length;
+  const given = adapter.starts.at(-1)!.connectors!.rows as { url: string; headers: Record<string, string> };
+  assert.equal(given.url, `${here}/relay/rows`);
+  assert.ok(!JSON.stringify(given).includes("access-"), "the provider's token is not handed to the agent");
+  const call = () =>
+    fetch(given.url, { method: "POST", headers: { ...given.headers, "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
+  assert.equal(((await (await call()).json()) as { result: { tools: unknown[] } }).result.tools.length, 1);
+  assert.equal((await fetch(given.url, { method: "POST", headers: { Authorization: "Bearer made-up" }, body: "{}" })).status, 401);
+
+  // The token was due within the renewal margin, so it is renewed; the same session goes on with the new one.
   await new Promise((done) => setTimeout(done, 1300));
   assert.equal(issued, 2);
-  core.sendMessage(workspace.id, { body: "go", toAgentId: null, taskId: null });
-  const given = adapter.starts.at(-1)!.connectors!.rows as { headers: Record<string, string> };
-  assert.equal(given.headers.Authorization, "Bearer access-2");
+  assert.equal((await call()).status, 200, "the relay sends the renewed token");
+  core.sendMessage(workspace.id, { body: "on", toAgentId: null, taskId: null });
+  assert.equal(adapter.starts.length, started, "a renewal does not restart the team");
 
   // Keeping the address keeps the sign-in; changing it does not.
   core.saveConnector(workspace.id, SaveConnectorRequest.parse({ id: "rows", name: "Rows", url: `${origin}/mcp`, free: ["get_*"] }));
@@ -843,6 +854,19 @@ test("the team keeps pages in the bureau's notebook, and the project's Markdown 
   }
   assert.deepEqual(core.listDocs(workspace.id).files, ["README.md", "docs/guides/setup.md"]);
   assert.equal(core.repoFile(workspace.id, "docs/guides/setup.md").mime, "text/markdown");
+
+  // The user writes in the notebook too, and the team can read all of it.
+  core.savePage(workspace.id, { id: page!.id, title: "Launch plan", body: "# Plan\n\nRewritten by hand.\n" });
+  assert.equal(core.listPages(workspace.id)[0]!.authorAgentId, page!.authorAgentId, "a rewritten page keeps its author");
+  await tick();
+  const [mine] = core.savePage(workspace.id, { title: "House rules", body: "No emoji in copy." });
+  assert.equal(mine!.authorAgentId, null);
+  assert.throws(() => core.savePage(workspace.id, { title: "launch plan", body: "x" }), /already a page/);
+  assert.throws(() => core.savePage(workspace.id, { id: "missing", title: "x", body: "x" }), /No page/);
+  assert.match((await as(0, { command: "pages" })).message, /- House rules[\s\S]*- Launch plan/);
+  assert.match((await as(0, { command: "pages", title: "house" })).message, /No emoji in copy/);
+  await assert.rejects(as(0, { command: "pages", title: "nothing" }), /No page called/);
+  core.removePage(mine!.id);
 
   assert.deepEqual(core.removePage(page!.id), []);
   assert.throws(() => core.removePage(page!.id), /No page/);
