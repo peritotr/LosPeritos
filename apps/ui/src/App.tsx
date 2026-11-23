@@ -29,6 +29,7 @@ import { openQuestions, pendingApprovals, type Ctx, type Route } from "./context
 import { Archive, Awaiting, BudgetBar, Ledger, SealToast, Settings, Setup } from "./screens-desk";
 import { Bench, Correspondence, FileDetail, Files, PeritoDetail } from "./screens-work";
 import { shell, useCore } from "./store";
+import { Tour, useTour } from "./onboarding";
 import { T } from "./strings";
 import { I, fileRef, kindOf, money, perito } from "./ui";
 
@@ -74,6 +75,7 @@ export function App() {
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
   const [toastId, setToastId] = useState<string | null>(null);
   const [palette, setPalette] = useState(false);
+  const [tour, closeTour] = useTour(state.loaded && state.workspaces.length > 0);
   // The correspondence panel stays open across screens; on a narrow window it starts closed.
   const [chatOpen, setChatOpenState] = useState(() => (stored(CHAT_KEY) ?? (innerWidth >= 1280 ? "open" : "closed")) === "open");
   const setChatOpen = (open: boolean) => {
@@ -362,6 +364,7 @@ export function App() {
           </aside>
         )}
 
+        {tour && <Tour onClose={closeTour} />}
         {palette && (
           <Palette
             ctx={ctx}

@@ -587,3 +587,14 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 .tl.add { color: var(--st-work); }
 .tl.del { color: var(--st-err); }
 @media (prefers-reduced-motion: reduce) { .tool > summary > svg:first-child { transition: none; } }
+
+/* ── First use ──────────────────────────────────────────────────────────── */
+.tour { width: min(460px, 100% - 48px); padding: 18px 20px; background: var(--color-bg); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 10px; }
+.tour h3 { margin: 4px 0 0; }
+.tour p { margin: 0; line-height: 1.55; min-height: 4.6em; }
+.starters { margin: 14px 0 6px; }
+.starter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.starter { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; text-align: left; background: var(--color-bg); border: 1px solid var(--color-divider); color: inherit; font: inherit; cursor: pointer; }
+.starter span { font-size: 12px; line-height: 1.4; }
+.starter:hover { border-color: var(--st-act); }
+@media (max-width: 720px) { .starter-grid { grid-template-columns: 1fr; } }

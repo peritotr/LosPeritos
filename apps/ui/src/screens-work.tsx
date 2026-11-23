@@ -31,6 +31,7 @@ import { SvgFloor } from "./floor/SvgFloor";
 import { SpriteLayer } from "./floor/SpriteLayer";
 import { buildFloor } from "./floor/model";
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
+import { Starters } from "./onboarding";
 import { ReportFiles } from "./preview";
 import { T } from "./strings";
 import {
@@ -79,6 +80,7 @@ function spendOf(ctx: Ctx, agentId: string): number {
 export function Bench(ctx: Ctx) {
   const { state, actions, bureau, agents, tasks } = ctx;
   const [brief, setBrief] = useState("");
+  const briefInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const waiting = pendingApprovals(ctx.approvals).length + openQuestions(ctx.messages).length;
   const spent = state.budgets[bureau.id]?.level === "exhausted";
@@ -128,6 +130,7 @@ export function Bench(ctx: Ctx) {
         <Corners />
         <Emblem role="lead" mono="BP" size={36} />
         <input
+          ref={briefInput}
           className="input grow"
           value={brief}
           onChange={(event) => setBrief(event.target.value)}
@@ -145,6 +148,15 @@ export function Bench(ctx: Ctx) {
           </button>
         )}
       </form>
+      {tasks.length === 0 && !ctx.messages.some((message) => message.author.kind === "user") && !spent && (
+        <Starters
+          kind={kindOf(bureau)}
+          onPick={(text) => {
+            setBrief(text);
+            briefInput.current?.focus();
+          }}
+        />
+      )}
       {spent && (
         <p className="brief-note">
           <I icon={Ban} />

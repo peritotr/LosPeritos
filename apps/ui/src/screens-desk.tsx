@@ -19,6 +19,7 @@ import type { Approval, Message, ToolCheck, Workspace, WorkspaceKind } from "@lo
 
 const KINDS = ["software", "marketing", "content"] as const satisfies readonly WorkspaceKind[];
 import { openQuestions, pendingApprovals, type Ctx } from "./context";
+import { showTour } from "./onboarding";
 import { CORE_URL, shell } from "./store";
 import { LANGUAGES, T, dateLocale, fromCore, language, setLanguage, type Language } from "./strings";
 import { Corners, Emblem, Empty, I, PageHead, Segmented, Stamp, ago, fileRef, kindOf, money, pad, perito, questionRef, sealRef, sealText } from "./ui";
@@ -868,6 +869,9 @@ export function Settings(ctx: Ctx) {
         <section className="panel blueprint">
           <Corners />
           <h4>{T.settings.appearance}</h4>
+          <button className="btn btn-secondary" style={{ alignSelf: "flex-start" }} onClick={showTour}>
+            {T.tour.again}
+          </button>
           <div className="field">
             <label>{T.settings.theme}</label>
             <Segmented

@@ -393,4 +393,38 @@ export const en = {
     failed: "Failed",
     more: (count: number) => `…${count} more lines`,
   },
+  tour: {
+    label: "A short tour",
+    count: (at: number, of: number) => `TOUR · ${at} OF ${of}`,
+    next: "Next",
+    back: "Back",
+    skip: "Skip",
+    finish: "Start working",
+    again: "Show the tour again",
+    starters: "Pick a first job",
+    steps: [
+      { title: "Tell the Lead Perito what you want", body: "Write the job in your own words on the Bench. The Lead does small jobs itself and splits larger ones into files for the panel." },
+      { title: "Each perito works apart", body: "A file goes to one perito, who works on its own branch or draft. You can watch it on the floor, and open any perito to see what it is doing." },
+      { title: "Nothing lands without your seal", body: "When a file is ready it waits in Awaiting. Read the report, look at what was produced, then seal it or send it back." },
+      { title: "Peritos ask when they are unsure", body: "Questions arrive in Correspondence with the answer the perito would pick. Answer once, and tick the box if it should never ask again." },
+      { title: "You set the spending limit", body: "The Ledger shows what today has cost. Set a daily budget in Settings; when it is spent, no new work starts." },
+    ],
+    jobs: {
+      software: [
+        { title: "Get to know the project", brief: "Read this project and tell me in five points what it does and how it is built." },
+        { title: "Tidy the README", brief: "Review the README, fill in what is missing, and make the setup steps correct." },
+        { title: "Check the tests", brief: "Run the tests and report which ones fail and why. Do not fix anything yet." },
+      ],
+      marketing: [
+        { title: "Keyword plan", brief: "Make a 10-keyword SEO plan with search intent and priority for: (describe your business)" },
+        { title: "Search ad copy", brief: "Write 3 headlines (30 characters at most) and 2 descriptions (90 at most) for a Google search ad for: (your product)" },
+        { title: "Social calendar", brief: "Plan a month of social posts, three a week, with captions, for: (your brand)" },
+      ],
+      content: [
+        { title: "Blog article", brief: "Write a 600-word blog article about: (your topic)" },
+        { title: "Newsletter", brief: "Draft this month's newsletter, about 150 words, on: (what is new)" },
+        { title: "Video script", brief: "Write a 60-second promo video script with a shot list for: (your product)" },
+      ],
+    },
+  },
 };

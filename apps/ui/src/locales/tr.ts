@@ -410,4 +410,38 @@ export const tr: Strings = {
     failed: "Başarısız",
     more: (count) => `…${count} satır daha`,
   },
+  tour: {
+    label: "Kısa tur",
+    count: (at, of) => `TUR · ${at} / ${of}`,
+    next: "İleri",
+    back: "Geri",
+    skip: "Geç",
+    finish: "Çalışmaya başla",
+    again: "Turu yeniden göster",
+    starters: "İlk işini seç",
+    steps: [
+      { title: "Baş Perito'ya ne istediğini söyle", body: "İşi Heyet Masası'nda kendi cümlelerinle yaz. Baş Perito küçük işleri kendisi yapar, büyükleri dosyalara bölüp heyete dağıtır." },
+      { title: "Her perito ayrı çalışır", body: "Bir dosya tek bir peritoya gider; o da kendi dalında ya da taslağında çalışır. Büro katında izleyebilir, istediğin peritoyu açıp ne yaptığına bakabilirsin." },
+      { title: "Mührün olmadan hiçbir şey yerine geçmez", body: "Hazır olan dosya Bekleyenler'de seni bekler. Raporu oku, üretilenlere bak, sonra mühürle ya da geri gönder." },
+      { title: "Peritolar emin olmadıklarında sorar", body: "Sorular Yazışmalar'a, peritonun seçeceği cevapla birlikte gelir. Bir kez cevapla; bir daha sorulmasın istiyorsan kutuyu işaretle." },
+      { title: "Harcama sınırını sen koyarsın", body: "Mesai Defteri bugünün maliyetini gösterir. Ayarlar'dan günlük bütçe belirle; bütçe dolunca yeni iş başlamaz." },
+    ],
+    jobs: {
+      software: [
+        { title: "Projeyi tanı", brief: "Bu projeyi incele; ne yaptığını ve nasıl kurulduğunu beş maddede anlat." },
+        { title: "README'yi toparla", brief: "README'yi gözden geçir, eksikleri tamamla ve kurulum adımlarını doğru hâle getir." },
+        { title: "Testlere bak", brief: "Testleri çalıştır; hangilerinin neden başarısız olduğunu raporla. Henüz hiçbir şeyi düzeltme." },
+      ],
+      marketing: [
+        { title: "Anahtar kelime planı", brief: "Şunun için arama niyeti ve öncelikle birlikte 10 anahtar kelimelik bir SEO planı çıkar: (işini anlat)" },
+        { title: "Arama reklamı metni", brief: "Şunun için Google arama reklamına 3 başlık (en çok 30 karakter) ve 2 açıklama (en çok 90 karakter) yaz: (ürünün)" },
+        { title: "Sosyal medya takvimi", brief: "Şunun için haftada üç gönderilik, açıklama metinleriyle bir aylık sosyal medya takvimi hazırla: (markan)" },
+      ],
+      content: [
+        { title: "Blog yazısı", brief: "Şu konuda 600 kelimelik bir blog yazısı yaz: (konun)" },
+        { title: "Bülten", brief: "Bu ayın bültenini yaklaşık 150 kelimeyle şu konuda taslakla: (yenilikler)" },
+        { title: "Video senaryosu", brief: "Şunun için 60 saniyelik tanıtım videosu senaryosu ve çekim listesi yaz: (ürünün)" },
+      ],
+    },
+  },
 };
