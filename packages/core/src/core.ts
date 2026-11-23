@@ -1243,7 +1243,7 @@ export class Core {
         const full = join(dir, entry.name);
         if (entry.isDirectory()) {
           if (depth < 5) walk(full, depth + 1);
-        } else if (/\.(md|markdown)$/i.test(entry.name)) files.push(relative(root, full));
+        } else if (/\.(md|markdown)$/i.test(entry.name)) files.push(relative(root, full).split(sep).join("/"));
       }
     };
     walk(root, 0);
@@ -1633,11 +1633,11 @@ export class Core {
       const real = realpathSync(full);
       if (!real.startsWith(root + sep)) continue;
       const stat = statSync(real);
-      if (stat.isFile() && picture.test(real)) found.add(relative(root, real));
+      if (stat.isFile() && picture.test(real)) found.add(relative(root, real).split(sep).join("/"));
       else if (stat.isDirectory()) {
         for (const name of readdirSync(real).sort()) {
           if (found.size >= MAX_SHOWN_PICTURES) break;
-          if (picture.test(name) && statSync(join(real, name)).isFile()) found.add(relative(root, join(real, name)));
+          if (picture.test(name) && statSync(join(real, name)).isFile()) found.add(relative(root, join(real, name)).split(sep).join("/"));
         }
       }
     }
@@ -1900,7 +1900,7 @@ export class Core {
         const draft = task.worktree && !task.branch ? filesUnder(task.worktree) : null;
         // An agent sometimes names a file by its full path; the report keeps it as it lies in the working folder.
         const base = task.worktree ?? state.workspace.path;
-        const named = (command.report.files ?? []).map((file) => (file.startsWith(base + sep) ? relative(base, file) : file));
+        const named = (command.report.files ?? []).map((file) => (file.startsWith(base + sep) ? relative(base, file).split(sep).join("/") : file));
         const files = new Set(draft ?? named);
         if (needsMerge) {
           const changed = await git.changedFiles(this.repoDir(state, task.repo), task.baseBranch!, task.branch!).catch(() => []);

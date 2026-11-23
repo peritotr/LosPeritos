@@ -1255,7 +1255,7 @@ test("an agent can show the user files with a question or a message, and only fi
 test("reading a scratch file in a temporary folder needs no seal; a seal left behind by an agent that went is marked so", async () => {
   const { core, workspace, tokenOf } = setup({ repo: false });
   const token = tokenOf(0);
-  assert.equal(await core.requestPermission(token, "Read", { file_path: "/tmp/prev/rota-m-ikon-primary.svg.png" }), "approved");
+  assert.equal(await core.requestPermission(token, "Read", { file_path: join(tmpdir(), "prev", "rota-m-ikon-primary.svg.png") }), "approved");
   assert.equal(core.listApprovals(workspace.id).length, 0);
 
   const held = core.requestPermission(token, "Read", { file_path: "/Users/someone/.ssh/id_ed25519" });
