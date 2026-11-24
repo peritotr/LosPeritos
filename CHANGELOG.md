@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.0 — 2026-11-24
 
 **Sıra gecesi**
 - A dancer comes in when the night gathers, and the Lead Perito leaves the
