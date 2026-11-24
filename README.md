@@ -11,7 +11,7 @@ and ships nothing without your seal.
 [![CI](https://github.com/peritotr/LosPeritos/actions/workflows/ci.yml/badge.svg)](https://github.com/peritotr/LosPeritos/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/license-MIT-416180)
 ![Platform: macOS](https://img.shields.io/badge/platform-macOS-416180)
-![Version 0.1](https://img.shields.io/badge/version-0.1-416180)
+![Latest release](https://img.shields.io/github/v/release/peritotr/LosPeritos?color=416180)
 
 [Try it](#try-it) · [How it works](#how-a-job-flows) · [How much to trust it](#how-much-to-trust-it) · [Türkçe](README.tr.md)
 
@@ -58,7 +58,7 @@ MIT licensed. Read it, change it, ship your own.
 </tr>
 </table>
 
-> **Status: early (0.1).** It works end to end on macOS with Claude Code.
+> **Status: early.** It works end to end on macOS with Claude Code.
 > Expect rough edges, and read [what is not there yet](#what-is-not-there-yet).
 
 ## A look around

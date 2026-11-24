@@ -58,7 +58,7 @@ MIT lisanslı. Oku, değiştir, kendi sürümünü çıkar.
 </tr>
 </table>
 
-> **Durum: erken (0.1).** macOS'ta Claude Code ile uçtan uca çalışıyor.
+> **Durum: erken.** macOS'ta Claude Code ile uçtan uca çalışıyor.
 > Pürüzler olacaktır; [henüz olmayanlar](#henüz-olmayanlar) bölümünü oku.
 
 ## Bir göz at
