@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.12.0 — 2026-11-24
 
 **The usage board**
 - A chalkboard hangs on the wall of the floor: today's tokens and their cost,
