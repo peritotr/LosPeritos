@@ -69,3 +69,17 @@ test("usage-limit failures are recognised and their reset time worked out", asyn
   const line = JSON.stringify({ type: "result", is_error: true, result: "Claude AI usage limit reached|1763950000" });
   assert.ok((parseStreamLine(line)[0] as { limit?: unknown }).limit);
 });
+
+test("what Claude Code says about the account's allowance is passed on", () => {
+  // As seen from a real turn: room left, no figure, and the time the week renews.
+  const seen = JSON.stringify({
+    type: "rate_limit_event",
+    rate_limit_info: { status: "allowed", resetsAt: 1796112000, rateLimitType: "seven_day", overageStatus: "rejected", isUsingOverage: false },
+  });
+  assert.deepEqual(parseStreamLine(seen), [
+    { type: "allowance", status: "ok", window: "seven_day", used: null, resetAt: new Date(1796112000 * 1000).toISOString() },
+  ]);
+  const near = JSON.stringify({ type: "rate_limit_event", rate_limit_info: { status: "allowed_warning", rateLimitType: "five_hour", utilization: 0.85 } });
+  assert.deepEqual(parseStreamLine(near), [{ type: "allowance", status: "warning", window: "five_hour", used: 0.85, resetAt: null }]);
+  assert.deepEqual(parseStreamLine(JSON.stringify({ type: "rate_limit_event", rate_limit_info: {} })), []);
+});

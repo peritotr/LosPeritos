@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
+import type { BudgetState } from "@losperitos/protocol";
 import { T, dateLocale } from "../strings";
-import { AGENT_STATUS, EmblemMarks, fileRef } from "../ui";
+import { AGENT_STATUS, EmblemMarks, clock, fileRef, money } from "../ui";
 import { FLOOR, type Actor, type FloorModel } from "./model";
 
 /**
@@ -16,9 +17,12 @@ export interface FloorProps {
   onOpen(agentId: string): void;
   onFlightDone(id: string): void;
   onStampDone(id: string): void;
+  /** Today's usage, for the board on the wall. */
+  usage?: BudgetState;
+  onBoard?(): void;
 }
 
-export function SvgFloor({ model, onOpen, onFlightDone, onStampDone }: FloorProps) {
+export function SvgFloor({ model, onOpen, onFlightDone, onStampDone, usage, onBoard }: FloorProps) {
   const { lead, seal, shelf } = FLOOR;
   return (
     <svg
@@ -34,6 +38,8 @@ export function SvgFloor({ model, onOpen, onFlightDone, onStampDone }: FloorProp
           className={`wire ${wire.live ? "live" : ""}`}
         />
       ))}
+
+      {usage && <Board usage={usage} onOpen={onBoard} />}
 
       {model.vacant.map((seat) => (
         <g key={`${seat.x}-${seat.y}`} transform={`translate(${seat.x} ${seat.y})`} className="seat-empty">
@@ -152,6 +158,113 @@ export function SvgFloor({ model, onOpen, onFlightDone, onStampDone }: FloorProp
         ))}
       </AnimatePresence>
     </svg>
+  );
+}
+
+/** Where the usage board hangs: on the wall above the snacks, left of the first picture. */
+const BOARD = { x: 198, y: 8, width: 160, height: 76 };
+
+/** A moment as the board writes it: the hour if it is today, the date as well if it is not. */
+function boardTime(iso: string): string {
+  const at = new Date(iso);
+  if (at.toDateString() === new Date().toDateString()) return clock(iso);
+  return `${at.toLocaleDateString(dateLocale, { day: "numeric", month: "short" })} ${clock(iso)}`;
+}
+
+/**
+ * The chalkboard on the wall: today's tokens, what is left of the daily budget, and what the tool
+ * has said about the account's own allowance. Only what is known is written; nothing is guessed.
+ */
+function Board({ usage, onOpen }: { usage: BudgetState; onOpen?: (() => void) | undefined }) {
+  const B = T.bench.board;
+  const compact = new Intl.NumberFormat(dateLocale, { notation: "compact", maximumFractionDigits: 1 });
+  const plain = (n: number) => n.toLocaleString(dateLocale);
+  const { limitUsd, spentUsd } = usage;
+  const share = limitUsd ? Math.min(1, spentUsd / limitUsd) : 0;
+  const left = limitUsd === null ? null : Math.max(0, limitUsd - spentUsd);
+
+  // An allowance whose renewal time has passed says nothing about now, unless it said there was room.
+  const said = usage.allowance;
+  const renewed = !!said?.resetAt && new Date(said.resetAt).getTime() <= Date.now();
+  const allowance = said && renewed && said.status !== "ok" ? null : said;
+  const renews = allowance?.resetAt && !renewed ? boardTime(allowance.resetAt) : null;
+  const percent = allowance?.used != null ? Math.round(allowance.used * 100) : null;
+  const line = !allowance
+    ? B.limitUnknown
+    : allowance.status === "spent"
+      ? B.limitSpent
+      : percent !== null
+        ? B.limitShare(100 - percent)
+        : allowance.status === "warning"
+          ? B.limitLow
+          : B.limitOk;
+  const window = (allowance?.window && B.windows[allowance.window]) || B.account;
+  const tip = [
+    B.tipTokens(plain(usage.inputTokens), plain(usage.outputTokens)),
+    B.tipCost(money(spentUsd)),
+    left === null ? B.tipNoBudget : B.tipBudget(money(left), money(limitUsd!)),
+    !allowance
+      ? B.tipUnknown
+      : allowance.status === "spent"
+        ? B.tipSpent(window)
+        : percent !== null
+          ? B.tipShare(window, percent)
+          : allowance.status === "warning"
+            ? B.tipLow(window)
+            : B.tipOk(window),
+    renews && B.tipRenews(renews),
+    allowance && percent === null && allowance.status === "ok" && B.tipNote,
+    onOpen && B.tipOpen,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    <g
+      transform={`translate(${BOARD.x} ${BOARD.y})`}
+      className={`board ${usage.level} ${allowance ? `limit-${allowance.status}` : ""}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`${B.label}. ${tip.replaceAll("\n", ". ")}`}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onOpen?.();
+      }}
+    >
+      <title>{tip}</title>
+      <rect width={BOARD.width} height={BOARD.height} className="board-frame" />
+      <rect x={3} y={3} width={BOARD.width - 6} height={BOARD.height - 6} className="board-slate" />
+      <rect x={24} y={BOARD.height} width={BOARD.width - 48} height={3} className="board-frame" />
+      <text x={11} y={18} className="board-small">
+        {B.today}
+      </text>
+      <text x={BOARD.width - 11} y={18} textAnchor="end" className="board-small">
+        {money(spentUsd)}
+      </text>
+      <text x={11} y={39} className="board-figure">
+        {compact.format(usage.inputTokens + usage.outputTokens)}
+        <tspan className="board-small" dx={5}>
+          {B.tokens}
+        </tspan>
+      </text>
+      {left !== null && (
+        <>
+          <rect x={11} y={46.5} width={52} height={5} className="board-bar" />
+          <rect x={11} y={46.5} width={52 * share} height={5} className="board-bar-fill" />
+        </>
+      )}
+      <text x={left === null ? 11 : BOARD.width - 11} y={52} textAnchor={left === null ? "start" : "end"} className="board-small board-budget">
+        {left === null ? B.noBudget : left === 0 ? B.budgetSpent : B.left(money(left))}
+      </text>
+      <text x={11} y={66} className="board-small board-limit">
+        {line}
+      </text>
+      {renews && (
+        <text x={BOARD.width - 11} y={66} textAnchor="end" className="board-small board-limit">
+          {B.renews(renews)}
+        </text>
+      )}
+    </g>
   );
 }
 

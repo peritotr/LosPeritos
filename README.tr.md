@@ -94,7 +94,7 @@ Ekran görüntüleri İngilizce arayüzden alındı; arayüzün tamamı Türkçe
 
 | | |
 |---|---|
-| 🏢 **Heyet Masası** | Canlı büro katı: kim çalışıyor, kim seni bekliyor, hangi iş nerede. |
+| 🏢 **Heyet Masası** | Canlı büro katı: kim çalışıyor, kim seni bekliyor, hangi iş nerede. Duvardaki tahta bugünkü token kullanımını, günlük bütçeden kalanı ve hesabının limit durumunu gösterir. |
 | 💬 **Yazışmalar** | Her ekranda açık duran sohbet. Baş Perito'ya ya da `@` ile tek bir peritoya yaz. Yerinde cevapla, yerinde mühürle. Dosya ekle. |
 | 🔏 **Mühür** | Birleştirmeler her zaman seni bekler. Yayınlayan, deploy eden, silen ya da başka makinelere erişen komutlar da. |
 | 📋 **Rapor** | Biten her dosya üç listeyle gelir: yapılanlar, test edilenler ve *doğrulanmayanlar*. |

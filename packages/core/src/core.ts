@@ -14,6 +14,7 @@ import type {
   AgentCommandResult,
   ApiError,
   Approval,
+  Allowance,
   BudgetState,
   Connector,
   ConnectorTool,
@@ -492,6 +493,8 @@ export class Core {
   /** Set once the core is shutting down: what ends from here on ends because of that. */
   private closing = false;
   private readonly heldCalls = new Map<string, (decision: "approved" | "rejected") => void>();
+  /** What each tool last said about the account's allowance. It is the account's, so every bureau on that tool shares it. */
+  private readonly allowances = new Map<string, Allowance>();
   /** Timers that wake agents whose usage limit is due to reset. */
   private readonly limitTimers = new Map<string, ReturnType<typeof setTimeout>>();
   /** Sign-ins the user has been sent to the browser for, by their one-time state. */
@@ -1289,14 +1292,16 @@ export class Core {
   budget(workspaceId: string): BudgetState {
     const state = this.state(workspaceId);
     const today = localDate(this.now());
-    const spentUsd = state.runs
-      .all()
-      .filter((run) => localDate(new Date(run.startedAt)) === today)
-      .reduce((sum, run) => sum + run.costUsd, 0);
+    const runs = state.runs.all().filter((run) => localDate(new Date(run.startedAt)) === today);
+    const spentUsd = runs.reduce((sum, run) => sum + run.costUsd, 0);
+    const inputTokens = runs.reduce((sum, run) => sum + run.inputTokens, 0);
+    const outputTokens = runs.reduce((sum, run) => sum + run.outputTokens, 0);
+    const tool = state.agents.all()[0]?.adapter;
+    const allowance = (tool && this.allowances.get(tool)) || null;
     const limitUsd = state.workspace.dailyBudgetUsd;
     const level =
       limitUsd === null ? "ok" : spentUsd >= limitUsd ? "exhausted" : spentUsd >= limitUsd * 0.8 ? "warning" : "ok";
-    return { workspaceId, date: today, limitUsd, spentUsd, level };
+    return { workspaceId, date: today, limitUsd, spentUsd, inputTokens, outputTokens, allowance, level };
   }
 
   waiting(): Waiting {
@@ -2394,6 +2399,16 @@ export class Core {
 
   // ── Usage limits ──────────────────────────────────────────────────────────
 
+  /** Keep what the tool said about the account's allowance, and tell the windows if it is news. */
+  private noteAllowance(state: WorkspaceState, tool: string, said: Omit<Allowance, "seenAt">): void {
+    const before = this.allowances.get(tool);
+    // "Spent" without a window is our own reading of an error: keep the window the tool named earlier.
+    const window = said.window ?? (said.status === "spent" ? before?.window ?? null : null);
+    this.allowances.set(tool, { ...said, window, seenAt: this.now().toISOString() });
+    const same = before && before.status === said.status && before.window === window && before.used === said.used && before.resetAt === said.resetAt;
+    if (!same) this.emit({ type: "budget.updated", budget: this.budget(state.workspace.id) });
+  }
+
   /** How long to wait before trying again when the tool did not say when the limit lifts. */
   private static readonly LIMIT_RETRY_MS = 20 * 60 * 1000;
 
@@ -2655,9 +2670,13 @@ export class Core {
         else if (agent.role === "member" && agent.taskId) this.watchStall(state, agentId);
         break;
       }
+      case "allowance":
+        this.noteAllowance(state, agent.adapter, event);
+        break;
       case "error":
         this.activeRuns.delete(agentId);
         if (event.limit) {
+          this.noteAllowance(state, agent.adapter, { status: "spent", window: null, used: null, resetAt: event.limit.resetAt });
           // Not a failure of the work: wait for the limit to lift, then carry on.
           const resumeAt = event.limit.resetAt;
           this.setAgent(state, agentId, { status: "limited", error: null, resumeAt, lastOutput: agent.lastOutput });

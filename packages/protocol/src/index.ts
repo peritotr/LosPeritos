@@ -414,11 +414,29 @@ export const Run = z.object({
   costUsd: z.number().nonnegative(),
 });
 
+/** The account's own allowance with the tool's maker, as far as the tool lets on. */
+export const Allowance = z.object({
+  status: z.enum(["ok", "warning", "spent"]),
+  /** Which allowance this is about, in the tool's own word (`five_hour`, `seven_day`, …). */
+  window: z.string().nullable(),
+  /** The share already used, 0–1. Null when the tool gives no figure, which is most of the time. */
+  used: z.number().min(0).max(1).nullable(),
+  resetAt: timestamp.nullable(),
+  /** When the tool last said so. */
+  seenAt: timestamp,
+});
+export type Allowance = z.infer<typeof Allowance>;
+
 export const BudgetState = z.object({
   workspaceId: id,
   date: z.string().date(),
   limitUsd: z.number().nonnegative().nullable(),
   spentUsd: z.number().nonnegative(),
+  /** Tokens read and written today, cached ones included. */
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  /** Null until the team's tool has said something about it. */
+  allowance: Allowance.nullable(),
   /** ok < 80% ≤ warning < 100% ≤ exhausted */
   level: z.enum(["ok", "warning", "exhausted"]),
 });

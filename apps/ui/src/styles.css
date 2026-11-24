@@ -516,6 +516,19 @@ kbd { padding: 1px 5px; border: 1px solid var(--color-divider); font-size: 11px;
 @keyframes ring { 50% { stroke-opacity: 0.25; } }
 .shelf rect { fill: var(--color-bg); stroke: var(--color-divider); }
 .shelf path { stroke: var(--color-divider); }
+/* The usage board: a chalkboard, so it reads the same on the light wall and with the lights down. */
+.board { cursor: pointer; }
+.board:focus-visible { outline: 2px solid var(--lp-accent, #416180); outline-offset: 2px; }
+.board-frame { fill: #9a7450; }
+.board-slate { fill: #2c4741; }
+.board text { fill: #f3f1e8; }
+.board-small { font: 10px var(--lp-mono); letter-spacing: 0.03em; }
+.board-figure { font: 600 20px var(--lp-mono); letter-spacing: 0; }
+.board-figure .board-small { font-weight: 400; opacity: 0.8; }
+.board-bar { fill: none; stroke: #f3f1e8; stroke-opacity: 0.55; stroke-width: 1; }
+.board-bar-fill { fill: #f3f1e8; }
+.board.warning .board-bar-fill, .board.warning .board-budget, .board.limit-warning .board-limit { fill: #f2c14e; }
+.board.exhausted .board-bar-fill, .board.exhausted .board-budget, .board.limit-spent .board-limit { fill: #f0907f; }
 .dossier rect { fill: var(--color-bg); stroke: var(--color-text); stroke-width: 1; }
 .dossier path { fill: var(--color-surface); stroke: var(--color-text); stroke-width: 1; }
 .dossier text { font: 9px var(--lp-mono); fill: var(--color-text); }

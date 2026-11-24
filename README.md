@@ -93,7 +93,7 @@ a file yourself, set its priority, make it wait for another, or cancel it.
 
 | | |
 |---|---|
-| 🏢 **The Bench** | A live bureau floor: who is working, who is waiting on you, where each piece of work lies. |
+| 🏢 **The Bench** | A live bureau floor: who is working, who is waiting on you, where each piece of work lies. A board on the wall shows today's tokens, what is left of the daily budget, and the state of your account's allowance. |
 | 💬 **Correspondence** | A chat panel on every screen. Write to the lead, or to one perito with `@`. Answer and seal in place. Attach files. |
 | 🔏 **Seals** | Merges always wait for you. So do commands that publish, deploy, delete or reach other machines. |
 | 📋 **Reports** | Every finished file comes with three lists: done, tested, and *not verified*. |

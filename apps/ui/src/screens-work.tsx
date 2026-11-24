@@ -256,6 +256,8 @@ export function Bench(ctx: Ctx) {
         <SvgFloor
           model={floor}
           onOpen={(id) => ctx.go({ screen: "perito", id })}
+          usage={state.budgets[bureau.id]}
+          onBoard={() => ctx.go({ screen: "ledger" })}
           onFlightDone={actions.flightDone}
           onStampDone={actions.stampDone}
         />

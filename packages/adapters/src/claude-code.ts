@@ -97,6 +97,24 @@ export function parseStreamLine(line: string): SessionEvent[] {
     }
     return events;
   }
+  if (msg?.type === "rate_limit_event") {
+    // Sent to people on a subscription whenever the picture changes. A figure for how much is used
+    // comes only near the limit; most of the time there is just "allowed" and the time it renews.
+    const info = msg.rate_limit_info ?? {};
+    const status = info.status === "rejected" ? "spent" : info.status === "allowed_warning" ? "warning" : info.status === "allowed" ? "ok" : null;
+    if (!status) return [];
+    const share = typeof info.utilization === "number" && info.utilization >= 0 ? info.utilization : null;
+    return [
+      {
+        type: "allowance",
+        status,
+        window: typeof info.rateLimitType === "string" ? info.rateLimitType : null,
+        // Seen as a fraction; a tool that sends a percentage instead is read as one.
+        used: share === null ? null : Math.min(1, share > 1 ? share / 100 : share),
+        resetAt: typeof info.resetsAt === "number" ? new Date(info.resetsAt * 1000).toISOString() : null,
+      },
+    ];
+  }
   if (msg?.type === "result") {
     const events: SessionEvent[] = [];
     if (msg.is_error) {

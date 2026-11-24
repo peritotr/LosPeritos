@@ -23,6 +23,11 @@ export type SessionEvent =
   | { type: "turn_end"; inputTokens: number; outputTokens: number; costUsd: number }
   /** `limit` is set when the failure is the account's usage limit, with the reset time if known. */
   | { type: "error"; message: string; limit?: { resetAt: string | null } }
+  /**
+   * What the tool says about the account's own allowance, when it says anything: whether there is
+   * room left, how much of it is used (0–1, only when the tool gives a figure) and when it renews.
+   */
+  | { type: "allowance"; status: "ok" | "warning" | "spent"; window: string | null; used: number | null; resetAt: string | null }
   /** The underlying process is gone. */
   | { type: "exit"; code: number | null };
 

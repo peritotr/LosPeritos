@@ -268,6 +268,7 @@ test("an agent that hits the usage limit waits and then carries on by itself", a
   const limited = core.listAgents(workspace.id)[0]!;
   assert.equal(limited.status, "limited");
   assert.ok(limited.resumeAt);
+  assert.equal(core.budget(workspace.id).allowance?.status, "spent", "the board on the wall says so too");
 
   // The fake's limit lifts after 60 ms; the core then nudges the agent without being asked.
   for (let i = 0; i < 100 && core.listAgents(workspace.id)[0]!.status !== "idle"; i++) await tick();

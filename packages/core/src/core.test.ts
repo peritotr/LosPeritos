@@ -54,6 +54,8 @@ test("a message to the lead produces a reply, a run and an idle agent", async ()
   assert.deepEqual(messages.map((m) => m.body), ["hello", "Echo: hello"]);
   assert.equal(core.listAgents(workspace.id)[0]!.status, "idle");
   assert.equal(core.budget(workspace.id).spentUsd, 0.01);
+  const { inputTokens, outputTokens, allowance } = core.budget(workspace.id);
+  assert.deepEqual({ inputTokens, outputTokens, allowance }, { inputTokens: 10, outputTokens: 20, allowance: null }, "today's tokens are counted; the allowance is unknown until the tool speaks");
   assert.ok(events.some((event) => event.type === "agent.output"));
 });
 

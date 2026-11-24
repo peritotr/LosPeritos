@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+**The usage board**
+- A chalkboard hangs on the wall of the floor: today's tokens and their cost,
+  what is left of the daily budget, and what the tool says about the account's
+  own allowance, with the time it renews. Hover for the full figures; a click
+  opens the Ledger.
+- Claude Code tells a subscription's state on every turn but gives a
+  percentage only near the limit, so until then the board says just that there
+  is room. Codex says nothing until its limit is hit; the board then shows it
+  as spent, with the time it lifts. The demo has no account and shows a dash.
+
 ## 0.11.0 — 2026-11-24
 
 **Sıra gecesi**

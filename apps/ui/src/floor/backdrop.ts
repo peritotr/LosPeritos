@@ -48,7 +48,8 @@ const WALL_ART: Array<{ prop: string; x: number; y: number }> = [
   { prop: "window", x: 471, y: 84 },
   { prop: "window", x: 729, y: 84 },
   { prop: "clock", x: 600, y: 36 },
-  { prop: "picture", x: 321, y: 72 },
+  // Moved along to leave the wall above the snacks to the usage board (drawn by the SVG layer).
+  { prop: "picture", x: 388, y: 72 },
   { prop: "picture", x: 882, y: 72 },
   { prop: "calendar", x: 1002, y: 66 },
   { prop: "door", x: 1170, y: WALL_HEIGHT },
