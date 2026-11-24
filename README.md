@@ -115,9 +115,9 @@ None of this ships a line of code. All of it is in the app.
 <tr>
 <td width="50%">
 
-**Sıra gecesi.** One switch and the whole bureau drops what it is doing: everyone leaves their desk for the carpet, the dogs lie down beside it, evening falls, and a short tune (made in the app, in a hicaz scale, with a düm and a tek) plays. No new work is handed out until the night is over.
+**Sıra gecesi.** One switch and the whole bureau drops what it is doing: everyone leaves their desk for the carpet, a dancer comes in and the Lead Perito gets up to dance with her, the dogs lie down beside it, evening falls, and a short tune (made in the app, in a hicaz scale, with a düm and a tek) plays. No new work is handed out until the night is over.
 
-<img src="docs/sira-gecesi.png" alt="Sıra gecesi: the peritos gathered round a carpet in evening light, music notes rising, both dogs lying beside them." width="420">
+<img src="docs/sira-gecesi.png" alt="Sıra gecesi: the peritos gathered round a carpet in evening light, the Lead Perito dancing with a dancer in the middle, music notes rising, both dogs lying beside them." width="420">
 
 </td>
 <td width="50%">

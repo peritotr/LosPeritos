@@ -116,9 +116,9 @@ Bunların hiçbiri tek satır kod yazmıyor. Hepsi uygulamanın içinde.
 <tr>
 <td width="50%">
 
-**Sıra gecesi.** Tek düğme, bütün büro işi bırakır: herkes masasından kalkıp halının başına geçer, köpekler yanına uzanır, akşam çöker ve kısa bir ezgi çalar (uygulamanın kendi yaptığı, hicaz dizisinde, bir düm bir tek). Gece bitene kadar yeni iş dağıtılmaz.
+**Sıra gecesi.** Tek düğme, bütün büro işi bırakır: herkes masasından kalkıp halının başına geçer, ortaya bir dansöz çıkar ve Baş Perito onunla oynar, köpekler yanına uzanır, akşam çöker ve kısa bir ezgi çalar (uygulamanın kendi yaptığı, hicaz dizisinde, bir düm bir tek). Gece bitene kadar yeni iş dağıtılmaz.
 
-<img src="docs/sira-gecesi.png" alt="Sıra gecesi: peritolar akşam ışığında halının etrafında toplanmış, notalar yükseliyor, iki köpek yanlarında yatıyor." width="420">
+<img src="docs/sira-gecesi.png" alt="Sıra gecesi: peritolar akşam ışığında halının etrafında toplanmış, ortada Baş Perito dansözle oynuyor, notalar yükseliyor, iki köpek yanlarında yatıyor." width="420">
 
 </td>
 <td width="50%">

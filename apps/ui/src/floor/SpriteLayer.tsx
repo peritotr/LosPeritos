@@ -4,6 +4,7 @@ import { backdrop } from "./backdrop";
 import { DECOR, DESK, DOGS, LOUNGE_SEATS } from "./decor";
 import { FLOOR, type Actor, type FloorModel, type Point, type Pose } from "./model";
 import { WALK_SPEED, pointAlong, routeLength, routeToQueue } from "./routes";
+import { drawDancer } from "./dancer";
 import { loadSkin, placeholderSkin, type CharacterSheet, type Clip, type FloorSkin, type Prop } from "./skin";
 
 /** Folder under `public/skins/` that is used when present. */
@@ -29,6 +30,14 @@ interface Walker {
 
 /** Where the sıra gecesi gathers: the middle of the floor, in a wide ring. */
 const SIRA = { x: 600, y: 400, rx: 200, ry: 86 };
+/**
+ * Where the two who dance on the carpet stand: they circle each other slowly in front of the tray,
+ * half a turn apart. `phase` is 0 for the lead and π for the dancer.
+ */
+const duet = (seconds: number, phase: number): Point => ({
+  x: SIRA.x + Math.cos(seconds * 0.9 + phase) * 44,
+  y: SIRA.y + 26 + Math.sin(seconds * 0.9 + phase) * 9,
+});
 /** The dog that sees to faulty work, and how long each part of its errand takes, in seconds. */
 const BITER = "Berlin";
 const BITE = { out: 1.4, hold: 2.6, back: 1.8 };
@@ -276,7 +285,8 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         if (party) {
           // Everyone leaves the desk for a place in the circle.
           const angle = (index / Math.max(1, current.actors.length)) * Math.PI * 2 - Math.PI / 2;
-          const spot = { x: SIRA.x + Math.cos(angle) * SIRA.rx, y: SIRA.y + Math.sin(angle) * SIRA.ry };
+          // All but the lead, who is on the carpet, dancing with the one who came in for the night.
+          const spot = actor.agent.role === "lead" ? duet(seconds, 0) : { x: SIRA.x + Math.cos(angle) * SIRA.rx, y: SIRA.y + Math.sin(angle) * SIRA.ry };
           const from = away ? pointAlong(walker.route, walker.travelled) : stand;
           const at = { x: from.x + (spot.x - from.x) * gathered, y: from.y + (spot.y - from.y) * gathered };
           afoot.push({ actor, sheet, at, moving: Math.abs(wanted - sira) > 0.01, dancing: sira > 0.99 });
@@ -333,7 +343,18 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         ctx.globalAlpha = 1;
       }
       afoot.sort((a, b) => a.at.y - b.at.y);
+      // The dancer comes in from the side as the night gathers, and takes her place among the others by depth.
+      const partner = duet(seconds, Math.PI);
+      const dancer = party ? { x: FLOOR.width + 40 + (partner.x - FLOOR.width - 40) * gathered, y: partner.y } : null;
+      let dancerDrawn = !dancer;
+      const enter = () => {
+        if (dancerDrawn) return;
+        dancerDrawn = true;
+        const sway = sira > 0.99 && !still ? Math.abs(Math.sin(seconds * 5 + 0.8)) * 2 * scale : 0;
+        drawDancer(ctx, dancer!.x, dancer!.y - sway, scale, seconds, still);
+      };
       afoot.forEach(({ actor, sheet, at, moving, dancing }, index) => {
+        if (dancer && at.y > dancer.y) enter();
         const clip = dancing ? (sheet.clips.asking ?? sheet.clips.idle) : ((moving ? (sheet.walk ?? sheet.clips.asking) : sheet.clips.awaiting_seal) ?? sheet.clips.idle);
         if (!clip) return;
         // In the circle everyone claps along: small hops, each in their own time.
@@ -342,6 +363,7 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
         where.set(actor.agent.id, { x: at.x, y: at.y - hop - sheet.frameHeight * scale, feet: at.y });
         if (!party && NEEDS_YOU.includes(actor.pose)) sign(actor.pose, at.x, at.y - sheet.frameHeight * scale - scale, dark);
       });
+      enter();
 
       // What was brought to a desk floats above its perito for a few seconds, with a heart.
       const now = performance.now();

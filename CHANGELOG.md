@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Sıra gecesi**
+- A dancer comes in when the night gathers, and the Lead Perito leaves the
+  circle to dance with her on the carpet; she goes when the lanterns do.
+
 **Windows, as a trial**
 - The app can be built for Windows: `npm run package` there gives an unsigned
   zip of the app's folder. The tests run on Windows in CI, and a separate
