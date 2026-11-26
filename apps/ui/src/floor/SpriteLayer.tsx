@@ -5,6 +5,7 @@ import { DECOR, DESK, DOGS, LOUNGE_SEATS } from "./decor";
 import { FLOOR, type Actor, type FloorModel, type Point, type Pose } from "./model";
 import { WALK_SPEED, pointAlong, routeLength, routeToQueue } from "./routes";
 import { drawDancer } from "./dancer";
+import { drawBall, drawMavi, newMavi, stepMavi } from "./mavi";
 import { loadSkin, placeholderSkin, type CharacterSheet, type Clip, type FloorSkin, type Prop } from "./skin";
 
 /** Folder under `public/skins/` that is used when present. */
@@ -87,6 +88,8 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
     let sira = floorEffects.sira ? 1 : 0;
     /** Berlin's errand: whose desk, and when it set off. */
     let bite: { agentId: string; at: Point; start: number } | null = null;
+    /** The youngest in the office, who comes and goes as she likes. */
+    const mavi = newMavi();
     /** Where each perito is drawn this frame: the top of the head (x, y) and the feet. */
     const where = new Map<string, Point & { feet: number }>();
 
@@ -391,6 +394,25 @@ export function SpriteLayer({ model }: { model: FloorModel }) {
       ctx.fillStyle = furnished ? (dark ? "#e7e7ea" : "#2b2b2d") : getComputedStyle(element).color;
       // In the dark of the night the names are written light.
       if (party) ctx.fillStyle = `rgba(242, 226, 184, ${0.4 + 0.6 * gathered})`;
+      if (furnished) {
+        // Mavi: with a dog, or on a sofa with her tablet; on a sıra gecesi she claps along by the carpet.
+        const doing = stepMavi(mavi, seconds, elapsed, lounging, still);
+        const spot = { x: SIRA.x - 222, y: SIRA.y + 84 };
+        const mx = mavi.at.x + (spot.x - mavi.at.x) * gathered;
+        const my = mavi.at.y + (spot.y - mavi.at.y) * gathered;
+        const clapping = sira > 0.99 && !still;
+        const hop = clapping ? Math.abs(Math.sin(seconds * 5 + 2.1)) * 3 * scale : 0;
+        ctx.save();
+        const top = drawMavi(ctx, mx, my - hop, scale, seconds, {
+          sitting: doing.sitting && !party,
+          moving: party ? Math.abs(wanted - sira) > 0.01 : mavi.moving,
+          facingRight: party ? true : mavi.facingRight,
+          armUp: party ? clapping && Math.floor(seconds * 5) % 2 === 0 : doing.throwing,
+        });
+        if (doing.ball && !party) drawBall(ctx, doing.ball, scale);
+        ctx.restore();
+        ctx.fillText("Mavi", Math.round(mx), top - 5);
+      }
       for (const dog of DOGS) {
         const sheet = skin.pets[dog.kind];
         if (!sheet) continue;

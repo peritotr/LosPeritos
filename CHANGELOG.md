@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+**Mavi**
+- The youngest in the office has moved in: a small pixel girl who throws a
+  ball for Luna or Berlin, walks up the side of the room to sit on a sofa with
+  her tablet, and then goes to find the other dog. On a sıra gecesi she claps
+  along by the carpet. With reduced motion she just sits on the sofa.
+
 ## 0.12.0 — 2026-11-24
 
 **The usage board**

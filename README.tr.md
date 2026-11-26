@@ -125,6 +125,8 @@ Bunların hiçbiri tek satır kod yazmıyor. Hepsi uygulamanın içinde.
 
 **Hatalı işe Berlin bakar.** Bir peritonun işi hatayla biterse ya da bir dosyayı geri gönderirsen, Fransız bulldog Berlin koşup ısırır. İstersen Berlin'i kendi elinle de herhangi bir masaya gönderebilirsin. Setter Luna bu işlere karışmaz.
 
+**Mavi uğrar.** Ofisin en küçüğü köpeklerden birine top atar, sonra bir süre koltukta tabletiyle oturur, sonra öbür köpeği bulmaya gider.
+
 **Kahve ve donut.** Bir peritoya kartından kahve ya da donut götür. Sayılır, başının üstünde bir kalple süzülür ve alacağı bir sonraki mesajda anılır. Hiçbir şeye mal olmaz, hiçbir işi başlatmaz.
 
 <img src="docs/berlin.png" alt="Bulldog Berlin bir peritonun masasına doğru yolda; başka bir peritoya kahve, bir diğerine donut gelmiş." width="420">
@@ -232,7 +234,7 @@ Ofis görselleri 2dPig'in [Pixel Office](https://2dpig.itch.io/pixel-office)
 paketinden (CC0). Yazı tipleri: Barlow ve Barlow Condensed (SIL Open Font
 License). İkonlar: Lucide. Tam liste: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Ofis köpekleri Berlin ve Luna gerçektir.
+Ofis köpekleri Berlin ve Luna gerçektir. Mavi de öyle.
 
 ## Anısına
 

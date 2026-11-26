@@ -124,6 +124,8 @@ None of this ships a line of code. All of it is in the app.
 
 **Berlin sees to faulty work.** When a perito's work ends in an error, or you send a dossier back, Berlin the French bulldog trots over and bites. You can also send Berlin to anyone's desk yourself. Luna, the setter, stays out of it.
 
+**Mavi comes by.** The youngest in the office throws a ball for one of the dogs, then sits on a sofa with her tablet for a while, then goes to find the other dog.
+
 **Coffee and doughnuts.** Bring a perito a coffee or a doughnut from its card. It is counted, it floats over their head with a heart, and it is mentioned with the next message they get. It costs nothing and starts nothing.
 
 <img src="docs/berlin.png" alt="Berlin the bulldog on the way to a perito's desk, while another perito gets a coffee and a third a doughnut." width="420">
@@ -251,7 +253,7 @@ Office art from the [Pixel Office](https://2dpig.itch.io/pixel-office) pack by
 2dPig (CC0). Fonts: Barlow and Barlow Condensed (SIL Open Font License). Icons:
 Lucide. Full list in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Berlin and Luna, the office dogs, are real.
+Berlin and Luna, the office dogs, are real. So is Mavi.
 
 ## In memory
 
