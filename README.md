@@ -147,7 +147,7 @@ None of this ships a line of code. All of it is in the app.
 
 ## Try it
 
-**Download.** Get `LosPeritos-0.12.0-arm64.dmg` from the
+**Download.** Get `LosPeritos-0.13.0-arm64.dmg` from the
 [latest release](https://github.com/peritotr/LosPeritos/releases/latest), open
 it, and drag LosPeritos to Applications. It is signed and notarised, so it
 opens like any other Mac app. It needs an Apple silicon Mac, and

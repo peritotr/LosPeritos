@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.13.0 — 2026-11-26
 
 **Mavi**
 - The youngest in the office has moved in: a small pixel girl who throws a
